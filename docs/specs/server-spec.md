@@ -132,7 +132,7 @@ All settings come from a git-ignored `.env`. A committed `.env.example` lists ev
 - **Tokens are never logged**, not even rejected ones.
 - **Tokens must be at least 32 characters.** The server refuses to start if one is shorter, so a weak token can't slip into `.env`.
 - **A setup helper prints a new random token**, so nobody invents a weak one. It's a `uv run` command rather than a `python -c` one-liner, because quoting differs between PowerShell and other shells.
-- **The token also lives in each AI client's config file**, for example Claude Code's `.mcp.json`, which often sits in a repo and gets committed by mistake. The guides show how to have the client read the token from an environment variable instead of pasting it into the file.
+- **The token also lives in each AI client's config,** and a config file inside a repo, such as `.mcp.json` or `.vscode/mcp.json`, gets committed by mistake. So guide 3 keeps it in the user's home folder: Claude Code's `claude mcp add` at its default local scope (stored in `~/.claude.json`), and Copilot's token in the VS Code user configuration. Both are plain text. VS Code can prompt for a secret with `${input:...}` instead, but Copilot's agent doesn't support input variables. **Honest limit:** anyone who can read your home folder can read the token. Locally that's acceptable, because the server only listens on `127.0.0.1`.
 - **Hosted, too.** If the server is ever hosted (spec decision 4), it keeps named tokens, over HTTPS. OAuth, which is optional in the MCP spec, is the next step if you need to know which person is calling. The rest of the request path would stay the same: only "who is the caller" changes.
 
 ## 6. Host checks
