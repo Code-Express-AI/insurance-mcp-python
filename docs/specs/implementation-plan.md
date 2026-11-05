@@ -40,7 +40,7 @@ So at each stage review, we check the audit fixes in that stage. If a fix needs 
 
 The specs leave these details to be confirmed against the real libraries:
 
-- **MCP Python SDK (stage 0):** how to mount it in FastAPI, its host-check settings, the status code for a rejected host (403 or 421), how to reject unknown arguments, how it handles JSON-RPC batches, tool annotations, and its test client.
+- **MCP Python SDK (stage 0): done.** Checked against `mcp` 2.3.0, and [server-spec.md](server-spec.md) updated to match (decisions 1, 6, 7, 9, 13 and 14).
 - **pgvector under `search_path = ''` (stage 6):** which schema the extension goes in, and whether the `<=>` operator needs writing as `OPERATOR(schema.<=>)`.
 - **RAG functions take `real[]` (stage 6)** and cast it to a vector inside the function, so `mcp_reader` needs no access to the vector type.
 - **Embedding time (stage 6):** how long the local model (fastembed) takes to embed the `full` data, about 90,000 texts.

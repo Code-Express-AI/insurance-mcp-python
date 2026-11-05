@@ -1,0 +1,42 @@
+[project]
+name = "insurance-mcp"
+version = "0.1.0"
+description = "A secure, read-only MCP server for a fictitious auto insurance claims system, built with FastAPI and PostgreSQL."
+authors = [
+    { name = "Liam Grossmann" },
+]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.14"
+dependencies = [
+    "psycopg[binary]>=3.3.8",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+    "testcontainers>=4.15.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+# Ruff also formats Python examples in Markdown. The examples in docs/ are kept
+# short on purpose, so ruff only checks the code.
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+# E/F: the pycodestyle and pyflakes basics. I: sorted imports.
+# UP: modern Python syntax. B: common bugs (bugbear).
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "full_data: checks the planted demo facts on full data (run with -m full_data)",
+]
