@@ -1,11 +1,13 @@
-"""Build the database from scratch: run the files in sql/ in order, then set the reader password.
+"""Build the database from scratch: run the files in sql/ in order, set the
+reader password, then load the data.
 
-Run it with:  uv run python -m insurance_mcp.setup_db
+Run it with:  uv run python -m insurance_mcp.setup_db [--size small]
 
 It connects as the admin role, using ADMIN_DATABASE_URL from .env. It drops and
 recreates everything it owns, so it's safe to run again to start over.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -13,6 +15,9 @@ import psycopg
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from insurance_mcp.generate import load_data
+from insurance_mcp.generate.config import SIZES
 
 SQL_DIR = Path(__file__).parent.parent.parent / "sql"
 MIN_READER_PASSWORD_LENGTH = 24
@@ -45,11 +50,13 @@ def reader_password(reader_database_url: str) -> str:
     return password
 
 
-def setup_database(admin_database_url: str, reader_database_url: str) -> None:
-    """Run every file in sql/ in order, in one transaction, then set the reader password."""
+def setup_database(admin_database_url: str, reader_database_url: str, size: str = "full") -> None:
+    """Run every file in sql/ in order, set the reader password, and load `size` data.
+
+    All in one transaction: if any step fails, nothing changes.
+    """
     password = reader_password(reader_database_url)
 
-    # One transaction: if any file fails, nothing changes.
     with psycopg.connect(admin_database_url) as conn:
         for path in sorted(SQL_DIR.glob("*.sql")):
             print(f"Running {path.name}")
@@ -58,13 +65,26 @@ def setup_database(admin_database_url: str, reader_database_url: str) -> None:
         # ALTER ROLE can't take a $1 parameter like a query can, so psycopg
         # quotes the password safely as a literal instead.
         conn.execute(sql.SQL("alter role mcp_reader password {}").format(sql.Literal(password)))
+
+        load_data(conn, size)
     print("Database ready.")
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Build the database from scratch and load the data."
+    )
+    parser.add_argument(
+        "--size",
+        choices=list(SIZES),
+        default="full",
+        help="full for the demos (the default), small for a quick load",
+    )
+    args = parser.parse_args()
+
     settings = SetupSettings()
     try:
-        setup_database(settings.admin_database_url, settings.reader_database_url)
+        setup_database(settings.admin_database_url, settings.reader_database_url, args.size)
     except SetupError as error:
         sys.exit(f"Setup stopped: {error}")
 

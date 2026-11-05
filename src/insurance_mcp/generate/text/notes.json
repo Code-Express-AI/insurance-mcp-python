@@ -1,0 +1,307 @@
+{
+  "first_report": {
+    "opening": [
+      "First notice of loss taken by phone from {customer}.",
+      "Claim opened today after {customer} reported the loss online.",
+      "Received the first report from {customer} for the loss on {loss_date}.",
+      "New claim assigned to me this morning, reported by {customer}.",
+      "{customer} called the claims line to report the loss on {loss_date}.",
+      "Claim set up from the online report. Reviewed the details the customer gave.",
+      "Took the initial report from {customer} this afternoon.",
+      "Claim received through the mobile app, with photos attached.",
+      "First contact with the insured today about the loss on {loss_date}.",
+      "Opened the file and confirmed the policy was in force on the date of loss."
+    ],
+    "middle": [
+      "Confirmed the {vehicle} is the vehicle listed on the policy and {driver} is a listed driver.",
+      "Called {customer} on {phone} to confirm the details and explain the next steps.",
+      "Customer gave the home address as {street_address}, {city}, which matches the policy.",
+      "Explained how the deductible works and that coverage depends on the investigation.",
+      "Asked the customer to send photos of the damage and any police report number.",
+      "The customer was calm and clear about what happened, and the account matches the photos so far.",
+      "Customer asked whether this will raise the premium. Explained that it depends on the outcome and fault.",
+      "Spoke with {customer_last_name} at length. The story is consistent with the description given online.",
+      "Reviewed the photos uploaded through the app. Damage looks consistent with the reported loss.",
+      "Customer prefers email over phone calls. Noted that on the file."
+    ],
+    "middle_by_type": {
+      "collision": [
+        "The other driver's details were exchanged at the scene. Requested the police report.",
+        "The customer says {other_vehicle} was involved. Will get a statement from the other party.",
+        "The car is drivable but the front end is damaged. Customer was told not to drive it if the lights are out."
+      ],
+      "glass": [
+        "Damage is limited to the windshield. Offered a mobile glass service to replace it at the customer's home.",
+        "Customer says the crack is spreading and blocks the driver's view. Told them not to drive until it's replaced."
+      ],
+      "weather": [
+        "Several other storm claims came in from {city} today, so this fits the weather reports.",
+        "Customer sent photos of the dents across the roof and hood. Weather records confirm the storm."
+      ],
+      "vandalism": [
+        "Customer has filed a police report. Asked for the report number for the file.",
+        "No witnesses. Customer is asking neighbors whether anyone has camera footage."
+      ],
+      "theft": [
+        "Police report filed. Asked the customer for both sets of keys and the title.",
+        "Customer is not sure whether the doors were locked. Will check this in the recorded statement."
+      ],
+      "fire": [
+        "Fire department attended. Requested their incident report.",
+        "Customer says the car had no recent repairs or warning lights. Will confirm with the service records."
+      ]
+    },
+    "middle_injury": [
+      "Customer mentioned neck pain after the accident and has seen a doctor. Opened an injury part of the claim.",
+      "{driver} was taken to the emergency room for a check-up. Asked for the medical records."
+    ],
+    "closing": [
+      "Next step: arrange an inspection.",
+      "Will follow up once the photos and documents arrive.",
+      "Set a reminder to call back in two days.",
+      "Sent the claim acknowledgment letter by email.",
+      "Waiting on documents before going further.",
+      "File ready for investigation.",
+      "Customer has the claim number and my direct line.",
+      "Diary set for a follow-up at the end of the week."
+    ]
+  },
+  "investigation": {
+    "opening": [
+      "Follow-up on the investigation.",
+      "Reviewed the file again today.",
+      "Update after speaking with the customer.",
+      "Investigation note.",
+      "Received more documents for the file.",
+      "Checked in on the open items today.",
+      "Spoke with the customer again this morning.",
+      "Picked the file back up after the weekend.",
+      "Supervisor asked for an update on this claim.",
+      "Made some progress on the outstanding questions."
+    ],
+    "middle": [
+      "Recorded statement taken from {driver}. The account matches the first report.",
+      "Police report received. It agrees with what the customer told us.",
+      "Called {customer} on {phone} but got voicemail. Left a message asking for a call back.",
+      "Customer sent the photos asked for. They show the damage clearly.",
+      "Checked the claims history on the policy. Nothing that concerns me.",
+      "Confirmed the date and place of the loss with the customer.",
+      "Customer emailed to ask how long this will take. Gave an estimate of two to three weeks.",
+      "The customer was upset about the delay. Explained what we are still waiting for.",
+      "Visited {customer} at home at {street_address}. Went over the timeline again.",
+      "Checked the vehicle's registration and the policy's listed drivers. All in order."
+    ],
+    "middle_by_type": {
+      "collision": [
+        "The other driver's insurer has been contacted. They are reviewing liability.",
+        "Statement from the other driver disagrees on who had the right of way. Will look at the police report.",
+        "Spoke to a witness who saw {other_vehicle} at the scene. The witness supports the customer's account."
+      ],
+      "glass": [
+        "Glass shop confirms the windshield needs replacing rather than repairing.",
+        "The car has a camera behind the windshield, so it will need recalibrating after the glass is replaced."
+      ],
+      "weather": [
+        "Weather service data confirms hail in {city} on {loss_date}.",
+        "Inspection booked at the drive-in hail center this week."
+      ],
+      "vandalism": [
+        "The police have no suspects. No sign the customer was involved.",
+        "Neighbor's camera footage shows someone near the car that night, but the face isn't visible."
+      ],
+      "theft": [
+        "No sign of the car yet. The 30-day waiting period has started before we settle a theft.",
+        "Both keys received from the customer. Checked for any loans on the car."
+      ],
+      "fire": [
+        "The fire investigator's report says the cause was electrical, with no sign of arson.",
+        "Fire investigator has inspected the car. Waiting for the written report."
+      ]
+    },
+    "middle_injury": [
+      "Spoke to {customer_last_name}. Still in a neck brace and seeing a physical therapist twice a week.",
+      "Received the medical bills so far. Treatment is ongoing.",
+      "Injury part of the claim is still open. Waiting on the doctor's report.",
+      "Customer's attorney called. All contact about the injury now goes through the attorney."
+    ],
+    "closing": [
+      "Will review again once the remaining documents arrive.",
+      "Diary set for a follow-up next week.",
+      "Nothing more needed from the customer for now.",
+      "Investigation continues.",
+      "Will update the customer by the end of the week.",
+      "Still waiting on one document before deciding.",
+      "Moving to the estimate once this is cleared up.",
+      "Updated the reserve to match what we know so far."
+    ]
+  },
+  "estimate": {
+    "opening": [
+      "Estimate received.",
+      "Repair estimate review.",
+      "The shop sent its estimate today.",
+      "Appraiser has inspected the car.",
+      "Reviewed the repair estimate line by line.",
+      "Estimate update.",
+      "Inspection done this morning.",
+      "Supplement received from the shop."
+    ],
+    "middle": [
+      "{shop} has estimated the repairs on the {vehicle} and the parts are on order.",
+      "Estimate from {shop} looks reasonable for the damage in the photos. Approved the repair.",
+      "The reserve is set at {reserve}, which covers the repair and any extras we know of.",
+      "{shop} found some hidden damage once the panels came off, so the estimate went up.",
+      "Compared the estimate with similar repairs on a {make}. The labor hours are in line.",
+      "Asked {shop} to use a cheaper part where the policy allows. They agreed.",
+      "Repairs approved at {shop}. Customer told it should take about a week.",
+      "Customer asked to use a different shop. Explained they can, but we pay based on this estimate."
+    ],
+    "middle_by_type": {
+      "collision": [
+        "Frame measurements are within limits, so the car can be repaired.",
+        "Rental car set up while the {vehicle} is in the shop."
+      ],
+      "glass": [
+        "Windshield replacement and camera recalibration booked with {shop}.",
+        "Glass replacement quoted by {shop}. Approved."
+      ],
+      "weather": [
+        "Paintless dent repair will fix most of the hail dents. The roof panel needs replacing.",
+        "Hail damage estimate covers the hood, roof and trunk lid."
+      ],
+      "vandalism": [
+        "Repaint of the damaged panels approved at {shop}.",
+        "New window and door panel approved."
+      ],
+      "theft": [
+        "Recovered car inspected. The steering column and ignition need replacing.",
+        "Recovered car has damage to the interior and the ignition. Repairs approved."
+      ],
+      "fire": [
+        "The fire damage is limited to the engine bay, so the car can be repaired.",
+        "Wiring harness and hood need replacing after the fire."
+      ]
+    },
+    "closing": [
+      "Reserve updated to {reserve}.",
+      "Waiting for the shop to finish the repairs.",
+      "Customer is happy with the plan.",
+      "Will check progress with the shop next week.",
+      "Payment to follow once the repair is done.",
+      "Sent the estimate to the customer by email."
+    ]
+  },
+  "total_loss": {
+    "opening": [
+      "Total loss review.",
+      "Valuation received.",
+      "Appraiser's report is in.",
+      "Update on the vehicle's value.",
+      "Inspection result: the car can't be repaired economically.",
+      "Total loss decision."
+    ],
+    "middle": [
+      "The cost to repair is more than the car is worth, so the {vehicle} is a total loss.",
+      "Valuation based on similar {make} vehicles for sale near {city}. Offer set at {reserve}.",
+      "Explained to {customer} that we pay the car's market value, less the deductible.",
+      "Customer disagreed with the first valuation and sent two listings for similar cars. Reviewed them.",
+      "Asked the customer for the title and any loan details so we can pay the lender first.",
+      "The car will go to a salvage auction once the title is signed over.",
+      "Called {customer} on {phone} to explain the offer.",
+      "Rental car extended for a few days while the customer looks for a new car."
+    ],
+    "middle_by_type": {
+      "theft": [
+        "The car hasn't been found after the waiting period, so we're treating it as a total loss."
+      ],
+      "fire": [
+        "The car burned out completely. Nothing can be saved."
+      ]
+    },
+    "closing": [
+      "Offer letter sent.",
+      "Waiting on the signed title.",
+      "Customer has accepted the offer.",
+      "Will pay once the paperwork arrives.",
+      "Reserve set at the valuation, {reserve}."
+    ]
+  },
+  "settlement": {
+    "opening": [
+      "Claim settled.",
+      "Final payment issued.",
+      "Closing the file.",
+      "Settlement note.",
+      "All payments made on this claim.",
+      "Repairs finished and paid."
+    ],
+    "middle": [
+      "Final payment made, matching the agreed amount.",
+      "Customer confirmed they are happy with the outcome.",
+      "Final payment sent to the customer by direct deposit.",
+      "The other driver's insurer accepted liability, so we will recover our costs from them.",
+      "Customer signed the release. No more payments expected.",
+      "Customer thanked us for how quickly this was handled.",
+      "All invoices received and paid.",
+      "Payment matches the approved amount. Nothing outstanding."
+    ],
+    "closing": [
+      "File closed.",
+      "No further action needed.",
+      "Closing the claim.",
+      "Claim closed today.",
+      "Sent the closing letter.",
+      "Marking the file as settled."
+    ]
+  },
+  "denial": {
+    "opening": [
+      "Claim denied.",
+      "Coverage decision: denied.",
+      "Denial note.",
+      "After review, this claim is not covered.",
+      "Reviewed with my supervisor and we agree to deny."
+    ],
+    "middle": [
+      "The damage in the photos doesn't match the accident the customer described.",
+      "The driver at the time of the loss was not listed on the policy and doesn't live in the household.",
+      "The damage was there before the policy started, according to the earlier inspection photos.",
+      "The car was being used for paid deliveries at the time, which the policy excludes.",
+      "The customer didn't send the documents we asked for, after three requests.",
+      "The statements from the customer changed several times and don't match the police report.",
+      "The loss isn't covered under this policy's coverage level."
+    ],
+    "closing": [
+      "Denial letter sent with the reasons and how to appeal.",
+      "Customer told by phone and in writing.",
+      "File closed as denied.",
+      "Customer said they will appeal. Noted on the file.",
+      "Closing the claim."
+    ]
+  },
+  "withdrawal": {
+    "opening": [
+      "Claim withdrawn.",
+      "Customer asked to close the claim.",
+      "Closing the file at the customer's request.",
+      "Withdrawal note."
+    ],
+    "middle": [
+      "The repair cost is less than the deductible, so there is nothing for us to pay.",
+      "Customer decided to pay for the repair themselves to protect their premium.",
+      "The other driver's insurer has accepted the claim and is paying for everything.",
+      "Customer found the damage was cheaper to fix than expected and doesn't want to claim."
+    ],
+    "middle_by_type": {
+      "theft": [
+        "The stolen car was found undamaged the next day."
+      ]
+    },
+    "closing": [
+      "File closed with no payment.",
+      "Confirmed the withdrawal by email.",
+      "No further action.",
+      "Closing the claim."
+    ]
+  }
+}

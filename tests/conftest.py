@@ -63,7 +63,7 @@ def superuser_url(postgres) -> str:
 
 @pytest.fixture(scope="session")
 def admin_url(postgres, superuser_url) -> str:
-    """The admin role, after the setup command has built the database.
+    """The admin role, after the setup command has built the database and loaded small data.
 
     Like a hosted database's admin, it isn't a superuser: it can create roles and
     owns the database, nothing more. So every test run proves the setup never
@@ -74,7 +74,7 @@ def admin_url(postgres, superuser_url) -> str:
         conn.execute("create database insurance owner app_admin")
 
     url = connection_url(postgres, "app_admin", ADMIN_PASSWORD, "insurance")
-    setup_database(url, reader_url_for(postgres))
+    setup_database(url, reader_url_for(postgres), size="small")
     return url
 
 
