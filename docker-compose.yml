@@ -1,0 +1,29 @@
+# The local PostgreSQL database. Start it with: docker compose up -d
+#
+# The image includes the pgvector extension, which the RAG part of the project
+# uses later. Keep the same image from the start: changing it means rebuilding
+# the database.
+
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    environment:
+      # Read from .env. Docker uses it only when it first creates the database.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (copy .env.example)}
+      POSTGRES_DB: insurance
+    ports:
+      # 127.0.0.1 only: other machines on your network can't reach the database.
+      # Plain "5432:5432" would listen on every network interface.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # PostgreSQL 18 images keep their data under /var/lib/postgresql
+      # (older images used /var/lib/postgresql/data).
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "insurance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

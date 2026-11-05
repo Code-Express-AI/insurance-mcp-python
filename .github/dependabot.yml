@@ -1,0 +1,21 @@
+# Dependabot opens a pull request when something we depend on has an update,
+# so security fixes don't sit unnoticed.
+version: 2
+updates:
+  # Python packages, from pyproject.toml and uv.lock.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # The PostgreSQL image in docker-compose.yml.
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # The actions in .github/workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

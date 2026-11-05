@@ -220,7 +220,7 @@ Who checks what:
 
 | Problem | Checked by | What the model gets |
 |---|---|---|
-| Missing argument, wrong type, bad UUID format, out-of-range number, bad date | The MCP server, in Python, **before** calling the database (layer 3) | A message saying how to fix the call ("policy_id must be a UUID, as returned by get_customer.") |
+| Missing argument, wrong type, bad UUID format, out-of-range number, bad date | The MCP server, in Python, **before** calling the database (layer 3) | The MCP SDK's validation message, which names the argument and the rule it broke |
 | A lookup by id or number finds nothing ("no policy AUT-104233") | The function: `RAISE EXCEPTION` | A message saying how to fix the call ("Unknown policy number. Use find_customers, then get_customer, to find it.") |
 | A search finds nothing ("customers called Zzyzx") | Nobody: it isn't an error | An empty result |
 | Anything else (a bug, the database is down, a timeout) | The MCP server | A generic message: "The database could not complete this request." |

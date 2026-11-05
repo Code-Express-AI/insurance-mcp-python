@@ -2,7 +2,7 @@
 
 The detail behind decisions 2, 4, 5, 7 and 9 in [spec.md](spec.md): the MCP server that sits between an AI assistant and the database. The database it calls is described in [database-spec.md](database-spec.md).
 
-**Signed off by Liam on 2026-11-05.** Every decision below is Agreed.
+**Signed off by Liam on 2026-11-05.** Every decision below is Agreed. Updated the same day, with Liam's OK, after checking the MCP SDK (implementation plan, stage 0).
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -29,13 +29,15 @@ The detail behind decisions 2, 4, 5, 7 and 9 in [spec.md](spec.md): the MCP serv
 
 Every request passes these checks in order. Each one holds even if the one before it fails.
 
-1. **Host check:** is the request addressed to a host name we expect? (decision 6)
-2. **Authentication:** does it carry a valid named token? (decision 5)
-3. **Rate limit:** has this caller made too many calls? (decision 7)
+1. **Authentication:** does it carry a valid named token? (decision 5)
+2. **Rate limit:** has this caller made too many requests? (decision 7)
+3. **Host check:** is the request addressed to a host name we expect, from no unexpected browser origin? (decision 6)
 4. **Request size:** is the body under 64 KB? (decision 14)
 5. **Tool and arguments:** is it one of our tools, with valid arguments and nothing else? (decisions 9 and 14)
 6. **Database:** the tool runs exactly one `mcp` function as `mcp_reader`, which can do nothing else ([database-spec.md](database-spec.md)).
 7. **Audit:** the call is recorded, and if it can't be, the result isn't returned.
+
+Steps 1 and 2 are our own FastAPI middleware. Steps 3 to 5 are done by the MCP SDK, inside the `/mcp` endpoint we mount, so they come after ours. That's why the host check isn't first: see decision 6.
 
 ## 1. Stack and libraries
 
@@ -45,7 +47,7 @@ Every request passes these checks in order. Each one holds even if the one befor
 |---|---|---|
 | Language | Python 3.14, pinned in `.python-version` | Pinned so the data generator's seed gives the same data everywhere, and it stays on 3.14 for the whole series. Not 3.15, the latest release: in November 2026, onnxruntime, which the local embedding model needs (spec decision 11), had no packages for 3.15 yet. 3.14 installs everything on Windows, macOS and Linux, and is supported until 2030. |
 | Packages | uv | One tool for Python, the virtual environment and packages. Works the same on all three systems. |
-| MCP | The official `mcp` Python SDK | The reference implementation, maintained with the MCP spec. Not the separate FastMCP 2 project, to keep to one well-known dependency. |
+| MCP | The official `mcp` Python SDK, version 2 | The reference implementation, maintained with the MCP spec. Not the separate FastMCP project, to keep to one well-known dependency. In version 2 the server class is `MCPServer`: older tutorials call it `FastMCP`. |
 | Web framework | FastAPI, run by uvicorn | The MCP endpoint is mounted inside it. FastAPI adds the health endpoint and middleware. |
 | Database | psycopg 3 with `psycopg_pool` | The standard modern PostgreSQL driver. No ORM: every query is a call to one database function. |
 | Settings | `pydantic-settings` | Reads `.env`, checks types and fails at startup if a setting is missing. Common in FastAPI projects. |
@@ -54,7 +56,9 @@ Every request passes these checks in order. Each one holds even if the one befor
 
 **Why FastAPI, when the MCP SDK could run on its own?** The SDK is built on Starlette, the lighter framework FastAPI sits on, and it could serve `/health` and the middleware by itself. We use FastAPI anyway because it's the framework most Python developers already know, so the code looks familiar, and it leaves room to add other endpoints later without changing framework. There's no web front end planned (spec decision 4). The cost is one extra dependency.
 
-Exact versions are pinned in `uv.lock` when we build. The MCP SDK moves quickly, so check its current API for mounting and security settings at that point.
+Exact versions are pinned in `uv.lock`. The design was checked against `mcp` 2.3.0 in November 2026.
+
+**Use what the SDK gives us.** Where the SDK already does a job (host checks, the body limit, rejecting batches, argument validation and its error messages), we use it as it is, rather than replacing it with our own version. Less code to read, and models are used to the SDK's behavior. We only add our own code where the SDK leaves a gap that matters for security, such as rejecting unknown arguments (decision 14).
 
 ## 2. Project layout
 
@@ -135,7 +139,10 @@ All settings come from a git-ignored `.env`. A committed `.env.example` lists ev
 
 **Status:** Agreed
 
-The server only answers requests addressed to host names in `ALLOWED_HOSTS` (by default `localhost` and `127.0.0.1`), and rejects browser requests from unexpected origins. This blocks **DNS rebinding**: a trick where a malicious web page makes your own browser send requests to a server on your machine. The MCP spec asks local servers to do this. The SDK has settings for it. If they don't fit, it's a few lines of middleware.
+The server only answers requests addressed to host names in `ALLOWED_HOSTS` (by default `localhost` and `127.0.0.1`), and rejects browser requests from unexpected origins. This blocks **DNS rebinding**: a trick where a malicious web page makes your own browser send requests to a server on your machine. The MCP spec asks local servers to do this, and the SDK does it for us: its transport security settings take the allowed hosts and origins. A bad host gets `421 Misdirected Request` and a bad origin gets `403 Forbidden`.
+
+- **Ports:** the `Host` header includes the port, so the SDK's allowed hosts are written with a port wildcard (`localhost:*`). The server builds those from `ALLOWED_HOSTS`, so the setting stays plain host names.
+- **It runs after authentication.** The SDK checks hosts inside the `/mcp` endpoint, and our token check is middleware in front of it. So a request with a bad host and no token gets `401`, not `421`. That's fine: a DNS rebinding page doesn't have the token, so it's stopped either way. Moving the host check first would mean writing our own copy of what the SDK already does.
 
 ## 7. Rate limiting
 
@@ -145,7 +152,7 @@ The server only answers requests addressed to host names in `ALLOWED_HOSTS` (by 
 - **A sliding window per caller:** `RATE_LIMIT_PER_MINUTE` calls (default 60) per token name. A question usually takes a few tool calls, and a model takes 20 seconds or more to answer, so 60 leaves plenty of room for normal use while stopping a runaway loop.
 - **A daily cap per caller:** `RATE_LIMIT_PER_DAY` (default 1,000). The per-minute limit stops a runaway loop. The daily cap stops slow, steady copying: without it, a caller could page through every claim in a few minutes (decision 10). 1,000 calls is a few hundred questions, far more than a person asks in a day.
 - **Failed tokens are limited per IP address:** after 10 requests with a bad token in a minute, that address gets `429` too. Guessing a 256-bit token is hopeless anyway. This stops someone flooding the log with rejected requests. Behind a reverse proxy, every request comes from the proxy's address, so a hosted server must read the client's real address from the proxy's header, and only from a proxy it trusts. The docs say so.
-- **It counts tool calls, not HTTP requests.** If the SDK accepts JSON-RPC batches (several calls in one request), counting requests would let a batch skip the limit. Check what the SDK does when we build. Either count each call in a batch or reject batches, and a test proves it.
+- **It counts requests to `/mcp`.** The SDK rejects JSON-RPC batches (several calls in one request) with `400`, so one request carries at most one tool call, and counting requests can't be dodged with a batch. It also means the limiter never reads the request body. Requests that aren't tool calls (connecting, listing tools) count too, but a client makes only a few of those. A test proves batches are rejected.
 - Over the limit: HTTP `429 Too Many Requests` with a `Retry-After` header.
 - **In memory, so per process.** That's fine for one process. The docs say a multi-server deployment would need a shared store.
 
@@ -167,7 +174,7 @@ Each tool is a plain `async` Python function registered with the SDK. They all f
 
 1. **The description is written for the model:** what the tool is for, when to use it instead of another tool, and what each argument means.
 2. **Arguments use Python type hints with limits** (`Annotated[str, Field(min_length=2, max_length=100)]`, `Literal["open", "settled", ...]`, `UUID`). The SDK turns them into the schema the model sees, and rejects bad values before our code runs.
-3. **Error messages say how to fix the call:** "policy_id must be a UUID, as returned by get_customer." See database decision 8 for which errors reach the model.
+3. **Bad arguments get the SDK's own error messages,** which name the argument and the rule it broke ("String should match pattern '^AUT-\d{6}$'"). Models are used to them, so we don't rewrite them. Our own messages are only for the checks we add (decision 14) and for "not found". See database decision 8 for which errors reach the model.
 4. **Exactly one database function call**, wrapped by the audit helper, which records the call (database decision 10).
 5. **Results are plain JSON lists or objects**, with the same field names as the database function (`claim_id`, `policy_number`). Never internal ids.
 6. **Every tool is marked read-only** with MCP's tool annotations (`readOnlyHint: true`). It's only a hint: it tells AI clients the tool doesn't change anything, and each client decides what to do with that (for example, whether it still asks the user before calling it). The real guarantee is the database.
@@ -199,7 +206,7 @@ async def search_claims(
     """List claims matching all the filters given, newest first. 50 per page."""
 ```
 
-The exact SDK syntax is checked when we build.
+This is the SDK's syntax as checked in stage 0.
 
 **How we check it:**
 - A test fails if any tool or argument has no description.
@@ -277,10 +284,10 @@ What we can't do: control which other tools someone's assistant has.
 
 pytest, in `tests/server/`. Most use the real database in the test container (spec decision 7). Each one proves part of the request path holds:
 
-- **Host check:** a request with an unexpected `Host` header is rejected.
+- **Host check:** a request with an unexpected `Host` header gets `421`, and one with an unexpected `Origin` gets `403`.
 - **Authentication:** no token, a wrong token and a malformed header are all rejected with `401`, and the token never appears in the log.
 - **Rate limit:** the call after the limit gets `429` with `Retry-After`. A different caller is unaffected.
-- **Arguments:** bad values are rejected with a message that says how to fix them, and the database is never called.
+- **Arguments:** bad values are rejected with a tool error, and the database is never called.
 - **Errors:** a database error reaches the caller as the generic message only, with no SQL, function names or context line.
 - **Audit:** every tool call writes one audit row with the right caller. If the audit write fails, the result isn't returned.
 - **Every tool** works end to end against the generated data, and is marked read-only.
@@ -290,16 +297,18 @@ pytest, in `tests/server/`. Most use the real database in the test container (sp
 - **Tokens:** the server refuses to start with a token shorter than 32 characters.
 - **Daily cap:** the call after `RATE_LIMIT_PER_DAY` gets `429`. Tests set it low.
 - **Failed tokens:** the 11th bad-token request in a minute from one address gets `429`.
-- **Batches:** a JSON-RPC batch can't get more tool calls through than the limit allows.
+- **Batches:** a JSON-RPC batch is rejected with `400`, and no tool runs.
 - **CORS:** no response, including errors, carries an `Access-Control-Allow-Origin` header.
 - **Logging:** after a tool call, the console log contains neither its arguments nor its results. A rejected argument is logged with the caller, tool and argument name, but not its value (decision 12).
-- **Input limits:** a body over 64 KB gets `413`, with and without a `Content-Length` header. Deeply nested JSON is rejected without crashing the server. An over-long string, a null byte, a blank name, a badly formatted policy number and an unknown argument each come back as a tool error that says how to fix the call, and the database is never called (decision 14).
+- **Input limits:** a body over 64 KB gets `413`, with and without a `Content-Length` header. Deeply nested JSON is rejected without crashing the server. An over-long string, a null byte, a blank name, a badly formatted policy number and an unknown argument each come back as a tool error, and the database is never called (decision 14).
 - **Error responses:** every row of the error table in decision 14 has a test that checks its status code or tool error and its message.
 - **Health:** `/health` answers without a token and says nothing about the database (decision 3).
 - **Settings:** the server's settings have no admin connection string (decision 4).
 
 **How the tests talk to the server:**
-- **The server runs inside the test process**, with no network port. HTTP tests (host check, token, rate limit, health) use `httpx`, the standard async HTTP client, which can send requests straight to the app. Tool tests use the MCP SDK's own client, so they go through the real MCP protocol, the way an AI client does. Check the SDK's current test setup when we build.
+- **The server runs inside the test process**, with no network port. HTTP tests (host check, token, rate limit, health) use `httpx2`, the async HTTP client the MCP SDK itself uses, which can send requests straight to the app. Tool tests use the SDK's own `Client`, connected to the app through `httpx2`, so they go through the real MCP protocol and every layer of the request path, the way an AI client does.
+- **Both protocol versions.** The 2026-07-28 MCP spec dropped the connection handshake, and the SDK serves old and new clients from the same endpoint. Tool tests run against both, since the AI clients won't all switch at once.
+- **A fresh app per test.** The SDK's request handling can only be started once per app, so `main.py` has a `create_app()` function and each test builds its own.
 - **Rate limit tests set the limit to 3**, so they don't need 61 calls.
 - **The tools are `async`, so the tests are too.** They use the pytest plugin from `anyio`, which the MCP SDK already depends on, rather than adding another.
 
@@ -312,7 +321,8 @@ This is a security server first, so nothing a caller sends may be unbounded, and
 ### Limits on what comes in
 
 - **Python can't have a classic buffer overflow.** Strings and lists grow safely. The real risk is **resource exhaustion**: a huge body, a huge string or deeply nested JSON that eats memory or CPU. The limits below are about that.
-- **A 64 KB limit on the request body.** Neither uvicorn nor Starlette has one by default. A small middleware counts the bytes as they arrive and stops at 64 KB with `413 Content Too Large`. It doesn't trust the `Content-Length` header, which a caller can leave out or get wrong. The largest real call, a RAG search, is well under 2 KB.
+- **A 64 KB limit on the request body.** Neither uvicorn nor Starlette has one by default, but the MCP SDK does (4 MB unless you set it). We set it to 64 KB, and a bigger body gets `413 Content Too Large`. The SDK counts the bytes as they arrive rather than trusting the `Content-Length` header, which a caller can leave out or get wrong. The largest real call, a RAG search, is well under 2 KB.
+- **Deeply nested JSON** is rejected by the SDK's JSON parser with `400`, without crashing the server.
 - **No argument is unbounded.** Every argument has limits in its type hint, so the schema the model sees shows them too:
   - **Strings:** a maximum length. 100 characters for names and codes, 500 for a RAG `query`.
   - **Numbers:** a minimum and a maximum (`page` 1–20, `limit` 1–50, `min_reserve` 0–10,000,000, `min_days_open` 0–3,650).
@@ -320,7 +330,7 @@ This is a security server first, so nothing a caller sends may be unbounded, and
   - **Fixed lists:** a `Literal`, as before (decision 9).
 - **Spaces are trimmed before the length check,** so a name of `"  "` counts as empty and is rejected.
 - **Null bytes (`\x00`) are rejected in every string.** PostgreSQL refuses them, so without this check they'd surface as the generic "database could not complete this request" instead of a message the model can act on.
-- **Unknown arguments are rejected, not ignored.** If the model sends `customer_name` instead of `name`, it's told so, rather than getting results that ignore the filter it meant. Check how the SDK supports this when we build. If it doesn't, we add the check ourselves, and a test proves it.
+- **Unknown arguments are rejected, not ignored.** If the model sends `customer_name` instead of `name`, it's told so, rather than getting results that ignore the filter it meant. The SDK silently ignores unknown arguments, so this is one gap we fill ourselves: a short SDK middleware compares the arguments with the tool's schema before the tool runs, and a test proves it. The same middleware logs rejected arguments with the caller's name (decision 12).
 - **The rules are written once:** a few reusable `Annotated` types (for example a policy number type and a search text type) used by every tool, so each tool reads the same way.
 
 ### Two layers of errors: why "not found" isn't a 404
@@ -334,13 +344,16 @@ A `404` would mean the `/mcp` endpoint itself doesn't exist, so "no such policy"
 
 | Problem | Layer | Response |
 |---|---|---|
-| Unexpected host name or browser origin | HTTP | `403` or `421`, whichever the SDK uses (check when we build) |
+| Unexpected host name | HTTP | `421` (the SDK's check) |
+| Unexpected browser origin | HTTP | `403` (the SDK's check) |
 | Missing, wrong or malformed token | HTTP | `401` |
 | Too many calls | HTTP | `429` with `Retry-After` |
 | Body over 64 KB | HTTP | `413` |
-| Body isn't valid JSON, or isn't JSON-RPC | HTTP | `400` with a JSON-RPC parse or invalid-request error |
-| Unknown tool name | JSON-RPC | Error `-32602`, "Unknown tool" |
-| Missing, wrong-type, out-of-range, badly formatted or unknown argument | Tool error | A message saying how to fix the call ("policy_number must look like AUT-104233.") |
+| Body isn't valid JSON, isn't JSON-RPC, is nested too deeply, or is a batch | HTTP | `400` with a JSON-RPC error (the SDK's) |
+| Unknown tool name | Tool error | "Unknown tool: drop_tables" (the SDK's) |
+| Missing, wrong-type, out-of-range or badly formatted argument | Tool error | The SDK's validation message, which names the argument and the rule it broke |
+| Unknown argument | Tool error | Ours: "Unknown argument: customer_name. find_customers takes: name." |
+| Null byte in a string | Tool error | Ours, from the shared argument types (see above) |
 | Unknown id or number ("no policy AUT-999999") | Tool error | The function's message ("Unknown policy number. Use find_customers, then get_customer, to find it.") |
 | A search that finds nothing | Result | An empty list. Not an error. |
 | RAG tool before the embed command has run | Tool error | "Run the embed command first." |
