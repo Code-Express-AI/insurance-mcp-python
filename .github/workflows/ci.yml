@@ -35,6 +35,7 @@ jobs:
 
   # The planted demo facts that compare against the random data (the most
   # expensive shop, the busiest adjuster) only mean something on full data.
+  # So does the 20-page limit on search_claims: small data has fewer pages.
   full-data:
     runs-on: ubuntu-latest
     steps:
@@ -44,5 +45,5 @@ jobs:
 
       - run: uv sync --locked
 
-      - name: Check the planted demo facts on full data
+      - name: Check the planted demo facts and the page limit on full data
         run: uv run pytest -m full_data

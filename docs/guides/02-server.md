@@ -1,6 +1,6 @@
 # Guide 2: the MCP server
 
-By the end of this guide the MCP server will be running on your own machine, connected to the database from guide 1, and only answering requests that carry one of your named tokens. You can also call its first tool, `get_dataset_info`, from MCP Inspector if you like.
+By the end of this guide the MCP server will be running on your own machine, connected to the database from guide 1, and only answering requests that carry one of your named tokens. You can also call its tools from MCP Inspector if you like.
 
 Everything here is free, and the commands are the same on Windows, macOS and Linux.
 
@@ -103,10 +103,10 @@ INFO:     127.0.0.1:65431 - "POST /mcp HTTP/1.1" 401 Unauthorized
 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is the MCP project's own tool for testing servers. It shows you the tools exactly as an AI client sees them, and lets you call them by hand. It needs Node.js.
 
 ```bash
-npx @modelcontextprotocol/inspector
+npx @modelcontextprotocol/inspector@2.14.0
 ```
 
-The first time, `npx` asks to download it. It then prints an address with a long token on the end, and opens it in your browser. That token is Inspector's own, not one of yours. In Inspector:
+The version is pinned, so you run the one this guide was tested with. The first time, `npx` asks to download it. It then prints an address with a long token on the end, and opens it in your browser. That token is Inspector's own, not one of yours. In Inspector:
 
 1. Choose the **Streamable HTTP** transport.
 2. Enter the URL `http://localhost:8000/mcp`.
@@ -128,13 +128,15 @@ You should get:
 
 Look at the tool's details too: its description is written for the model, and it's marked read-only (`readOnlyHint`).
 
+Then try a tool that takes arguments: run `get_policy` with the policy number `AUT-104233`, then with `AUT-999999`, which doesn't exist. The second comes back as a tool error with a message that tells the model how to find the right number. Try `AUT-12` as well: the server rejects it before it reaches the database.
+
 **Prefer the command line?** Inspector has a CLI mode that makes one call and prints the result:
 
 ```bash
-npx @modelcontextprotocol/inspector --cli http://localhost:8000/mcp --transport http --header "Authorization: Bearer <your token>" --method tools/call --tool-name get_dataset_info
+npx @modelcontextprotocol/inspector@2.14.0 --cli http://localhost:8000/mcp --transport http --header "Authorization: Bearer <your token>" --method tools/call --tool-name get_dataset_info
 ```
 
-Replace `--method tools/call --tool-name get_dataset_info` with `--method tools/list` to list the tools. The token ends up in your shell's history this way, so it's for trying things out, not for every day.
+Replace `--method tools/call --tool-name get_dataset_info` with `--method tools/list` to list the tools. Arguments go in `--tool-arg`, for example `--tool-name get_policy --tool-arg policy_number=AUT-104233`. The token ends up in your shell's history this way, so it's for trying things out, not for every day.
 
 ## 5. See the audit log
 
