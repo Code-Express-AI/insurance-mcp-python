@@ -74,8 +74,8 @@ Everyone must get exactly the same customers, policies and claims. Otherwise "fi
 | Policies | 15,000 | One vehicle per policy. |
 | Drivers | 20,000 | The main driver, plus a spouse or teenage driver on some policies. Each claim records which listed driver was at the wheel. |
 | Claims | 15,000 | About 5,000 a year for three years. |
-| Claim notes | 75,000 | About 5 per claim, more for big or long-running claims. Around 80 words each, so a month of notes is about 170,000 words, which is far too much for one model call. That's what the map-reduce example needs. |
-| Claim payments | 25,000 | Settled claims have one to three. |
+| Claim notes | 75,000 | About 5 per claim, more for big or long-running claims. Around 50 words each, so a month of notes is about 110,000 words, which is far too much for one model call. That's what the map-reduce example needs. |
+| Claim payments | 19,000 | Settled claims have one to three. |
 | Repair shops | 60 | |
 | Adjusters | 25 | |
 
@@ -121,7 +121,7 @@ Claims need accident descriptions, and adjusters write notes. The RAG extension 
 1. **A few hundred short seed texts**, kept in a handful of JSON files in the repo (one per kind of text, for example `descriptions.json`, `notes.json`), not hundreds of separate files. They're grouped by claim type (collision, theft, glass, fire, vandalism, weather) and, for notes, by stage (first report, investigation, estimate, settlement, denial).
 2. **Written once, in a Claude Code session**, and reviewed by Liam. No API key, no separate script, no extra bill. Everyone else just gets the files.
 3. **They have gaps for details**, such as `{store}`, `{city}`, `{vehicle}` and `{other_driver}`. The generator fills them from the claim's own data, so a theft claim never gets a windshield note, and the store named fits the city.
-4. **Notes are built from short pieces.** A note is an opening, a middle and a closing sentence, each picked separately for the claim's type and stage. With, say, 50 of each per stage, that's thousands of different combinations from a small library, before the gaps are even filled in.
+4. **Notes are built from short pieces.** A note is an opening sentence, one to three middle sentences and a closing sentence, each picked separately for the claim's type and stage. With, say, 50 of each per stage, that's thousands of different combinations from a small library, before the gaps are even filled in.
 
 **The trade-off:** some notes will still read alike. That's realistic, because real adjusters reuse phrases, and it doesn't hurt the demos. The planted notes for the demos and the RAG security tests (decisions 8 and 9) are written by hand, so they stand out.
 
