@@ -206,4 +206,4 @@ The tests start the server inside the test process, with no network port, and ta
 
 ## Next
 
-Guide 3 connects an AI assistant to the server: GitHub Copilot in VS Code (free) or Claude Code.
+[Guide 3](03-ai-assistant.md) connects an AI assistant to the server: GitHub Copilot in VS Code (free) or Claude Code.

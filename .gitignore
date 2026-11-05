@@ -10,3 +10,7 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
+
+# AI client configs can hold a bearer token: keep them out of git
+.mcp.json
+.vscode/mcp.json

@@ -210,4 +210,4 @@ Then start again from step 3.
 
 ## Next
 
-Guide 2 starts the MCP server and connects it to this database.
+[Guide 2](02-server.md) starts the MCP server and connects it to this database.
