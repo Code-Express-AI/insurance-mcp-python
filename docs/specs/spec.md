@@ -39,7 +39,7 @@ A secure, read-only MCP server for a fictitious auto insurance claims system, bu
 **Status:** Agreed. The detail is in [server-spec.md](server-spec.md), decision 1.
 
 **Decision:**
-- Python 3.15, with uv for packages and environments.
+- Python 3.14, with uv for packages and environments. Not 3.15 yet, because the local embedding model's runtime doesn't support it ([server-spec.md](server-spec.md), decision 1).
 - The official `mcp` Python SDK, mounted in FastAPI over streamable HTTP.
 - psycopg 3 calling database functions directly, with no ORM.
 - ruff for linting, and no other tooling unless it's needed.
