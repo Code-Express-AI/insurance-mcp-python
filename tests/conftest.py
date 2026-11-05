@@ -100,3 +100,9 @@ def reader(reader_url):
     """A connection as mcp_reader, the role the MCP server uses."""
     with psycopg.connect(reader_url, autocommit=True) as conn:
         yield conn
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    """The async tests (marked anyio) run on asyncio, like the server."""
+    return "asyncio"

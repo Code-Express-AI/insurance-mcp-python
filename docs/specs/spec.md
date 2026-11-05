@@ -107,7 +107,7 @@ The docs include a short page on this, as a pointer rather than a build.
 
 - A Python module. The setup command runs it by default, so getting started is one step; it can also be run on its own to reload the data. Fixed seed and pinned Python version, so everyone gets the same data.
 - Three full years of data, 2024 to 2026, ending on a fixed "as of" date of 31 December 2026, with about 15,000 claims and 75,000 adjuster notes.
-- Free text comes from a few hundred committed seed texts, with gaps the generator fills in. Notes are built from separate opening, middle and closing pieces for variety.
+- Free text comes from a few hundred committed seed texts, with gaps the generator fills in. Notes are built from separate opening, middle and closing sentences for variety.
 - Planted facts make every demo question give an interesting answer. Planted notes contain personal data and prompt injections for the RAG security tests.
 
 ## 7. Tests
@@ -230,7 +230,7 @@ An **embedding** is a list of numbers that stands for the meaning of a text. Tex
 - **A new table, `policy_document_chunks`,** holds the booklet sections: `coverage_level`, `heading`, `content`, `embedding`.
 - **One HNSW index per embedding column,** using cosine distance. HNSW is pgvector's index for fast "nearest neighbor" search. It's approximate, which is the normal trade for speed.
 - **Chunking** (splitting text before embedding it, so each vector stands for one idea):
-  - Notes and descriptions aren't split. At about 80 words each, they're already about one thing.
+  - Notes and descriptions aren't split. At about 50 words each, they're already about one thing.
   - Booklets are split at their headings, so each chunk is one topic and an answer can say which section it quotes. A few lines of Python, no library.
 
 ### Searching
@@ -262,7 +262,7 @@ An **embedding** is a list of numbers that stands for the meaning of a text. Tex
 | "Find claims where the car was hit while parked at a supermarket" | Semantic search | **RAG's strength.** It finds "sideswiped in the Walmart parking lot" and "someone backed into me outside Target" too. |
 | "Show me claims similar to this one" | Similarity search | **Good.** Helps an adjuster see how similar cases were settled. |
 | "Am I covered for flood damage with liability + collision?" | Grounded Q&A over documents | **Good.** The answer quotes the policy wording. |
-| "Summarize the notes on claim CLM-551209" | Summarization | **Fine, but not really RAG.** It's a lookup plus the model summarizing. |
+| "Summarize the notes on claim CLM-1037552" | Summarization | **Fine, but not really RAG.** It's a lookup plus the model summarizing. |
 | "Summarize all claims this year" | Map-reduce summarization | **Not RAG.** Plain RAG only sees the top 10-20 matches. See below. |
 | "What are the most common causes of accidents?" | Aggregation | **RAG does this poorly.** The fix is to pull structured fields out of the text, or to group similar notes together (clustering). Possibly covered in the RAG part. |
 | One-offs that don't resemble anything else | Outlier / anomaly detection | **Possible but niche.** It's on the edge of fraud detection, which is out of scope. Mention it, don't build it. |
@@ -278,7 +278,7 @@ pgvector lets one query combine vector search with ordinary SQL filters, in the 
 Summarize each piece (map), then summarize the summaries (reduce). **Explained, not built.** It's a "when RAG isn't the answer" section in the docs, with a diagram showing three approaches next to each other: a lookup (one claim), RAG (finding by meaning), and map-reduce (the whole year).
 
 - **Why not built:** the "map" step needs an LLM to summarize thousands of claims. That costs money with a hosted model, or takes hours on a CPU with a local one, so it can't be on the free path. Faking the summaries with templates would fake the very step we'd claim to show.
-- **The scale:** at the volumes in [data-generator-spec.md](data-generator-spec.md), decision 4, a month of notes is about 170,000 words. That's too big for one call, so batches go a level deeper (within a month, then the month, then the year).
+- **The scale:** at the volumes in [data-generator-spec.md](data-generator-spec.md), decision 4, a month of notes is about 110,000 words. That's too big for one call, so batches go a level deeper (within a month, then the month, then the year).
 - **SQL for the numbers, the model for the story:** counts, totals and averages come from the MCP tools we already have, and they're exact. Summaries of summaries lose detail, so a model's own counts can't be trusted.
 - **How a real insurer would do it:** as an overnight report, not a live question. Each claim gets a short summary when it's settled, and the report combines those with the SQL figures.
 
