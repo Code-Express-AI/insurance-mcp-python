@@ -157,7 +157,7 @@ Every table also has `id` (internal key) and `public_id` (the UUID the tools exp
 | `drivers` | `policy_id`, `first_name`, `last_name`, `date_of_birth`, `relationship` | Drivers listed on a policy. `relationship`: `policyholder`, `spouse`, `child` or `other`. |
 | `repair_shops` | `name`, `city`, `state` | Approved repair shops (UK: approved garages). |
 | `adjusters` | `first_name`, `last_name` | Insurer staff who investigate and settle claims (UK: claim handlers). |
-| `claims` | `claim_number`, `policy_id`, `driver_id`, `adjuster_id`, `repair_shop_id`, `claim_type`, `fault`, `status`, `date_of_loss`, `date_reported`, `date_closed`, `reserve`, `description` | `driver_id`: which listed driver was at the wheel. `claim_type`: `collision`, `theft`, `glass`, `fire`, `vandalism`, `weather`. `fault`: `at_fault`, `not_at_fault`, `shared`. `status`: `open`, `settled`, `denied`, `withdrawn`. `date_closed` is empty while open. `reserve`: the expected total cost of the claim. `repair_shop_id` is empty when no shop was used, for example a stolen car. |
+| `claims` | `claim_number`, `policy_id`, `driver_id`, `adjuster_id`, `repair_shop_id`, `claim_type`, `fault`, `status`, `date_of_loss`, `date_reported`, `date_closed`, `reserve`, `description` | `driver_id`: which listed driver was at the wheel. `claim_type`: `collision`, `theft`, `glass`, `fire`, `vandalism`, `weather`. `fault`: `at_fault`, `not_at_fault`, `shared`. `status`: `open`, `settled`, `denied`, `withdrawn`. `claim_number` looks like `CLM-1048271`. `date_closed` is empty while open. `reserve`: the expected total cost of the claim. `repair_shop_id` is empty when no shop was used, for example a stolen car. |
 | `claim_payments` | `claim_id`, `payment_type`, `amount`, `payment_date` | `payment_type`: `repair`, `rental_car`, `injury`, `total_loss`. |
 | `claim_notes` | `claim_id`, `adjuster_id`, `created_at`, `note` | Dated free-text notes by the adjuster. The main source of text for RAG. |
 
@@ -226,7 +226,7 @@ An **embedding** is a list of numbers that stands for the meaning of a text. Tex
 ### Making and storing the embeddings
 
 - **A separate command,** `uv run python -m insurance_mcp.embed`, run after setup and the data generator. Anyone who only follows the MCP part never downloads or runs the model.
-- **Embedding columns on the tables they describe,** in `02_schema.sql` from the start and empty until the embed command fills them: `claims.embedding` (for the accident description) and `claim_notes.embedding`. The text and its filters sit in the same row as its vector, so a search and its filters are one query.
+- **Embedding columns on the tables they describe,** added to `02_schema.sql` with the RAG extension and empty until the embed command fills them: `claims.embedding` (for the accident description) and `claim_notes.embedding`. Adding them then costs nothing, because the setup command rebuilds the database from scratch every time. The text and its filters sit in the same row as its vector, so a search and its filters are one query.
 - **A new table, `policy_document_chunks`,** holds the booklet sections: `coverage_level`, `heading`, `content`, `embedding`.
 - **One HNSW index per embedding column,** using cosine distance. HNSW is pgvector's index for fast "nearest neighbor" search. It's approximate, which is the normal trade for speed.
 - **Chunking** (splitting text before embedding it, so each vector stands for one idea):

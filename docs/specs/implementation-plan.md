@@ -12,15 +12,17 @@ Each stage ends with something that runs, has passing tests, and has its guide w
 |---|-------|-----------|
 | 0 | **Check the MCP SDK:** a throwaway test with one tool, mounted in FastAPI. Not committed. See "Checks to make during the build". | We know the SDK can do what [server-spec.md](server-spec.md) needs, or we've updated the spec |
 | 1 | **Project skeleton:** `pyproject.toml`, `.python-version`, `.env.example`, `docker-compose.yml`, ruff, pytest, GitHub Actions, Dependabot | `uv run pytest` runs (with no tests yet), PostgreSQL starts in Docker, and CI is green |
-| 2 | **Database:** the `sql/` scripts, the setup command, and the lockdown tests ([database-spec.md](database-spec.md)) | The setup command builds the database from scratch, and every lockdown test passes |
+| 2 | **Database:** the `sql/` scripts, the setup command, and the lockdown tests that need no data ([database-spec.md](database-spec.md)). The roles, tables, permissions, helper functions, audit log and the first `mcp` function, `get_dataset_info`. | The setup command builds the database from scratch, and every lockdown test passes |
 | 3 | **Data generator,** with its `small` and `full` sizes, and its tests ([data-generator-spec.md](data-generator-spec.md)). **Guide 1** (database). | The setup command loads the same data for everyone, and the planted demo facts hold on `full` data in CI |
 | 4a | **One tool through the whole request path:** settings, database access, audit, tokens, host checks, rate limiting and input limits, all proven with `get_dataset_info` ([server-spec.md](server-spec.md)). **Guide 2** (server). | Every server test passes, and MCP Inspector can call the tool |
-| 4b | **The other tools** and the server instructions | Every tool has its tests, and MCP Inspector can call each one |
+| 4b | **The other tools,** each with its `mcp` function and that function's lockdown tests (row limits, masking, wildcard escaping, unknown numbers), on `small` data. And the server instructions. | Every tool and function has its tests, and MCP Inspector can call each one |
 | 5 | **Guide 3** (connect an AI assistant), the "Using this with your own data" page, and the README ([spec.md](spec.md), decision 8) | Someone new can follow guides 1 to 3 on a clean machine and ask the demo questions in GitHub Copilot |
 | 6 | **RAG extension** ([spec.md](spec.md), decision 11) | The embeddings load with the local model, the RAG tools work, and the RAG security tests pass |
 | 7 | **Optional: hosted database guide** ([database-spec.md](database-spec.md), decision 14) | The same setup command works against a hosted database |
 
 The MCP part (stages 0 to 5) is complete on its own. RAG comes after it.
+
+**Nothing is written before it can be tested.** Each `mcp` function arrives with its tool, so its results are checked against real data as soon as it exists. The lockdown tests that check the system catalogs (every function is `SECURITY DEFINER`, sets `search_path`, returns no internal ids) pick up each new function without changes.
 
 **Nice to have, not planned:** hiding VIP customers from some clients with row-level security ([database-spec.md](database-spec.md), decision 6).
 

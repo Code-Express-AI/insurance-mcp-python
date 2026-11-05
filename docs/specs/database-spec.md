@@ -63,7 +63,7 @@ PostgreSQL has roles, not separate logins and users. Four roles:
 |---|---|---|
 | The admin role | Yes | Whatever admin role the host gives you: `postgres` in Docker (a real superuser), `neondb_owner` on Neon (not a real superuser). Used only to run the setup and load data. Never used by the MCP server. |
 | `insurance_owner` | **No** | Owns the `insurance` schema, its tables and the helper functions. Nobody logs in as it. |
-| `mcp_owner` | **No** | Owns the `mcp` schema and its functions. Has `SELECT` on the tables the functions read, `INSERT` on the audit log, and nothing else. Nobody logs in as it. |
+| `mcp_owner` | **No** | Owns the `mcp` schema and its functions. Has `SELECT` on the tables the functions read, `INSERT` on the audit log plus `SELECT` on two of its columns (decision 10), and nothing else. Nobody logs in as it. |
 | `mcp_reader` | Yes | The only role the MCP server connects as. It may run the granted `mcp` functions and nothing else. |
 
 The setup makes the admin role a member of both owner roles, so it can create objects owned by them.
@@ -132,7 +132,7 @@ Then the grants, which are the whole list of what `mcp_reader` may do:
 - `EXECUTE` on each `mcp` function, granted one by one, one line per function. A function without a grant line can't be called.
 - **Nothing on schema `insurance`**, not even `USAGE`. The functions reach the tables through their owner's rights.
 
-And for `mcp_owner`: `USAGE` on schema `insurance`, `SELECT` on each table its functions read, `EXECUTE` on the helper functions, and `INSERT` on `insurance.audit_log`. No `UPDATE`, `DELETE`, `TRUNCATE` or ownership of anything in `insurance`. This is also a second lock: even if a function in `insurance` somehow had `EXECUTE`, `mcp_reader` couldn't call it without `USAGE` on the schema.
+And for `mcp_owner`: `USAGE` on schema `insurance`, `SELECT` on each table its functions read, `EXECUTE` on the helper functions, and `INSERT` on `insurance.audit_log`, plus `SELECT` on just its `id` and `row_hash` columns (decision 10). No `UPDATE`, `DELETE`, `TRUNCATE` or ownership of anything in `insurance`. This is also a second lock: even if a function in `insurance` somehow had `EXECUTE`, `mcp_reader` couldn't call it without `USAGE` on the schema.
 
 **What we can't lock down:** every role can read the system catalogs, which include table names, column names and the source code of every function. Revoking this breaks normal tools. Every role can also run PostgreSQL's built-in functions, such as `pg_sleep()`, and any extension's functions, such as pgvector's. Our revoke only covers functions our two owners create. Both only matter if someone can send raw SQL, which the MCP server never allows (layer 3). The docs say so plainly.
 
@@ -149,6 +149,7 @@ Every function follows the same rules:
 - **`SECURITY DEFINER`, owned by `mcp_owner`.** The function runs with the owner's rights, so it can read tables that `mcp_reader` can't, and nothing more. It's set explicitly on each function, so it's easy to see when reading the function.
 - **`SET search_path = ''`, with every table name written in full** (`insurance.claims`). The `search_path` decides which schema PostgreSQL looks in for a name that has no schema. The PostgreSQL docs warn that a `SECURITY DEFINER` function must fix it, otherwise a caller could create a look-alike object and trick the function into using it. An empty path, with every name written in full, is the simplest way to be sure.
 - **`RETURNS TABLE (...)` with fixed columns.** The model can't ask for other columns.
+- **No `bigint` in any result.** Internal ids are `bigint`, so no result column is: counts are cast to `integer` (`count(*)::integer`). That keeps the catalog test (decision 13) a simple rule with no exceptions.
 - **Public keys are renamed on the way out.** A table's `public_id` is returned as `<thing>_id` (`select c.public_id as customer_id`), and tool arguments use the same names. The model only ever sees `customer_id`, `policy_id` and so on, and those are always UUIDs. Inside the tables, `customer_id` is the internal `bigint` foreign key, so each function has a one-line comment explaining the rename. We avoid a `_key` suffix, because a model may mistake a "key" for a secret.
 - **A `LIMIT` on every result.** Arguments like page size are clamped inside the function with `least()` and `greatest()`.
 - **No dynamic SQL:** no `EXECUTE` and no `format()` used to build a query. Every query is written out in the function. Together with psycopg sending every value as a parameter, separate from the SQL text, this is what stops SQL injection. A value is only ever compared with data, never run as SQL.
@@ -175,7 +176,7 @@ In schema `insurance`, so `mcp_reader` can't call them (no `USAGE`, no `EXECUTE`
 | Helper | What it does |
 |---|---|
 | `insurance.as_of_date()` | The dataset's "today": `max(date_reported)` from `insurance.claims` (server decision 9). |
-| `insurance.period_dates(p_period text)` | Turns a period name into a start and end date (below). Raises an error for an unknown name. |
+| `insurance.period_dates(p_period text, p_as_of date)` | Turns a period name into a start and end date (below). Raises an error for an unknown name. The `mcp` functions pass in `insurance.as_of_date()`. Taking the date as an argument keeps the helper a pure calculation that can be tested without any data. |
 | `insurance.escape_like(text)` | Escapes `\`, `%` and `_` for `ILIKE` (above). |
 | `insurance.mask_email(text)`, `insurance.mask_last4(text)`, `insurance.redact_text(text)` | Masking (decision 9). |
 
@@ -278,6 +279,7 @@ PostgreSQL has no built-in append-only tables, so the log is built from three pa
 
 Two details to get right:
 
+- `write_audit` reads the previous row's hash, so `mcp_owner` needs to read the audit log a little. It gets `SELECT` on just two columns, `id` and `row_hash` (a column-level grant), so a buggy `mcp` function still can't read who called what, or with which arguments.
 - `write_audit` takes a lock before reading the last hash. Without it, two calls at the same moment would both chain to the same previous row. It uses a transaction-level advisory lock (`pg_advisory_xact_lock`), which needs no extra rights. Locking the table itself would need rights `mcp_owner` doesn't have.
 - The hashed text is built in a fixed format (timestamps in UTC, a fixed order of fields). Otherwise session settings such as the time zone would change the hash.
 
@@ -326,6 +328,7 @@ The exact numbers are to be confirmed once the functions exist.
 - **A separate container is necessary, not just tidy.** The tests deliberately do bad things: they create ungranted functions, disable the audit trigger and edit rows. A separate database inside your demo container wouldn't be enough either, because roles belong to the whole PostgreSQL server, not to one database.
 - **Every test run also tests the setup**, because it builds the database from scratch.
 - **No Docker, no failures:** if Docker isn't running, every integration test is skipped with one clear reason.
+- **The tests build the database as a non-superuser admin,** a role that can create roles and owns the database, and nothing more, like a hosted database's admin. So every test run proves the setup never needs superuser rights (decision 2), not just the Docker path, where the admin is a superuser.
 - The tests live in `tests/database/`, apart from the SQL in `sql/`.
 
 Tests connect as `mcp_reader` unless a test says otherwise. Each one shows a security claim actually holds.
