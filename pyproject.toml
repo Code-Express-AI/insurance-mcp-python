@@ -35,9 +35,16 @@ extend-exclude = ["docs"]
 # UP: modern Python syntax. B: common bugs (bugbear).
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+# One city per line, and hand-written sentences, read better than wrapped ones.
+"src/insurance_mcp/generate/reference.py" = ["E501"]
+"src/insurance_mcp/generate/planted.py" = ["E501"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--strict-markers"
+# The full-data checks load 20 times more data, so they only run when asked for
+# (uv run pytest -m full_data). A -m on the command line replaces this one.
+addopts = "--strict-markers -m 'not full_data'"
 markers = [
     "full_data: checks the planted demo facts on full data (run with -m full_data)",
 ]

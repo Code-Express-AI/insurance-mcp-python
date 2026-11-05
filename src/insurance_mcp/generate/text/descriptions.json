@@ -1,0 +1,99 @@
+{
+  "collision_at_fault": [
+    "I was merging onto {road} and didn't see {other_vehicle} in my blind spot. I clipped its rear quarter panel and my front bumper cracked.",
+    "Traffic stopped suddenly on {road} and I couldn't brake in time. I rear-ended {other_vehicle}. Nobody was hurt but my hood is bent.",
+    "Backing out of a space at {store}, I hit a parked car behind me. I left a note and called it in.",
+    "I was turning left onto {street} and misjudged the gap. {other_vehicle} hit my passenger side. The police came and I got a ticket for failure to yield.",
+    "I looked down at my phone for a second at a light on {street} and rolled into the car in front. Low speed, but its bumper and my grille are damaged.",
+    "Pulling out of the {store} lot, I didn't see {other_vehicle} coming and we collided. My front end and their driver's door are dented.",
+    "It was raining and my {vehicle} slid on {road} when I braked. I hit the back of {other_vehicle}. Both airbags went off in my car.",
+    "I ran a yellow that turned red at {street} and was hit by a car going through the intersection. My fault, I admitted it at the scene.",
+    "I changed lanes on {road} without enough room and sideswiped {other_vehicle}. Long scrape down both cars.",
+    "Parking in my garage, I hit the gas instead of the brake and went into the wall. Front bumper and headlight are broken.",
+    "I was tired after a late shift and drifted onto the shoulder of {road}, hitting a guardrail. The car is drivable but the right side is crushed.",
+    "I was distracted by my GPS in {city} and ran into the back of a car stopped at a crosswalk on {street}.",
+    "Making a U-turn on {street}, I didn't see a car coming from behind a truck. We hit hard and both cars were towed."
+  ],
+  "collision_not_at_fault": [
+    "I was stopped at a red light on {street} when {other_vehicle} rear-ended me. The other driver said they were looking at their phone.",
+    "My {vehicle} was parked on {street} overnight. In the morning the driver's side was caved in and there was no note.",
+    "{other_vehicle} ran a stop sign at {street} and hit my front passenger side. The police report says the other driver was at fault.",
+    "I was driving on {road} when {other_vehicle} changed lanes into me. It scraped my whole left side and kept going.",
+    "Someone backed into my car in the {store} parking lot while I was inside. A witness got their plate number.",
+    "I was waiting to turn into the school pickup line when {other_vehicle} hit me from behind.",
+    "A driver ran the red light at {street} and T-boned me. I was taken to urgent care to get checked out.",
+    "{other_vehicle} merged onto {road} without looking and pushed me into the median barrier.",
+    "My car was parked at a gas station on {road} when {other_vehicle} pulling up to the next pump hit my rear door.",
+    "I was stopped in traffic on {road} and got hit from behind, which pushed me into the car in front. Three cars involved.",
+    "Coming home on {street}, a car pulled out of a driveway without looking and hit my front bumper.",
+    "While I was parked outside {store}, a delivery truck clipped my mirror and front fender making a tight turn."
+  ],
+  "collision_shared": [
+    "Two of us were changing into the same lane on {road} at the same time and our cars touched. The police couldn't say who was first.",
+    "I was turning left on a green at {street}, and {other_vehicle} came through on a yellow. We both could have waited.",
+    "In the {store} parking lot, I was backing out and so was the car behind me. We backed into each other.",
+    "The light at {street} was out and the intersection was a four-way stop. {other_vehicle} and I went at the same time.",
+    "I braked for a dog on {street} and {other_vehicle} was following too close. The officer said we both share some blame.",
+    "We were both trying to get into the last spot at {store}. I bumped their rear corner and they bumped my front.",
+    "Road construction on {road} had the lanes badly marked. {other_vehicle} and I drifted into each other where the lanes shifted.",
+    "I pulled out of a side street onto {street} and the other car was speeding. We collided in the middle of the road."
+  ],
+  "glass": [
+    "A rock kicked up by {other_vehicle} on {road} hit my windshield. The chip turned into a crack across the driver's side.",
+    "My windshield cracked overnight after a cold snap. It started from a small chip I got on {road} last week.",
+    "Driving behind a gravel truck on {road}, something hit the windshield and cracked it right in my line of sight.",
+    "I found a long crack across the windshield of my {vehicle} in the morning. Nothing else is damaged.",
+    "A stone from road work on {road} chipped the windshield. The chip is larger than a quarter, so the shop says it can't be repaired.",
+    "Someone threw a golf ball over the fence on {street} and it cracked my windshield while I was parked.",
+    "My rear window shattered while I was driving on {road}. I don't know what hit it.",
+    "A tree branch fell on my windshield in the {store} parking lot. The glass is cracked but the roof is fine.",
+    "Small chip on the passenger side of the windshield from {road} that has spread to about eight inches.",
+    "The windshield of my {vehicle} cracked from the heat after I parked in the sun all afternoon. It started from an old chip.",
+    "Rock hit the windshield on {road} near {city}. Now there's a star-shaped crack, and it's getting longer."
+  ],
+  "weather": [
+    "A hailstorm came through {city} while my car was parked on {street}. The hood and roof are covered in dents.",
+    "Golf-ball-size hail hit my {vehicle} on the way home on {road}. Dents everywhere and the sunroof is cracked.",
+    "A heavy storm knocked a tree limb onto my car in the driveway. The roof and rear window are damaged.",
+    "Flash flooding on {street} came up to the doors while I was parked. Water got inside and the engine won't start.",
+    "Strong winds blew a neighbor's trampoline into my car. Scratches and dents along the passenger side.",
+    "Hail hit the {store} parking lot while I was shopping. My car has dozens of dents and a cracked windshield.",
+    "The road on {road} iced over and a falling sheet of ice from an overpass cracked my hood and windshield.",
+    "A dust storm on {road} sandblasted the front of my car. The paint and headlights are pitted.",
+    "Storm winds blew part of a carport roof down onto my {vehicle}. Dents on the roof and trunk.",
+    "I drove through a flooded underpass on {road} that looked shallow. Water stalled the engine and got into the floor."
+  ],
+  "vandalism": [
+    "Someone keyed the whole driver's side of my car while it was parked on {street} overnight.",
+    "I came out of {store} and my tires had been slashed. All four are flat.",
+    "Someone broke my passenger window in the {store} parking lot and took a backpack and sunglasses.",
+    "My car was spray-painted while parked outside my apartment on {street}.",
+    "Somebody kicked in my side mirrors and dented the hood while the car was parked downtown in {city}.",
+    "The rear window of my {vehicle} was smashed overnight. Nothing was taken.",
+    "Someone poured something on my paint at my workplace parking lot. It has bubbled across the hood and roof.",
+    "My catalytic converter was cut out while I was parked on {street}. The car is loud and won't pass inspection.",
+    "Eggs and rocks thrown at my car overnight on {street}. Paint is chipped and one headlight is broken.",
+    "My car was broken into at a trailhead parking lot outside {city}. The window is shattered and the glove box was ripped open."
+  ],
+  "theft": [
+    "My {vehicle} was stolen from my driveway on {street} overnight. I've filed a police report.",
+    "I parked at {store} for twenty minutes and when I came out my car was gone.",
+    "My car was stolen from the parking garage at work in {city}. The security cameras show two people taking it.",
+    "I left my car running to warm up in the morning and someone drove off in it.",
+    "My {vehicle} was taken from outside a friend's house on {street}. The police found it two days later, stripped.",
+    "My truck was stolen from a gas station on {road} while I was paying inside. The keys were in it.",
+    "My car disappeared from my apartment complex's lot. I still have both keys.",
+    "The police called to say my stolen {vehicle} was found abandoned near {road}, with damage to the steering column and ignition.",
+    "Someone stole my car from the {store} parking lot. I had a spare key hidden in it, which I shouldn't have.",
+    "My car was stolen overnight from {street}. It has a tracking app, and the last location was near {road}."
+  ],
+  "fire": [
+    "My {vehicle} caught fire in the engine bay while I was driving on {road}. I got out and it burned before the fire department arrived.",
+    "A fire in my neighbor's garage spread to my car parked next to it on {street}.",
+    "Smoke came out of the dashboard while I was parked at {store}. By the time help came the front of the car was burned out.",
+    "My car was set on fire overnight while parked on {street}. The police think it was arson.",
+    "A brush fire near {road} reached the lot where my car was parked.",
+    "Electrical fire under the hood after I jump-started the car. The engine compartment is badly burned.",
+    "My car caught fire after I drove over debris on {road}. The fire started under the car."
+  ]
+}

@@ -24,6 +24,6 @@ def test_setup_refuses_a_reader_url_for_another_role():
 def test_setup_can_run_again_to_start_over(admin_url, reader_url):
     # The first run happened when the test database was built. This one drops
     # and recreates everything, as running the command again would.
-    setup_database(admin_url, reader_url)
+    setup_database(admin_url, reader_url, size="small")
     with psycopg.connect(reader_url) as reader:
         reader.execute("select * from mcp.get_dataset_info()")
