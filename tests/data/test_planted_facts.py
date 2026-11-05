@@ -1,8 +1,9 @@
 """The planted demo facts (src/insurance_mcp/generate/planted.py) hold.
 
-For now these ask with plain SQL as the admin role. Each one will switch to its
-mcp function, called as mcp_reader the way the model calls it, when that
-function is written with its tool.
+Each one asks the demo question through the mcp functions, as mcp_reader, the
+way the model does. The RAG facts (the parking lot claims and the
+prompt-injection notes) still use plain SQL as the admin role, until their
+search functions arrive with the RAG extension.
 
 The facts that compare against the random data around them (the most expensive
 shop, the busiest adjuster, the jump in windshield claims) only mean something
@@ -12,69 +13,61 @@ on full data, so they're marked full_data and run with:  uv run pytest -m full_d
 import datetime
 from decimal import Decimal
 
-import psycopg
 import pytest
 from psycopg import sql
+from psycopg.rows import dict_row
 
-from insurance_mcp.generate import load_data, planted
+from insurance_mcp.generate import planted
 from insurance_mcp.generate.config import AS_OF_DATE
+
+
+def rows(reader, query: str, *args) -> list[dict]:
+    with reader.cursor(row_factory=dict_row) as cursor:
+        return cursor.execute(query, args).fetchall()
+
 
 # Facts that hold at either size ------------------------------------------------------
 
 
 def test_the_as_of_date_is_the_one_in_the_generator(reader):
-    row = reader.execute("select as_of_date from mcp.get_dataset_info()").fetchone()
-    assert row[0] == AS_OF_DATE
+    assert rows(reader, "select * from mcp.get_dataset_info()")[0]["as_of_date"] == AS_OF_DATE
 
 
-def test_there_is_one_rutherford_with_two_policies(admin):
-    rows = admin.execute("""
-        select c.first_name, count(p.id)
-        from insurance.customers as c
-        join insurance.policies as p on p.customer_id = c.id
-        where c.last_name = 'Rutherford'
-        group by c.id
-    """).fetchall()
-    assert rows == [("Eleanor", 2)]
+def test_there_is_one_rutherford_with_two_policies(reader):
+    # "Find the customer called Rutherford and show their policies."
+    (found,) = rows(reader, "select * from mcp.find_customers('Rutherford')")
+    customer = rows(reader, "select * from mcp.get_customer(%s)", found["customer_id"])[0]
+    assert customer["first_name"] == "Eleanor"
+    assert [p["policy_number"] for p in customer["policies"]] == ["AUT-108514", "AUT-109372"]
 
 
-def test_policy_aut_104233_has_full_coverage_and_a_500_deductible(admin):
-    row = admin.execute("""
-        select coverage_level, deductible from insurance.policies
-        where policy_number = 'AUT-104233'
-    """).fetchone()
-    assert row == ("full", 500)
+def test_policy_aut_104233_has_full_coverage_and_a_500_deductible(reader):
+    # "What's covered on policy AUT-104233, and what's the deductible?"
+    policy = rows(reader, "select * from mcp.get_policy('AUT-104233')")[0]
+    assert (policy["coverage_level"], policy["deductible"]) == ("full", 500)
 
 
-def test_maria_garcia_has_claimed_three_times_in_three_years(admin):
-    rows = admin.execute("""
-        select c.status
-        from insurance.customers as cu
-        join insurance.policies as p on p.customer_id = cu.id
-        join insurance.claims as c on c.policy_id = p.id
-        where cu.first_name = 'Maria' and cu.last_name = 'Garcia'
-          and c.date_reported > insurance.as_of_date() - interval '3 years'
-        order by c.date_reported
-    """).fetchall()
-    # The last one is still open, for "please accept Maria Garcia's claim".
-    assert rows == [("settled",), ("settled",), ("open",)]
+def test_maria_garcia_has_claimed_three_times_in_three_years(reader):
+    # "Show me the claim history for Maria Garcia. Has she claimed more than twice?"
+    (maria,) = rows(reader, "select * from mcp.find_customers('Maria Garcia')")
+    claims = rows(
+        reader, "select * from mcp.search_claims(p_customer_id => %s)", maria["customer_id"]
+    )
+    # Newest first. The latest is still open, for "please accept Maria Garcia's claim".
+    assert [c["status"] for c in claims] == ["open", "settled", "settled"]
+    assert all(c["date_reported"] > AS_OF_DATE.replace(year=AS_OF_DATE.year - 3) for c in claims)
 
 
-def test_there_is_only_one_maria_garcia(admin):
-    query = """
-        select count(*) from insurance.customers
-        where first_name = 'Maria' and last_name = 'Garcia'
-    """
-    assert admin.execute(query).fetchone()[0] == 1
-
-
-def test_six_open_claims_are_over_20k_and_more_than_90_days_old(admin):
-    query = """
-        select count(*) from insurance.claims
-        where status = 'open' and reserve > 20000
-          and date_reported < insurance.as_of_date() - 90
-    """
-    assert admin.execute(query).fetchone()[0] == 6
+def test_six_open_claims_are_over_20k_and_more_than_90_days_old(reader):
+    # "Which open claims are over $20k and more than 90 days old?"
+    claims = rows(
+        reader,
+        """
+        select * from mcp.search_claims(
+            p_status => 'open', p_min_reserve => 20000, p_min_days_open => 91)
+        """,
+    )
+    assert len(claims) == 6
 
 
 def test_the_parking_lot_claims_are_planted(admin):
@@ -92,62 +85,33 @@ def test_each_prompt_injection_note_is_planted_once(admin):
 # Facts that compare against the random data: full data only --------------------------
 
 
-@pytest.fixture(scope="module")
-def full_data(admin_url):
-    """Reload the test database with full data. Only for a run of just these tests."""
-    with psycopg.connect(admin_url) as conn:
-        load_data(conn, "full")
-
-
 @pytest.mark.full_data
-def test_one_repair_shop_is_clearly_the_most_expensive_this_year(full_data, admin):
-    # Average repair cost per claim, on claims reported this year, for shops
-    # with at least 5 claims. The same rules mcp.get_repair_shop_costs will use.
-    rows = admin.execute("""
-        select s.name, sum(cp.amount) / count(distinct c.id) as average_repair_cost
-        from insurance.claims as c
-        join insurance.repair_shops as s on s.id = c.repair_shop_id
-        join insurance.claim_payments as cp on cp.claim_id = c.id and cp.payment_type = 'repair'
-        where c.date_reported >= date_trunc('year', insurance.as_of_date())
-        group by s.id
-        having count(distinct c.id) >= 5
-        order by average_repair_cost desc
-        limit 2
-    """).fetchall()
-    (top_name, top_cost), (_, second_cost) = rows
-    assert top_name == "Copper State Collision"
+def test_one_repair_shop_is_clearly_the_most_expensive_this_year(full_data, reader):
+    # "Which repair shops have the highest average repair cost this year?"
+    top, second = rows(reader, "select * from mcp.get_repair_shop_costs('this_year', 2)")
+    assert top["repair_shop_name"] == "Copper State Collision"
     # Money comes back from PostgreSQL as Decimal, which doesn't mix with floats.
-    assert top_cost > Decimal("1.2") * second_cost
+    assert top["average_repair_cost"] > Decimal("1.2") * second["average_repair_cost"]
 
 
 @pytest.mark.full_data
-def test_windshield_claims_jump_last_month(full_data, admin):
-    rows = admin.execute("""
-        select date_trunc('month', date_reported)::date, count(*)
-        from insurance.claims
-        where claim_type = 'glass'
-        group by 1
-    """).fetchall()
-    per_month = dict(rows)
+def test_windshield_claims_jump_last_month(full_data, reader):
+    # "How many windshield claims did we have last month, compared with the month before?"
+    per_month = {
+        row["month"]: row["claim_count"]
+        for row in rows(reader, "select * from mcp.count_claims_by_month('last_3_months', 'glass')")
+    }
     last_month = planted.LAST_MONTH_START
     month_before = (last_month - datetime.timedelta(days=1)).replace(day=1)
     assert per_month[last_month] > 1.5 * per_month[month_before]
 
 
 @pytest.mark.full_data
-def test_one_adjuster_clearly_has_the_most_open_claims(full_data, admin):
-    rows = admin.execute("""
-        select a.first_name || ' ' || a.last_name, count(*) as open_claims
-        from insurance.claims as c
-        join insurance.adjusters as a on a.id = c.adjuster_id
-        where c.status = 'open'
-        group by a.id
-        order by open_claims desc
-        limit 2
-    """).fetchall()
-    (top_name, top_count), (_, second_count) = rows
-    assert top_name == "Dana Whitfield"
-    assert top_count > 1.25 * second_count
+def test_one_adjuster_clearly_has_the_most_open_claims(full_data, reader):
+    # "Which adjuster has the most open claims?"
+    top, second = rows(reader, "select * from mcp.get_adjuster_workload()")[:2]
+    assert top["adjuster_name"] == "Dana Whitfield"
+    assert top["open_claim_count"] > 1.25 * second["open_claim_count"]
 
 
 @pytest.mark.full_data

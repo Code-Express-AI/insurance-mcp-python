@@ -50,5 +50,5 @@ testpaths = ["tests"]
 # (uv run pytest -m full_data). A -m on the command line replaces this one.
 addopts = "--strict-markers -m 'not full_data'"
 markers = [
-    "full_data: checks the planted demo facts on full data (run with -m full_data)",
+    "full_data: needs full data, such as the planted demo facts (run with -m full_data)",
 ]

@@ -174,7 +174,7 @@ Each tool is a plain `async` Python function registered with the SDK. They all f
 
 1. **The description is written for the model:** what the tool is for, when to use it instead of another tool, and what each argument means.
 2. **Arguments use Python type hints with limits** (`Annotated[str, Field(min_length=2, max_length=100)]`, `Literal["open", "settled", ...]`, `UUID`). The SDK turns them into the schema the model sees, and rejects bad values before our code runs.
-3. **Bad arguments get the SDK's own error messages,** which name the argument and the rule it broke ("String should match pattern '^AUT-\d{6}$'"). Models are used to them, so we don't rewrite them. Our own messages are only for the checks we add (decision 14) and for "not found". See database decision 8 for which errors reach the model.
+3. **Bad arguments get the SDK's own error messages,** which name the argument and the rule it broke ("String should match pattern '^AUT-[0-9]{6}$'"). Models are used to them, so we don't rewrite them. Our own messages are only for the checks we add (decision 14) and for "not found". See database decision 8 for which errors reach the model.
 4. **Exactly one database function call**, wrapped by the audit helper, which records the call (database decision 10).
 5. **Results are plain JSON lists or objects**, with the same field names as the database function (`claim_id`, `policy_number`). Never internal ids.
 6. **Every tool is marked read-only** with MCP's tool annotations (`readOnlyHint: true`). It's only a hint: it tells AI clients the tool doesn't change anything, and each client decides what to do with that (for example, whether it still asks the user before calling it). The real guarantee is the database.
@@ -273,7 +273,9 @@ What we can't do: control which other tools someone's assistant has.
 
 - **Python's standard `logging`** to the console, which is enough for Docker and any hosting service.
 - **Rejected requests** (wrong host, missing or bad token, rate limited, malformed) are logged with the caller name if known, the client IP and the status code. Never the token. They don't go in the audit table: anyone can send a bad token, and an append-only table must not fill up with their junk.
-- **Rejected arguments** (decision 14) are logged too, with the caller, the tool, the argument name and what was wrong ("too long", "unknown argument"). Not the value itself: it may hold a customer's name, or be 60 KB of junk. These come back as HTTP `200` with a tool error, so uvicorn's request log can't show them. We log them ourselves.
+- **Rejected arguments** (decision 14) are logged too, with the tool and the argument name, but never the value itself: it may hold a customer's name, or be 60 KB of junk. These come back as HTTP `200` with a tool error, so uvicorn's request log can't show them.
+  - **Unknown arguments** are logged by our own check, with the caller's name.
+  - **Bad values** (wrong type, too long, badly formatted) are logged by the SDK, which writes the tool and the argument names (`Tool 'get_policy' rejected arguments: ['policy_number']`) but not the caller. We keep the SDK's log line rather than replace its validation just to add the caller (decision 1).
 - **Unexpected errors** are logged with the full stack trace. The caller only gets the generic message (database decision 8).
 - **No tool arguments or results in the console log.** Arguments contain customer names and results contain personal data. They're recorded in the audit table, the one controlled place for them. A plain log file gets copied, shared and pasted into bug reports.
 - **uvicorn's request log stays on.** It prints one line per request (method, path, status code) and no headers, so tokens never appear in it.
@@ -299,7 +301,7 @@ pytest, in `tests/server/`. Most use the real database in the test container (sp
 - **Failed tokens:** the 11th bad-token request in a minute from one address gets `429`.
 - **Batches:** a JSON-RPC batch is rejected with `400`, and no tool runs.
 - **CORS:** no response, including errors, carries an `Access-Control-Allow-Origin` header.
-- **Logging:** after a tool call, the console log contains neither its arguments nor its results. A rejected argument is logged with the caller, tool and argument name, but not its value (decision 12).
+- **Logging:** after a tool call, the console log contains neither its arguments nor its results. A rejected argument is logged with the tool and argument name, but not its value, and an unknown one with the caller too (decision 12).
 - **Input limits:** a body over 64 KB gets `413`, with and without a `Content-Length` header. Deeply nested JSON is rejected without crashing the server. An over-long string, a null byte, a blank name, a badly formatted policy number and an unknown argument each come back as a tool error, and the database is never called (decision 14).
 - **Error responses:** every row of the error table in decision 14 has a test that checks its status code or tool error and its message.
 - **Health:** `/health` answers without a token and says nothing about the database (decision 3).
@@ -325,8 +327,8 @@ This is a security server first, so nothing a caller sends may be unbounded, and
 - **Deeply nested JSON** is rejected by the SDK's JSON parser with `400`, without crashing the server.
 - **No argument is unbounded.** Every argument has limits in its type hint, so the schema the model sees shows them too:
   - **Strings:** a maximum length. 100 characters for names and codes, 500 for a RAG `query`.
-  - **Numbers:** a minimum and a maximum (`page` 1–20, `limit` 1–50, `min_reserve` 0–10,000,000, `min_days_open` 0–3,650).
-  - **Business numbers:** an exact format. A policy number must match `^AUT-\d{6}$`, and a claim number its own pattern, so a malformed one is rejected with a message, not looked up.
+  - **Numbers:** a minimum and a maximum (`page` 1–20, `limit` 1–20 for repair shops and 1–50 for the RAG tools, `min_reserve` 0–10,000,000, `min_days_open` 0–3,650).
+  - **Business numbers:** an exact format. A policy number must match `^AUT-[0-9]{6}$` and a claim number `^CLM-[0-9]{7}$`, the same patterns as the tables' `CHECK` constraints (`\d` would also match digits from other scripts, such as Arabic ones), so a malformed one is rejected with a message, not looked up.
   - **Fixed lists:** a `Literal`, as before (decision 9).
 - **Spaces are trimmed before the length check,** so a name of `"  "` counts as empty and is rejected.
 - **Null bytes (`\x00`) are rejected in every string.** PostgreSQL refuses them, so without this check they'd surface as the generic "database could not complete this request" instead of a message the model can act on.

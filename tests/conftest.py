@@ -9,6 +9,7 @@ import psycopg
 import pytest
 from testcontainers.community.postgres import PostgresContainer
 
+from insurance_mcp.generate import load_data
 from insurance_mcp.setup_db import setup_database
 
 ROOT = Path(__file__).parent.parent
@@ -86,6 +87,17 @@ def reader_url_for(postgres) -> str:
 def reader_url(postgres, admin_url) -> str:
     """The mcp_reader connection string. Depends on admin_url, so the setup has run."""
     return reader_url_for(postgres)
+
+
+@pytest.fixture(scope="session")
+def full_data(admin_url):
+    """Reload the test database with full data, for the tests marked full_data.
+
+    They run on their own (uv run pytest -m full_data), because every other test
+    expects small data.
+    """
+    with psycopg.connect(admin_url) as conn:
+        load_data(conn, "full")
 
 
 @pytest.fixture

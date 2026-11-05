@@ -6,7 +6,7 @@ import logging
 import pytest
 
 from insurance_mcp.audit import GENERIC_ERROR
-from insurance_mcp.tools import INSTRUCTIONS
+from insurance_mcp.tools import INSTRUCTIONS, TOOL_ARGUMENTS
 
 from .conftest import connect
 
@@ -156,6 +156,7 @@ async def test_the_log_has_no_tool_arguments_or_results(settings, caplog):
     caplog.set_level(logging.DEBUG)
     async with connect(settings) as client:
         await client.call_tool("get_dataset_info", {})
+        await client.call_tool("find_customers", {"name": "Rutherford"})
         await client.call_tool("get_dataset_info", {"customer_name": "Rutherford"})
 
     # Only the server's log lines: the test's own MCP client logs what it sends at DEBUG.
@@ -167,8 +168,191 @@ async def test_the_log_has_no_tool_arguments_or_results(settings, caplog):
     assert "as_of_date" not in server_log
     assert "2026-12-31" not in server_log
     assert "Rutherford" not in server_log
+    assert "Eleanor" not in server_log
     # The rejected argument is logged with the caller, tool and argument name.
     assert (
         "Rejected argument: caller=claude-code tool=get_dataset_info argument='customer_name'"
         in server_log
     )
+
+
+# Every tool, end to end ------------------------------------------------------------
+
+# One real call per tool, with the arguments a model would send for a demo question.
+# get_customer needs an id from find_customers, so it has its own test below.
+TOOL_CALLS = [
+    ("get_dataset_info", {}),
+    ("find_customers", {"name": "Rutherford"}),
+    ("get_policy", {"policy_number": "AUT-104233"}),
+    ("search_claims", {"status": "open", "min_reserve": 20000, "min_days_open": 91}),
+    ("get_claim", {"claim_number": "CLM-1049306"}),
+    ("count_claims_by_month", {"period": "last_3_months", "claim_type": "glass"}),
+    ("get_repair_shop_costs", {"period": "last_12_months"}),
+    ("get_adjuster_workload", {}),
+    ("count_claims_by_driver_age", {"period": "this_year", "fault": "at_fault"}),
+]
+
+
+def test_every_tool_has_an_end_to_end_test():
+    assert {name for name, _ in TOOL_CALLS} | {"get_customer"} == set(TOOL_ARGUMENTS)
+
+
+@pytest.mark.parametrize(("tool", "arguments"), TOOL_CALLS, ids=[name for name, _ in TOOL_CALLS])
+async def test_every_tool_works_end_to_end_and_is_audited(settings, admin, tool, arguments):
+    async with connect(settings) as client:
+        result = await client.call_tool(tool, arguments)
+
+    assert not result.is_error, text_of(result)
+    assert result.structured_content
+    row = latest_audit_row(admin)
+    assert (row["tool_name"], row["succeeded"], row["caller"]) == (tool, True, "claude-code")
+
+
+async def test_get_customer_takes_the_customer_id_from_find_customers(settings):
+    async with connect(settings) as client:
+        found = await client.call_tool("find_customers", {"name": "Rutherford"})
+        customer_id = found.structured_content["result"][0]["customer_id"]
+        result = await client.call_tool("get_customer", {"customer_id": customer_id})
+
+    assert not result.is_error
+    assert result.structured_content["last_name"] == "Rutherford"
+    assert len(result.structured_content["policies"]) == 2
+
+
+async def test_money_reaches_the_model_as_json_numbers(settings):
+    async with connect(settings) as client:
+        policy = await client.call_tool("get_policy", {"policy_number": "AUT-104233"})
+        claim = await client.call_tool("get_claim", {"claim_number": "CLM-1037552"})
+
+    # Not "500.00": the SDK writes a Decimal as a string (db.load_numbers_as_float).
+    assert policy.structured_content["deductible"] == 500
+    assert '"deductible": 500.0' in text_of(policy)
+    assert isinstance(claim.structured_content["total_paid"], float)
+
+
+async def test_spaces_around_a_search_are_trimmed(settings, admin):
+    async with connect(settings) as client:
+        result = await client.call_tool("find_customers", {"name": "  Rutherford  "})
+
+    assert len(result.structured_content["result"]) == 1
+    assert latest_audit_row(admin)["arguments"] == {"name": "Rutherford"}
+
+
+async def test_an_unknown_number_gets_the_functions_message_and_is_audited(settings, admin):
+    async with connect(settings) as client:
+        result = await client.call_tool("get_policy", {"policy_number": "AUT-999999"})
+
+    message = "Unknown policy number. Use find_customers, then get_customer, to find it."
+    assert result.is_error
+    # Only the message: never the context line, which names our functions.
+    assert text_of(result) == f"Error executing tool get_policy: {message}"
+    row = latest_audit_row(admin)
+    assert (row["succeeded"], row["rows_returned"], row["error"]) == (False, None, message)
+
+
+async def test_a_search_that_finds_nothing_is_an_empty_list_not_an_error(settings):
+    async with connect(settings) as client:
+        result = await client.call_tool("find_customers", {"name": "Zzyzx"})
+
+    assert not result.is_error
+    assert result.structured_content == {"result": []}
+
+
+# Input limits: rejected before the database is called ---------------------------------
+
+
+@pytest.mark.parametrize(
+    ("tool", "arguments", "argument", "expected"),
+    [
+        pytest.param(
+            "find_customers", {"name": "x" * 101}, "name", "at most 100 characters", id="too-long"
+        ),
+        pytest.param(
+            "find_customers",
+            {"name": "Ma\x00ria"},
+            "name",
+            "must not contain a null byte",
+            id="null-byte",
+        ),
+        pytest.param(
+            "find_customers", {"name": "   "}, "name", "at least 2 characters", id="blank"
+        ),
+        pytest.param(
+            "get_policy",
+            {"policy_number": "AUT-12"},
+            "policy_number",
+            "should match pattern",
+            id="bad-policy-number",
+        ),
+        pytest.param(
+            "get_policy",
+            {"policy_number": "AUT-104233\x00"},
+            "policy_number",
+            "should match pattern",
+            id="null-byte-in-policy-number",
+        ),
+        pytest.param(
+            "get_claim",
+            {"claim_number": "CLM-104930"},
+            "claim_number",
+            "should match pattern",
+            id="bad-claim-number",
+        ),
+        pytest.param(
+            "get_customer",
+            {"customer_id": "not-a-uuid"},
+            "customer_id",
+            "valid UUID",
+            id="bad-uuid",
+        ),
+        pytest.param(
+            "search_claims", {"page": 21}, "page", "less than or equal to 20", id="page-too-high"
+        ),
+        pytest.param(
+            "search_claims",
+            {"min_reserve": -1},
+            "min_reserve",
+            "greater than or equal to 0",
+            id="negative-reserve",
+        ),
+        pytest.param(
+            "search_claims",
+            {"status": "approved"},
+            "status",
+            "'open', 'settled', 'denied' or 'withdrawn'",
+            id="unknown-status",
+        ),
+        pytest.param("count_claims_by_month", {}, "period", "Field required", id="missing-period"),
+        pytest.param(
+            "get_repair_shop_costs",
+            {"period": "this_year", "limit": 21},
+            "limit",
+            "less than or equal to 20",
+            id="limit-too-high",
+        ),
+    ],
+)
+async def test_a_bad_argument_is_a_tool_error_and_the_database_is_never_called(
+    settings, admin, tool, arguments, argument, expected
+):
+    before = audit_row_count(admin)
+    async with connect(settings) as client:
+        result = await client.call_tool(tool, arguments)
+
+    assert result.is_error
+    # The SDK's message names the argument and the rule it broke.
+    assert f"\n{argument}\n" in text_of(result)
+    assert expected in text_of(result)
+    assert audit_row_count(admin) == before
+
+
+async def test_a_rejected_value_is_logged_without_the_value(settings, caplog):
+    caplog.set_level(logging.INFO)
+    async with connect(settings) as client:
+        await client.call_tool("find_customers", {"name": "Rutherford" * 20})
+
+    server_log = "\n".join(
+        r.getMessage() for r in caplog.records if not r.name.startswith(("mcp.client", "httpx2"))
+    )
+    assert "Tool 'find_customers' rejected arguments: ['name']" in server_log
+    assert "Rutherford" not in server_log
