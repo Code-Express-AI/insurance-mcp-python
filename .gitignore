@@ -1,0 +1,12 @@
+# Secrets: connection strings, passwords, tokens
+.env
+
+# Private: Claude's project instructions and the notes for the videos
+CLAUDE.md
+docs/video-notes.md
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
