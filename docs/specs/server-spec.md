@@ -43,7 +43,7 @@ Every request passes these checks in order. Each one holds even if the one befor
 
 | Need | Choice | Why |
 |---|---|---|
-| Language | Python 3.15, pinned in `.python-version` | The latest stable release, so the course stays current for longer. Pinned so the data generator's seed gives the same data everywhere. At build time, check that every dependency installs on 3.15. If one doesn't yet, use 3.14 until it does. |
+| Language | Python 3.14, pinned in `.python-version` | Pinned so the data generator's seed gives the same data everywhere, and it stays on 3.14 for the whole series. Not 3.15, the latest release: in November 2026, onnxruntime, which the local embedding model needs (spec decision 11), had no packages for 3.15 yet. 3.14 installs everything on Windows, macOS and Linux, and is supported until 2030. |
 | Packages | uv | One tool for Python, the virtual environment and packages. Works the same on all three systems. |
 | MCP | The official `mcp` Python SDK | The reference implementation, maintained with the MCP spec. Not the separate FastMCP 2 project, to keep to one well-known dependency. |
 | Web framework | FastAPI, run by uvicorn | The MCP endpoint is mounted inside it. FastAPI adds the health endpoint and middleware. |
