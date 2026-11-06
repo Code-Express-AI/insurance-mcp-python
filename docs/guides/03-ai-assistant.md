@@ -188,4 +188,6 @@ The server isn't tied to VS Code or Claude Code. Any MCP client that can connect
 
 ## Next
 
+[Guide 4](04-rag.md) adds search by meaning (RAG): finding claims by what they mean, and answering "am I covered?" from the policy booklets. It's optional: the MCP server is complete without it.
+
 [Using this with your own data](../using-your-own-data.md) explains how to point the same design at a real company's data, and lists the honest limits in one place.

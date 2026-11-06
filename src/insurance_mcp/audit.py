@@ -24,12 +24,18 @@ GENERIC_ERROR = "The database could not complete this request."
 
 
 async def audited_call(
-    pool: AsyncConnectionPool, caller: str, function: str, arguments: dict[str, Any]
+    pool: AsyncConnectionPool,
+    caller: str,
+    function: str,
+    arguments: dict[str, Any],
+    audit_arguments: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Run mcp.<function>, write its audit row, and return its rows.
 
     Each mcp function has the same name as its tool, so `function` is also the
-    tool name in the audit log.
+    tool name in the audit log. The audit row records `arguments`, unless
+    `audit_arguments` is given: the RAG tools pass the question there, rather
+    than the 384 numbers the function gets.
     """
     started = time.perf_counter()
     rows = None
@@ -56,7 +62,10 @@ async def audited_call(
                 "caller": caller,
                 "tool_name": function,
                 # default=str: UUIDs and dates are written as text.
-                "arguments": Jsonb(arguments, dumps=lambda value: json.dumps(value, default=str)),
+                "arguments": Jsonb(
+                    arguments if audit_arguments is None else audit_arguments,
+                    dumps=lambda value: json.dumps(value, default=str),
+                ),
                 "rows_returned": len(rows) if rows is not None else None,
                 "duration_ms": duration_ms,
                 "succeeded": error is None,

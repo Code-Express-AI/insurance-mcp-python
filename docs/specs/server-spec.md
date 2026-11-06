@@ -231,6 +231,8 @@ This is the SDK's syntax as checked in stage 0.
 
 That's 10 tools. Each answers a real question, and every list has a hard row limit.
 
+The RAG part adds three more, `search_claim_text`, `find_similar_claims` and `search_policy_wording`, set out in [spec.md](spec.md), decision 11. `search_claim_text` and `search_policy_wording` embed the `query` first, in a worker thread, and pass the 384 numbers to their function. Their audit row records the `query` as the caller wrote it, not the numbers.
+
 **Row limits slow copying; they don't prevent it.** A caller can still page through `search_claims`, or try every two-letter name in `find_customers`, and in time read everything its token allows. What stops that being quick or quiet: at most 20 pages of 50 per search (decision 14), the per-minute and daily limits (decision 7), and the audit log, which records every call. It's honest to say so: a reader can read what it's allowed to read. The limits make bulk copying slow and visible.
 
 **Policies and claims are looked up by number only.** People say the number out loud ("policy AUT-104233"), and every result that mentions a policy or claim includes its number, so the model always has one to pass on. Accepting the number or the id in one tool would mean two optional arguments where exactly one is required, which a schema can't express cleanly. Separate `_by_id` tools would double these lookups for no new answer.
@@ -361,6 +363,6 @@ A `404` would mean the `/mcp` endpoint itself doesn't exist, so "no such policy"
 | RAG tool before the embed command has run | Tool error | "Run the embed command first." |
 | Anything unexpected (bug, database down, timeout) | Tool error | "The database could not complete this request." Details only in the server log (database decision 8). |
 
-Every row is logged as decision 12 says. Calls that get as far as running a tool are also recorded in the audit log, including the ones that fail. Arguments the SDK rejects before the tool runs aren't, for the same reason bad tokens aren't (decision 12): the audit table is for calls, not junk.
+Every row is logged as decision 12 says. Calls that get as far as running a tool are also recorded in the audit log, including the ones that fail. Arguments the SDK rejects before the tool runs aren't, for the same reason bad tokens aren't (decision 12): the audit table is for calls, not junk. One more exception: if the embedding model hasn't been downloaded, a RAG search stops before the database, with "Run the embed command first.", and has no audit row. The server never downloads the model itself: it would take a minute or more in the middle of a tool call.
 
 **Honest limit:** slow-sending attacks ("slowloris"), where a caller dribbles a request out byte by byte to tie up the server, and floods of connections are a job for a reverse proxy in front of a hosted server, not for the app. Locally, bound to `127.0.0.1`, they don't apply.

@@ -142,7 +142,7 @@ Random data doesn't guarantee an interesting answer to each demo question. So, a
 | "How many windshield claims did we have last month, compared with the month before?" | A visible jump between the two months. |
 | "Show me the claim history for Maria Garcia. Has she claimed more than twice in three years?" | Yes: three claims. |
 | "Which adjuster has the most open claims?" | One adjuster clearly leads. |
-| "Find claims where the car was hit while parked at a supermarket" (RAG) | Several, worded differently: "sideswiped in the Walmart parking lot", "backed into outside Target". |
+| "Find claims where the car was hit while parked at a supermarket" (RAG) | Several, worded differently: "sideswiped in the Walmart parking lot", "backed into outside Target". On `full` data the random text library's own hit-while-parked stories outnumber these six, so the search finds those instead, which is just as good for the demo. The test checks that the results are cars hit while parked, not which ones. |
 
 Planted facts are listed in one place in the code, so it's easy to see what the demos rely on.
 

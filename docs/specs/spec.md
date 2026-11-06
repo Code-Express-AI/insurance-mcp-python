@@ -117,11 +117,12 @@ The docs include a short page on this, as a pointer rather than a build.
 **Decision:**
 - pytest.
 - Standard pytest naming: `tests/test_*.py` files with plain `test_*` functions, named for the behavior (for example `test_reader_cannot_select_from_claims`).
-- Tests live in a top-level `tests/` folder, apart from the code: `tests/database/` for the database lockdown tests, `tests/server/` for the MCP server, and shared setup in `tests/conftest.py`.
+- Tests live in a top-level `tests/` folder, apart from the code: `tests/database/` for the database lockdown tests, `tests/server/` for the MCP server, `tests/data/` for the generated data, `tests/rag/` for the embed command and the real embedding model, and shared setup in `tests/conftest.py`.
 - Integration tests use [Testcontainers](https://testcontainers-python.readthedocs.io): pytest starts a throwaway PostgreSQL container, builds the database from scratch with the setup command, runs the tests and deletes the container. They never touch the database you demo from. See [database-spec.md](database-spec.md), decision 13.
 - **Tests load `small` data** (about 1/20 of the full size, [data-generator-spec.md](data-generator-spec.md), decision 4), into one container per test run that all the tests share. That keeps a full local run under a minute.
 - **If Docker isn't running, the integration tests are skipped with one clear reason, not failed.** Fifty failures that all mean "Docker isn't running" help nobody.
-- **GitHub Actions** runs on every push and pull request, with two jobs: ruff and the full test suite on `small` data, database tests included; and a load of `full` data that checks the planted demo facts ([data-generator-spec.md](data-generator-spec.md), decision 11). It uses Ubuntu runners, which have Docker, so Testcontainers works there unchanged. Linux only: the code is plain Python, and PostgreSQL runs on Linux in Docker everywhere.
+- **The RAG tests mostly don't need the embedding model.** The tests of the RAG functions write hand-made vectors into the test database, so they check row limits, filters, redaction and the 384-number check in seconds, with no download. The few tests that need the real model (the embed command, and a meaning search finding the planted parking-lot claims) are marked `embedding_model` and run only when asked for: `uv run pytest -m embedding_model`.
+- **GitHub Actions** runs on every push and pull request, with three jobs: ruff and the full test suite on `small` data, database tests included; a load of `full` data that checks the planted demo facts ([data-generator-spec.md](data-generator-spec.md), decision 11); and the `embedding_model` tests on `small` data, with the model download cached between runs. Embedding `full` data takes too long for CI, so the parking-lot demo is checked on `full` data by hand, once, when the RAG part is built. It uses Ubuntu runners, which have Docker, so Testcontainers works there unchanged. Linux only: the code is plain Python, and PostgreSQL runs on Linux in Docker everywhere.
 - **Dependabot** opens pull requests when a Python package, the Docker image or a GitHub Action has an update, so security fixes don't sit unnoticed. It's a short `.github/dependabot.yml` and free on public repos. Dependencies are pinned in `uv.lock` and the image by its tag.
 - **In CI, skipping becomes failing.** A skipped test looks green, so if Docker broke on the runner, the database tests would quietly skip and the build would still pass. GitHub sets `CI=true`, and when it's set the test setup fails instead of skipping.
 
@@ -133,7 +134,8 @@ The docs include a short page on this, as a pointer rather than a build.
   1. **Database:** start PostgreSQL in Docker, run the setup command, load the data.
   2. **Server:** create tokens, start the server, and optionally try it in MCP Inspector.
   3. **Connect an AI assistant:** GitHub Copilot's free plan, or Claude Code.
-  4. **Optional:** a hosted database (decision 4).
+  4. **Optional: search by meaning (RAG):** the embed command and the RAG tools (decision 11).
+  5. **Optional:** a hosted database (decision 4).
 - **The MCP part is complete on its own.** Guides 1 to 3 give a working project without the RAG extension.
 - **Commands work on Windows, macOS and Linux.** Tasks are `uv run` Python commands with settings in `.env`, so one set of commands serves all three. The guides are written on macOS, with a short Windows note only where needed.
 - **The database guide explains every setting and password in `.env`:** what each one is for, which program reads it, which ones must match, and how to make a strong one. The specs only list them.
@@ -218,35 +220,42 @@ A first draft of the 10 read-only tools, mapped to these demo questions, is in [
 
 An **embedding** is a list of numbers that stands for the meaning of a text. Texts that mean similar things get similar lists, even with no words in common. The **embedding model** makes these lists. It isn't the chat model: Copilot or Claude still reads the results and writes the answer.
 
-- **`fastembed` with `BAAI/bge-small-en-v1.5`, running locally.** `fastembed` is an ordinary Python dependency, added with `uv`. It runs the model on the CPU, with no PyTorch and no separate app to install. The model (about 130 MB) downloads itself the first time it's used. The `fastembed` version is pinned in `uv.lock`, which fixes which model files it downloads.
+- **`fastembed` with `sentence-transformers/all-MiniLM-L6-v2`, running locally.** `fastembed` is an ordinary Python dependency, added with `uv`. It runs the model on the CPU, with no PyTorch and no separate app to install. The model (90 MB, Apache 2.0 license) downloads itself the first time it's used. The `fastembed` version is pinned in `uv.lock`, which fixes which model files it downloads.
+- **Why this model:** we tried four small local models on our own data when building the RAG part: `all-MiniLM-L6-v2`, `BAAI/bge-small-en-v1.5`, `snowflake-arctic-embed-s` and the larger `BAAI/bge-base-en-v1.5`. MiniLM found the right claims most often, and it's the fastest, about three times faster than `bge-small`. The bigger model was no better on our data, and slower.
+- **It reads at most 256 word pieces (tokens) of each text,** and silently ignores the rest. Notes are under 100 and booklet sections under 256, and a test checks it.
+- **The model is kept in a git-ignored `.cache/` folder** at the root of the repo. By default `fastembed` uses the system's temp folder, which macOS clears from time to time, and then the server would download the model again in the middle of a search.
 - **No API key and no account,** so it meets the free-to-run rule (decision 1). The notes, with their personal data, never leave the machine.
 - **Each text becomes 384 numbers,** so the columns are `vector(384)`. Searching needs the same model that made the stored vectors, so the model is fixed for the project. Changing it means changing the columns and embedding everything again.
-- **The trade-off:** a hosted model such as OpenAI's is somewhat better, but for short English notes a small local model works well.
+- **The trade-off:** a hosted model such as OpenAI's is better. A small local model works for our questions, but it's sensitive to wording, so the demo questions were picked by testing them. The docs say so.
 
 ### Making and storing the embeddings
 
-- **A separate command,** `uv run python -m insurance_mcp.embed`, run after setup and the data generator. Anyone who only follows the MCP part never downloads or runs the model.
+- **A separate command,** `uv run python -m insurance_mcp.embed`, run after the setup command. Anyone who only follows the MCP part never downloads or runs the model. It does all of the RAG loading in one step: it embeds the accident descriptions and the notes already in the database (no new text is made), and it splits the three booklets at their headings, embeds the sections and loads them into `policy_document_chunks`. It connects as the admin role, like the setup command.
+- **It takes minutes, so it shows its progress.** On a fast 18-core laptop, `full` data (about 92,000 texts) takes about 3.5 minutes, and an ordinary laptop takes several times longer. `small` data takes about 15 seconds. The model uses every CPU core, so the fans will run loud, and the guide says that's normal. One line per kind of text updates in place after every batch, with a count and the time left: `Claim notes: 23,040 / 76,630 (30%), about 2 min left`. No progress library: a few lines of `print`. `fastembed` shows its own bar while the model downloads.
+- **Stopping it is harmless.** Each batch is saved as soon as it's embedded, and the command only embeds rows that don't have an embedding yet. Run it again and it carries on where it stopped. The setup command rebuilds the database without embeddings, so after running setup, run the embed command again.
+- **pgvector is installed by `02_schema.sql`,** with `create extension if not exists vector`, in the `public` schema where it goes by default. pgvector isn't a "trusted" extension, so only a superuser can install it. Locally the admin role is `postgres`, a superuser, and hosted services such as Neon let their admin role install it. The tests build the database as a non-superuser admin on purpose ([database-spec.md](database-spec.md), decision 13), so the test setup installs the extension first, as the test container's superuser. The functions run with an empty `search_path`, so they write pgvector's names in full: `public.vector(384)` and `OPERATOR(public.<=>)`.
 - **Embedding columns on the tables they describe,** added to `02_schema.sql` with the RAG extension and empty until the embed command fills them: `claims.embedding` (for the accident description) and `claim_notes.embedding`. Adding them then costs nothing, because the setup command rebuilds the database from scratch every time. The text and its filters sit in the same row as its vector, so a search and its filters are one query.
-- **A new table, `policy_document_chunks`,** holds the booklet sections: `coverage_level`, `heading`, `content`, `embedding`.
-- **One HNSW index per embedding column,** using cosine distance. HNSW is pgvector's index for fast "nearest neighbor" search. It's approximate, which is the normal trade for speed.
+- **A new table, `policy_document_chunks`,** holds the booklet sections: `coverage_level`, `heading`, `content`, `embedding`. The booklets are markdown files in `src/insurance_mcp/booklets/`.
+- **No vector index: every search is exact.** pgvector's usual index, HNSW, is approximate, and it applies SQL filters after it has picked its nearest candidates (about 40 by default). With a strict filter it can throw all of them away. On our `full` data, "open glass claims closest to this" returned no rows through the index, and the right 10 without it. Exact search is correct with any filter, and fast enough at our size: about 70 ms over all 92,000 vectors, a few ms with filters. It also saves the index build, which takes about 45 seconds for the notes. The docs say when to add one: at millions of rows, with pgvector's "iterative scans" switched on so filtered searches still fill the limit.
 - **Chunking** (splitting text before embedding it, so each vector stands for one idea):
   - Notes and descriptions aren't split. At about 50 words each, they're already about one thing.
   - Booklets are split at their headings, so each chunk is one topic and an answer can say which section it quotes. A few lines of Python, no library.
 
 ### Searching
 
-- **The server embeds the question** with the same model, then passes the 384 numbers to an `mcp` function as an ordinary parameter. The function rejects anything that isn't exactly 384 numbers.
+- **The server embeds the question** with the same model, then passes the 384 numbers to an `mcp` function as an ordinary `real[]` parameter, and the function turns it into a vector. So `mcp_reader` needs nothing from pgvector. The function rejects anything that isn't exactly 384 numbers, with its own message. pgvector alone wouldn't be enough: a null gives rows with no score instead of an error.
 - **Embedding runs in a worker thread,** not on the server's event loop. It's CPU work, and on the event loop one search would stall every other request while it ran.
 - **The model loads on the first RAG call,** not at startup, so the MCP part never loads it. If the embed command hasn't been run, the RAG tools say "Run the embed command first" instead of returning nothing.
 - **Three tools,** each read-only, each calling exactly one `mcp` function that follows the same rules as the others ([database-spec.md](database-spec.md), decision 7):
 
 | Tool | Arguments | Returns |
 |---|---|---|
-| `search_claim_text` | `query`, optional `claim_type`, `status`, `period`, `min_reserve`, `limit` | Claims whose description or notes match the query by meaning, each with its best-matching text, where it came from (description or note) and a similarity score |
+| `search_claim_text` | `query`, `search_in` (`descriptions`, the default, or `notes`), optional `claim_type`, `status`, `period`, `min_reserve`, `limit` | Claims whose descriptions, or whose notes, match the query by meaning, each with its best-matching text and a similarity score |
 | `find_similar_claims` | `claim_number`, the same optional filters, `limit` | Claims whose descriptions are closest to that claim's, with a similarity score. Uses the stored vectors, so no model is needed. |
 | `search_policy_wording` | `query`, optional `coverage_level`, `limit` | Booklet sections that match the query, with their coverage level and heading |
 
 - **Row limits:** `limit` defaults to 10 (5 for policy wording) and is clamped to at most 50 in the function. Past the first 10 or so, matches get weaker and only fill the model's context, so the security cap doesn't make answers worse. The similarity score lets the model see when a match is weak.
+- **Descriptions or notes, not both at once.** Descriptions say what happened, and notes say how the claim was handled (injuries, statements, suspicions), so the model can tell which to search. We first searched both together, but on our data that failed: the notes are mostly the same few paperwork sentences ("The customer says a pickup truck was involved. Will get a statement from the other party."), and they crowded the real accident descriptions out of every result.
 - **No paging.** A RAG search returns the best matches, not all matches. "All claims of this type" is a job for `search_claims`, which is exact and pages.
 
 ### Sources of text
@@ -254,12 +263,14 @@ An **embedding** is a list of numbers that stands for the meaning of a text. Tex
 1. **Policy wording documents:** three made-up booklets for our fictional insurer, one per coverage level, saying what is and isn't covered. This is classic RAG. They're markdown files in the repo, a few pages each, with clear headings. Like the text library, they're written once in a Claude Code session and reviewed by hand. Each says it's an illustration, not real insurance.
 2. **Claim text:** the accident descriptions and the adjuster notes.
 
+**Honest limit: the claim text is built from templates** ([data-generator-spec.md](data-generator-spec.md), decision 7), so many claims share the same sentence with a different street or store. A search often returns several copies of one story, and a hand-written planted claim is easily outranked by a few hundred copies of a close match. The search still finds the right kind of claim: it's the data that's repetitive, not the search that's wrong. Real claim text is far more varied.
+
 ### What RAG is and isn't good for
 
 | Use case | Proper term | Verdict |
 |---|---|---|
 | "What's the deductible on policy X?" | Exact or keyword lookup | **Not RAG.** It's SQL, so it's an MCP tool. Using RAG for this is a mistake, and the docs show why. |
-| "Find claims where the car was hit while parked at a supermarket" | Semantic search | **RAG's strength.** It finds "sideswiped in the Walmart parking lot" and "someone backed into me outside Target" too. |
+| "Find claims where the car was hit while parked at a supermarket" | Semantic search | **RAG's strength.** It finds "parked at a gas station when a van pulling up to the next pump hit my rear door" and "parked overnight, and in the morning the driver's side was caved in", with none of the question's words. |
 | "Show me claims similar to this one" | Similarity search | **Good.** Helps an adjuster see how similar cases were settled. |
 | "Am I covered for flood damage with liability + collision?" | Grounded Q&A over documents | **Good.** The answer quotes the policy wording. |
 | "Summarize the notes on claim CLM-1037552" | Summarization | **Fine, but not really RAG.** It's a lookup plus the model summarizing. |

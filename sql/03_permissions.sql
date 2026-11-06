@@ -42,6 +42,7 @@ grant select on insurance.adjusters to mcp_owner;
 grant select on insurance.claims to mcp_owner;
 grant select on insurance.claim_payments to mcp_owner;
 grant select on insurance.claim_notes to mcp_owner;
+grant select on insurance.policy_document_chunks to mcp_owner;
 
 -- What mcp_reader may do ----------------------------------------------------------
 -- See the mcp functions. Each one it may run is granted one by one, next to the

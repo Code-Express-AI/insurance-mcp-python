@@ -57,6 +57,13 @@ Each of these is a real gap. Some are fixed by something outside the app, and so
 - **Personal data is kept forever.** The log records what was searched for, such as a customer's name, and an append-only table can't have it removed. Privacy laws such as the GDPR give people a right to have their data deleted, so a real system needs a retention period. ([database-spec.md](specs/database-spec.md), decision 10)
 - **The trigger doesn't stop `DROP TABLE`.** Blocking it needs a real superuser, which hosted databases don't give you. ([database-spec.md](specs/database-spec.md), decision 10)
 
+### Search by meaning (RAG)
+
+- **A small local model is sensitive to wording.** It's free and keeps the text on your machine, but a hosted model finds better matches. Test your own questions on your own data, and count how many of the top results are right. ([spec.md](specs/spec.md), decision 11)
+- **The embeddings are made from the unredacted text.** Research shows embeddings can be partly turned back into text. Ours never leave the database, and no tool returns them. ([spec.md](specs/spec.md), decision 11)
+- **Every search is exact, with no vector index.** That's fast enough for 100,000 texts, and always correct with filters. At millions of rows, add pgvector's HNSW index, with its "iterative scans" switched on, or a filtered search can return fewer results than it should. ([spec.md](specs/spec.md), decision 11)
+- **Planted instructions can come back in search results too,** like any other note. The same advice applies: the model is told to treat text as data, and no tool can change anything. ([server-spec.md](specs/server-spec.md), decision 11)
+
 ### Running it
 
 - **The query timeout is a default.** Through the server it holds, but someone connecting directly as `mcp_reader` could turn it off. ([database-spec.md](specs/database-spec.md), decision 11)
