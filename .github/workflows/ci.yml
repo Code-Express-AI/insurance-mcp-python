@@ -47,3 +47,24 @@ jobs:
 
       - name: Check the planted demo facts and the page limit on full data
         run: uv run pytest -m full_data
+
+  # The embed command and the searches with the real embedding model, on small
+  # data. The other jobs never download the model.
+  embedding-model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+
+      - run: uv sync --locked
+
+      # Keep the model (64 MB) between runs. uv.lock pins fastembed, which fixes
+      # the model files, so a new download only happens when uv.lock changes.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/fastembed
+          key: fastembed-${{ hashFiles('uv.lock') }}
+
+      - name: Embed small data and check the searches
+        run: uv run pytest -m embedding_model

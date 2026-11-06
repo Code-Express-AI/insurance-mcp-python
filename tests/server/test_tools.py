@@ -193,8 +193,12 @@ TOOL_CALLS = [
 ]
 
 
+# The RAG tools need embeddings, so their end-to-end tests are in test_rag_tools.py.
+RAG_TOOLS = {"search_claim_text", "find_similar_claims", "search_policy_wording"}
+
+
 def test_every_tool_has_an_end_to_end_test():
-    assert {name for name, _ in TOOL_CALLS} | {"get_customer"} == set(TOOL_ARGUMENTS)
+    assert {name for name, _ in TOOL_CALLS} | {"get_customer"} | RAG_TOOLS == set(TOOL_ARGUMENTS)
 
 
 @pytest.mark.parametrize(("tool", "arguments"), TOOL_CALLS, ids=[name for name, _ in TOOL_CALLS])
@@ -329,6 +333,41 @@ async def test_a_search_that_finds_nothing_is_an_empty_list_not_an_error(setting
             "limit",
             "less than or equal to 20",
             id="limit-too-high",
+        ),
+        pytest.param(
+            "search_claim_text",
+            {"query": "x" * 501},
+            "query",
+            "at most 500 characters",
+            id="rag-query-too-long",
+        ),
+        pytest.param(
+            "search_claim_text",
+            {"query": "parked\x00"},
+            "query",
+            "must not contain a null byte",
+            id="null-byte-in-rag-query",
+        ),
+        pytest.param(
+            "search_claim_text",
+            {"query": "parked", "search_in": "both"},
+            "search_in",
+            "'descriptions' or 'notes'",
+            id="unknown-search-in",
+        ),
+        pytest.param(
+            "find_similar_claims",
+            {"claim_number": "CLM-1037552", "limit": 51},
+            "limit",
+            "less than or equal to 50",
+            id="rag-limit-too-high",
+        ),
+        pytest.param(
+            "search_policy_wording",
+            {"query": "flood", "coverage_level": "comprehensive"},
+            "coverage_level",
+            "'liability', 'liability_collision' or 'full'",
+            id="unknown-coverage-level",
         ),
     ],
 )

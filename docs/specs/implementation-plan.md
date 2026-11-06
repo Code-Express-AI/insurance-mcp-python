@@ -43,6 +43,4 @@ So at each stage review, we check the audit fixes in that stage. If a fix needs 
 The specs leave these details to be confirmed against the real libraries:
 
 - **MCP Python SDK (stage 0): done.** Checked against `mcp` 2.3.0, and [server-spec.md](server-spec.md) updated to match (decisions 1, 6, 7, 9, 13 and 14).
-- **pgvector under `search_path = ''` (stage 6):** which schema the extension goes in, and whether the `<=>` operator needs writing as `OPERATOR(schema.<=>)`.
-- **RAG functions take `real[]` (stage 6)** and cast it to a vector inside the function, so `mcp_reader` needs no access to the vector type.
-- **Embedding time (stage 6):** how long the local model (fastembed) takes to embed the `full` data, about 90,000 texts.
+- **pgvector, `real[]` and embedding time (stage 6): done.** Checked against pgvector 0.8.7 and fastembed 0.9.1, and [spec.md](spec.md) decision 11 updated to match: pgvector goes in `public` and needs a superuser to install, the operator is written `OPERATOR(public.<=>)`, the `real[]` cast works, and exact search replaces the HNSW index. Testing the demo questions on `full` data then changed the model to `all-MiniLM-L6-v2` (better matches, and `full` data embeds in about 3.5 minutes on a fast laptop) and split `search_claim_text` into descriptions or notes.

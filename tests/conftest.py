@@ -68,11 +68,19 @@ def admin_url(postgres, superuser_url) -> str:
 
     Like a hosted database's admin, it isn't a superuser: it can create roles and
     owns the database, nothing more. So every test run proves the setup never
-    needs superuser rights.
+    needs superuser rights, apart from installing pgvector (below).
     """
     with psycopg.connect(superuser_url, autocommit=True) as conn:
         conn.execute(f"create role app_admin login createrole password '{ADMIN_PASSWORD}'")
         conn.execute("create database insurance owner app_admin")
+
+    # pgvector isn't a "trusted" extension, so only a superuser can install it.
+    # A hosted service lets its admin role install it, so the container's
+    # superuser stands in for that here. The setup's "create extension if not
+    # exists" then does nothing.
+    superuser = connection_url(postgres, postgres.username, postgres.password, "insurance")
+    with psycopg.connect(superuser) as conn:
+        conn.execute("create extension vector")
 
     url = connection_url(postgres, "app_admin", ADMIN_PASSWORD, "insurance")
     setup_database(url, reader_url_for(postgres), size="small")
@@ -118,3 +126,50 @@ def reader(reader_url):
 def anyio_backend() -> str:
     """The async tests (marked anyio) run on asyncio, like the server."""
     return "asyncio"
+
+
+# Hand-made embeddings, so the RAG functions can be tested without the model ---------
+
+DIMENSIONS = 384
+
+
+def make_unit_vector(position: int) -> list[float]:
+    """384 numbers, all 0 except a 1 at `position`.
+
+    Two of these at the same position have similarity 1 (the same "meaning").
+    At different positions, similarity 0 (nothing in common).
+    """
+    return [1.0 if i == position else 0.0 for i in range(DIMENSIONS)]
+
+
+@pytest.fixture
+def unit_vector():
+    """make_unit_vector, for the tests (a fixture, because tests don't import conftest)."""
+    return make_unit_vector
+
+
+@pytest.fixture(scope="module")
+def fake_embeddings(admin_url):
+    """Give every claim and note a hand-made embedding, and load 60 hand-made booklet
+    sections. Removed again at the end of the test module, so every other test sees
+    the database as the setup left it, with no embeddings.
+
+    Every description gets unit vector 0, every note 1, every section 2. A test
+    that needs a clear best match points one row somewhere else.
+    """
+    with psycopg.connect(admin_url, autocommit=True) as conn:
+        conn.execute("update insurance.claims set embedding = %s", [str(make_unit_vector(0))])
+        conn.execute("update insurance.claim_notes set embedding = %s", [str(make_unit_vector(1))])
+        levels = ["liability", "liability_collision", "full"]
+        conn.cursor().executemany(
+            "insert into insurance.policy_document_chunks"
+            " (coverage_level, heading, content, embedding) values (%s, %s, %s, %s)",
+            [
+                (levels[i % 3], f"Section {i}", f"Text of section {i}.", str(make_unit_vector(2)))
+                for i in range(60)
+            ],
+        )
+        yield
+        conn.execute("update insurance.claims set embedding = null")
+        conn.execute("update insurance.claim_notes set embedding = null")
+        conn.execute("delete from insurance.policy_document_chunks")

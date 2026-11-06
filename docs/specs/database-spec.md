@@ -209,6 +209,14 @@ One function per tool in [server-spec.md](server-spec.md), decision 10, with the
 | `mcp.get_adjuster_workload()` | None | `adjuster_name`, `open_claim_count`, `open_reserve_total`, `oldest_open_days`. Most open claims first. | 100 rows |
 | `mcp.count_claims_by_driver_age` | `p_period text`, `p_fault text` | `age_band`, `claim_count`. Age at the date of loss. Always the four bands, `16-19`, `20-24`, `25-64`, `65+`, in that order, with 0 where there are none. | 4 rows |
 
+The RAG part (spec decision 11) adds three more, with three more grant lines. Each takes the query as `p_embedding real[]` and turns it into a vector with a helper, `insurance.to_vector()`, which raises "The embedding must be a list of exactly 384 numbers." for anything else, a null included. Each raises "Run the embed command first." if there's nothing to search yet. `similarity` is 1 minus the cosine distance, to 3 decimal places. Every search is exact, with no vector index.
+
+| Function | Arguments | Returns | Limit |
+|---|---|---|---|
+| `mcp.search_claim_text` | `p_embedding real[]`, `p_search_in text`, `p_claim_type text`, `p_status text`, `p_period text`, `p_min_reserve numeric`, `p_limit int` | `claim_id`, `claim_number`, `claim_type`, `status`, `date_reported`, `reserve`, `matched_text` (redacted), `similarity`. `p_search_in` is `descriptions` (the default) or `notes`, and anything else raises an error. For notes, each claim comes back once, with its closest note. Closest first. `p_limit` is clamped to 1–50, default 10. | 50 rows |
+| `mcp.find_similar_claims` | `p_claim_number text`, the same four filters, `p_limit int` | `claim_id`, `claim_number`, `claim_type`, `status`, `date_reported`, `reserve`, `description` (redacted), `similarity`. Compares stored description embeddings, so the server needs no model. Leaves out the claim itself. Raises "Unknown claim number" if not found. | 50 rows |
+| `mcp.search_policy_wording` | `p_embedding real[]`, `p_coverage_level text`, `p_limit int` | `coverage_level`, `heading`, `content`, `similarity`. `p_limit` is clamped to 1–50, default 5. | 50 rows |
+
 **What the server checks and what the function checks.** The server rejects bad codes and out-of-range numbers before the call (decision 8). The functions still clamp limits and pages, and `insurance.period_dates()` still raises on an unknown period, so a bug in the server can't turn into a table dump.
 
 ## 8. Errors

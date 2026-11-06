@@ -14,3 +14,6 @@ __pycache__/
 # AI client configs can hold a bearer token: keep them out of git
 .mcp.json
 .vscode/mcp.json
+
+# The embedding model, downloaded by the embed command (64 MB)
+.cache/

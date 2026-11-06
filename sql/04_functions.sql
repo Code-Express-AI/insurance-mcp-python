@@ -111,6 +111,28 @@ as $$
     );
 $$;
 
+-- Checks a query embedding from the server and turns it into a vector.
+-- The server sends a plain array of numbers (real[]), so mcp_reader needs
+-- nothing from pgvector. pgvector checks the length too, but its message is
+-- written for developers, and a null would give rows with no score instead of
+-- an error. So we check it ourselves first.
+create function insurance.to_vector(p_embedding real[])
+returns public.vector
+language plpgsql
+immutable
+set search_path = ''
+as $$
+begin
+    if p_embedding is null
+       or array_ndims(p_embedding) <> 1
+       or cardinality(p_embedding) <> 384
+       or array_position(p_embedding, null) is not null then
+        raise exception 'The embedding must be a list of exactly 384 numbers.';
+    end if;
+    return p_embedding::public.vector(384);
+end;
+$$;
+
 -- mcp_owner runs the mcp functions, which call these helpers.
 grant execute on function insurance.as_of_date() to mcp_owner;
 grant execute on function insurance.period_dates(text, date) to mcp_owner;
@@ -118,6 +140,7 @@ grant execute on function insurance.escape_like(text) to mcp_owner;
 grant execute on function insurance.mask_email(text) to mcp_owner;
 grant execute on function insurance.mask_last4(text) to mcp_owner;
 grant execute on function insurance.redact_text(text) to mcp_owner;
+grant execute on function insurance.to_vector(real[]) to mcp_owner;
 
 reset role;
 
@@ -652,5 +675,224 @@ begin
 end;
 $$;
 grant execute on function mcp.count_claims_by_driver_age(text, text) to mcp_reader;
+
+-- RAG: search by meaning -------------------------------------------------------------
+-- The server turns the question into an embedding (384 numbers) with the same
+-- model that embedded the text, and passes it in as p_embedding. "Close" is
+-- cosine distance, pgvector's <=> operator. With search_path = '', even the
+-- operator is written with its schema: OPERATOR(public.<=>).
+-- similarity is 1 minus the distance: 1 means the same meaning, lower is weaker.
+-- Every search is exact (no vector index), so the filters never lose matches.
+
+-- Claims whose accident descriptions, or whose notes, are closest in meaning
+-- to the question. One or the other, not both: the notes are mostly the same
+-- few paperwork sentences, and mixed in, they crowd out the descriptions.
+-- p_search_in: 'descriptions' (what happened) or 'notes' (how the claim was
+-- handled). Each claim once, with its best-matching text. A null filter means "any".
+create function mcp.search_claim_text(
+    p_embedding   real[],
+    p_search_in   text    default 'descriptions',
+    p_claim_type  text    default null,
+    p_status      text    default null,
+    p_period      text    default null,
+    p_min_reserve numeric default null,
+    p_limit       integer default 10
+)
+returns table (
+    claim_id      uuid,
+    claim_number  text,
+    claim_type    text,
+    status        text,
+    date_reported date,
+    reserve       numeric,
+    matched_text  text,
+    similarity    numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+    v_query public.vector := insurance.to_vector(p_embedding);
+    -- Clamped to 1-50 here too, so a bug in the server can't list more.
+    v_limit integer := least(greatest(coalesce(p_limit, 10), 1), 50);
+    v_start date;
+    v_end   date;
+begin
+    if not exists (select from insurance.claims as c where c.embedding is not null) then
+        raise exception 'Run the embed command first.';
+    end if;
+
+    if p_period is not null then
+        select pd.start_date, pd.end_date into v_start, v_end
+        from insurance.period_dates(p_period, insurance.as_of_date()) as pd;
+    end if;
+
+    if p_search_in = 'descriptions' then
+        return query
+        select
+            c.public_id,  -- the public key, returned as claim_id
+            c.claim_number,
+            c.claim_type,
+            c.status,
+            c.date_reported,
+            c.reserve,
+            insurance.redact_text(c.description),
+            round((1 - (c.embedding operator(public.<=>) v_query))::numeric, 3)
+        from insurance.claims as c
+        where c.embedding is not null
+          and (p_claim_type is null or c.claim_type = p_claim_type)
+          and (p_status is null or c.status = p_status)
+          and (p_min_reserve is null or c.reserve >= p_min_reserve)
+          and (p_period is null or c.date_reported between v_start and v_end)
+        order by c.embedding operator(public.<=>) v_query, c.claim_number
+        limit v_limit;
+
+    elsif p_search_in = 'notes' then
+        return query
+        with best as (
+            -- Each claim once, with its closest note.
+            select distinct on (n.claim_id)
+                n.claim_id as claim_ref,
+                n.note,
+                n.embedding operator(public.<=>) v_query as distance
+            from insurance.claim_notes as n
+            where n.embedding is not null
+            order by n.claim_id, n.embedding operator(public.<=>) v_query
+        )
+        select
+            c.public_id,  -- the public key, returned as claim_id
+            c.claim_number,
+            c.claim_type,
+            c.status,
+            c.date_reported,
+            c.reserve,
+            insurance.redact_text(b.note),
+            round((1 - b.distance)::numeric, 3)
+        from best as b
+        join insurance.claims as c on c.id = b.claim_ref
+        where (p_claim_type is null or c.claim_type = p_claim_type)
+          and (p_status is null or c.status = p_status)
+          and (p_min_reserve is null or c.reserve >= p_min_reserve)
+          and (p_period is null or c.date_reported between v_start and v_end)
+        order by b.distance, c.claim_number
+        limit v_limit;
+
+    else
+        raise exception 'Unknown search_in "%". Use descriptions or notes.', p_search_in;
+    end if;
+end;
+$$;
+grant execute on function mcp.search_claim_text(real[], text, text, text, text, numeric, integer) to mcp_reader;
+
+-- Claims whose accident descriptions are closest to one claim's description.
+-- It compares the stored embeddings with each other, so it needs no model.
+create function mcp.find_similar_claims(
+    p_claim_number text,
+    p_claim_type   text    default null,
+    p_status       text    default null,
+    p_period       text    default null,
+    p_min_reserve  numeric default null,
+    p_limit        integer default 10
+)
+returns table (
+    claim_id      uuid,
+    claim_number  text,
+    claim_type    text,
+    status        text,
+    date_reported date,
+    reserve       numeric,
+    description   text,
+    similarity    numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+    v_claim_ref bigint;  -- the internal id: used here, never returned
+    v_query     public.vector;
+    v_start     date;
+    v_end       date;
+begin
+    select c.id, c.embedding into v_claim_ref, v_query
+    from insurance.claims as c
+    where c.claim_number = p_claim_number;
+
+    if not found then
+        raise exception 'Unknown claim number. Use search_claims to find it.';
+    end if;
+    if v_query is null then
+        raise exception 'Run the embed command first.';
+    end if;
+
+    if p_period is not null then
+        select pd.start_date, pd.end_date into v_start, v_end
+        from insurance.period_dates(p_period, insurance.as_of_date()) as pd;
+    end if;
+
+    return query
+    select
+        c.public_id,  -- the public key, returned as claim_id
+        c.claim_number,
+        c.claim_type,
+        c.status,
+        c.date_reported,
+        c.reserve,
+        insurance.redact_text(c.description),
+        round((1 - (c.embedding operator(public.<=>) v_query))::numeric, 3)
+    from insurance.claims as c
+    where c.embedding is not null
+      and c.id <> v_claim_ref  -- not the claim itself
+      and (p_claim_type is null or c.claim_type = p_claim_type)
+      and (p_status is null or c.status = p_status)
+      and (p_min_reserve is null or c.reserve >= p_min_reserve)
+      and (p_period is null or c.date_reported between v_start and v_end)
+    order by c.embedding operator(public.<=>) v_query, c.claim_number
+    limit least(greatest(coalesce(p_limit, 10), 1), 50);
+end;
+$$;
+grant execute on function mcp.find_similar_claims(text, text, text, text, numeric, integer) to mcp_reader;
+
+-- Sections of the policy booklets closest in meaning to the question,
+-- optionally for one coverage level.
+create function mcp.search_policy_wording(
+    p_embedding      real[],
+    p_coverage_level text    default null,
+    p_limit          integer default 5
+)
+returns table (
+    coverage_level text,
+    heading        text,
+    content        text,
+    similarity     numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+    v_query public.vector := insurance.to_vector(p_embedding);
+begin
+    if not exists (select from insurance.policy_document_chunks) then
+        raise exception 'Run the embed command first.';
+    end if;
+
+    return query
+    select
+        d.coverage_level,
+        d.heading,
+        d.content,
+        round((1 - (d.embedding operator(public.<=>) v_query))::numeric, 3)
+    from insurance.policy_document_chunks as d
+    where p_coverage_level is null or d.coverage_level = p_coverage_level
+    order by d.embedding operator(public.<=>) v_query, d.coverage_level, d.heading
+    limit least(greatest(coalesce(p_limit, 5), 1), 50);
+end;
+$$;
+grant execute on function mcp.search_policy_wording(real[], text, integer) to mcp_reader;
 
 reset role;

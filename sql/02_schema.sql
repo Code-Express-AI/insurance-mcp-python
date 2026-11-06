@@ -6,6 +6,13 @@
 -- Fixed lists are lowercase text codes with a CHECK constraint.
 -- Money is numeric(12,2), in US dollars.
 
+-- pgvector, for the RAG part: a vector column type and distance operators.
+-- It goes in schema public, where extensions go by default, and stays there when
+-- the setup runs again. Only a superuser can install it (it isn't a "trusted"
+-- extension): locally the admin is postgres, and hosted services let their
+-- admin role install it.
+create extension if not exists vector;
+
 create schema insurance authorization insurance_owner;
 create schema mcp authorization mcp_owner;
 
@@ -94,6 +101,7 @@ create table insurance.claims (
     date_closed    date,                                                -- empty while open
     reserve        numeric(12,2) not null check (reserve >= 0),        -- expected total cost
     description    text not null,
+    embedding      public.vector(384),                                  -- of the description, for RAG
     check (date_reported >= date_of_loss),
     check ((status = 'open') = (date_closed is null)),
     check (date_closed >= date_reported)
@@ -114,8 +122,27 @@ create table insurance.claim_notes (
     claim_id    bigint not null references insurance.claims (id),
     adjuster_id bigint not null references insurance.adjusters (id),
     created_at  timestamptz not null,
-    note        text not null
+    note        text not null,
+    embedding   public.vector(384)  -- of the note, for RAG
 );
+
+-- The policy booklets, one row per section, for RAG. The embed command loads them.
+-- No public_id: no tool looks a section up by key. A section is named by its
+-- coverage level and heading.
+create table insurance.policy_document_chunks (
+    id             bigint generated always as identity primary key,
+    coverage_level text not null check (coverage_level in ('liability', 'liability_collision', 'full')),
+    heading        text not null,
+    content        text not null,
+    embedding      public.vector(384) not null,
+    unique (coverage_level, heading)
+);
+
+-- The embedding columns stay empty until the embed command fills them, and
+-- they have no index: every search is exact. pgvector's HNSW index is
+-- approximate, and it applies SQL filters after picking its nearest candidates,
+-- so a strict filter can leave no rows at all. At our size, exact search takes
+-- well under a second.
 
 -- PostgreSQL doesn't index foreign keys by itself. These keep joins fast.
 create index on insurance.policies (customer_id);

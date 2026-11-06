@@ -10,6 +10,7 @@ license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.162.0",
+    "fastembed>=0.9.1",
     "mcp>=2.3.0",
     "psycopg-pool>=3.3.3",
     "psycopg[binary]>=3.3.8",
@@ -46,9 +47,12 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# The full-data checks load 20 times more data, so they only run when asked for
-# (uv run pytest -m full_data). A -m on the command line replaces this one.
-addopts = "--strict-markers -m 'not full_data'"
+# The full-data checks load 20 times more data, and the embedding-model checks
+# download and run the model, so they only run when asked for
+# (uv run pytest -m full_data, or -m embedding_model). A -m on the command line
+# replaces this one.
+addopts = "--strict-markers -m 'not full_data and not embedding_model'"
 markers = [
     "full_data: needs full data, such as the planted demo facts (run with -m full_data)",
+    "embedding_model: downloads and runs the embedding model (run with -m embedding_model)",
 ]
