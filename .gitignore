@@ -17,3 +17,6 @@ __pycache__/
 
 # The embedding model, downloaded by the embed command (64 MB)
 .cache/
+
+# Personal editor settings
+.vscode/settings.json
