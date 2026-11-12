@@ -168,6 +168,47 @@ def test_search_claim_text_redacts_phone_numbers_and_emails(
         assert not EMAIL.search(row["matched_text"]), row["matched_text"]
 
 
+def test_search_claim_text_replaces_the_customers_own_street_address(
+    fake_embeddings, admin, reader, unit_vector
+):
+    # A search turns collecting addresses into one query, so the notes branch
+    # must remove them too. Point every note with its customer's address at the search.
+    own_address = """
+        n.claim_id in (
+            select c.id
+            from insurance.claims as c
+            join insurance.policies as p on p.id = c.policy_id
+            join insurance.customers as cu on cu.id = p.customer_id
+            where position(cu.street_address in n.note) > 0)
+    """
+    admin.execute(
+        f"update insurance.claim_notes as n set embedding = %s where {own_address}",
+        [str(unit_vector(6))],
+    )
+    try:
+        found = search(reader, unit_vector(6), search_in="notes", limit=50)
+    finally:
+        admin.execute(
+            f"update insurance.claim_notes as n set embedding = %s where {own_address}",
+            [str(unit_vector(1))],
+        )
+    address_of = dict(
+        admin.execute(
+            """
+            select c.claim_number, cu.street_address
+            from insurance.claims as c
+            join insurance.policies as p on p.id = c.policy_id
+            join insurance.customers as cu on cu.id = p.customer_id
+            """
+        ).fetchall()
+    )
+
+    assert found and found[0]["similarity"] == 1, "Expected notes with the customer's address."
+    for row in found:
+        assert address_of[row["claim_number"]] not in row["matched_text"], row["matched_text"]
+        assert "[address]" in row["matched_text"], row["matched_text"]
+
+
 # find_similar_claims ------------------------------------------------------------------
 
 

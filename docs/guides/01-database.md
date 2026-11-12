@@ -251,7 +251,7 @@ erDiagram
 ```
 
 - **Masked** columns are never returned in full: the functions show only part of an email (`m***@example.com`) and the last four characters of a driver's license number.
-- **Redacted** text has any phone numbers and email addresses in it replaced with `[phone]` and `[email]` before it's returned. Adjusters sometimes type them into a note. Names and street addresses can't be caught this way.
+- **Redacted** text has any phone numbers and email addresses in it replaced with `[phone]` and `[email]` before it's returned. Adjusters sometimes type them into a note. The customer's own street address becomes `[address]`: the database knows whose claim it is, so it can look for that exact address. Names, and any other address, can't be caught this way.
 - **`id` never leaves the database.** The tables join on the `bigint` ids, but the functions return `public_id` UUIDs or business numbers (`AUT-…`, `CLM-…`) instead. A sequential id would give away how many rows there are, and let a caller guess other records by counting.
 - `policy_document_chunks` holds the three policy booklets, split into sections for RAG ([guide 4](04-rag.md)). It's linked to policies by `coverage_level`, not by a foreign key. The `embedding` columns stay empty until you run the embed command in that guide.
 - `caller_states` lists which states each caller may see, for row-level security: see [Row-level security, step by step](#row-level-security-step-by-step) below. It's linked to customers by `state`, not by a foreign key.

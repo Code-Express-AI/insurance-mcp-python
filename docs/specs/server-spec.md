@@ -282,7 +282,7 @@ MCP lets the server send instructions when a client connects, and good clients a
 
 **But read-only isn't the same as harmless.** If the same AI assistant also has a tool that can send data out (web fetch, email, a GitHub or Slack MCP server), a planted note could tell the model to collect customer details and send them somewhere. Security people call this the **lethal trifecta**: private data, untrusted text and a way to send data out, all in one assistant. Our server supplies the first two, so the third must come from somewhere else. A local model doesn't fix this on its own: the risk comes from the tools connected to the assistant, not from where the model runs. What we do:
 
-- **Limit what could leak:** masking, redaction of phone numbers and emails in notes, row limits and the daily cap.
+- **Limit what could leak:** masking, redaction of phone numbers, emails and the customer's street address in notes, row limits and the daily cap.
 - **Say so in the guides:** don't connect this server to an assistant that also has tools that can send data out, and keep the assistant asking before it runs a tool. Copilot and Claude Code both ask by default.
 
 What we can't do: control which other tools someone's assistant has.

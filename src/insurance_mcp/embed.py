@@ -83,6 +83,30 @@ def load_booklets(conn: psycopg.Connection, model: TextEmbedding) -> None:
 
 # The claim text ---------------------------------------------------------------------
 
+# What gets embedded is the text the tools show: redacted, as in the mcp functions.
+# The search ranks on these embeddings, so text the tools hide shouldn't count
+# towards a match. And with a hosted embedding model, the raw notes, phone
+# numbers and all, would otherwise be sent to the provider.
+# Each query takes the next batch of rows without an embedding: (id, text).
+DESCRIPTIONS = """
+    select c.id, insurance.redact_text(c.description)
+    from insurance.claims as c
+    where c.embedding is null
+    order by c.id
+    limit %s
+"""
+
+NOTES = """
+    select n.id, insurance.redact_text(replace(n.note, cu.street_address, '[address]'))
+    from insurance.claim_notes as n
+    join insurance.claims as c on c.id = n.claim_id
+    join insurance.policies as p on p.id = c.policy_id
+    join insurance.customers as cu on cu.id = p.customer_id
+    where n.embedding is null
+    order by n.id
+    limit %s
+"""
+
 
 def time_left(seconds: float) -> str:
     if seconds < 60:
@@ -99,16 +123,16 @@ def progress_line(label: str, done: int, total: int, seconds_left: float | None)
     return line
 
 
-def embed_column(
-    conn: psycopg.Connection, model: TextEmbedding, label: str, table: str, text_column: str
+def embed_rows(
+    conn: psycopg.Connection, model: TextEmbedding, label: str, table: str, select_batch: str
 ) -> None:
-    """Embed every row of insurance.<table> that has no embedding yet, a batch at a time."""
+    """Embed every row of insurance.<table> that has no embedding yet, a batch at a time.
+
+    select_batch is DESCRIPTIONS or NOTES: it returns the next batch's ids and texts.
+    """
     total, done = conn.execute(
         sql.SQL("select count(*), count(embedding) from insurance.{}").format(sql.Identifier(table))
     ).fetchone()
-    select_batch = sql.SQL(
-        "select id, {} from insurance.{} where embedding is null order by id limit %s"
-    ).format(sql.Identifier(text_column), sql.Identifier(table))
     save = sql.SQL("update insurance.{} set embedding = %s::public.vector where id = %s").format(
         sql.Identifier(table)
     )
@@ -147,8 +171,8 @@ def embed_everything(admin_database_url: str) -> None:
 
     with psycopg.connect(admin_database_url) as conn:
         load_booklets(conn, model)
-        embed_column(conn, model, "Claim descriptions", "claims", "description")
-        embed_column(conn, model, "Claim notes", "claim_notes", "note")
+        embed_rows(conn, model, "Claim descriptions", "claims", DESCRIPTIONS)
+        embed_rows(conn, model, "Claim notes", "claim_notes", NOTES)
     print("Embeddings ready.")
 
 

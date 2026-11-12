@@ -78,7 +78,7 @@ The assistant should use `get_policy`, not a search. A deductible is an exact fa
 - **Wording matters.** The model is small. "Find claims where the car was hit while parked at a supermarket" works much better than "hit while parked at a supermarket". If a search looks poor, ask again in a full sentence, or ask the assistant to add a filter.
 - **The same story can come back several times.** The claim text is built from templates with a different street or store each time, so many claims share one sentence. Real claim text is far more varied.
 - **Descriptions or notes, not both at once.** Descriptions say what happened. Notes say how the claim was handled: injuries, statements, suspicions. The assistant picks one with `search_in`.
-- **Results are redacted like everything else.** Phone numbers and emails in the text come back as `[phone]` and `[email]`. Names and injuries still get through.
+- **Results are redacted like everything else.** Phone numbers and emails in the text come back as `[phone]` and `[email]`, and the customer's street address as `[address]`. The embeddings are made from this redacted text too. Names and injuries still get through.
 
 ## Run the RAG tests
 

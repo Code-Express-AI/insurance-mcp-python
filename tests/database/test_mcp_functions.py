@@ -201,10 +201,9 @@ def test_an_unknown_or_missing_period_raises_rather_than_matching_everything(rea
 def everything_about_maria_garcia(reader) -> str:
     """Every function's result for Maria Garcia, her policy and her claims, as one text.
 
-    Without the free text (descriptions and notes). Some notes give her street
-    address on purpose: redact_text can only catch phone numbers and emails, and
-    that's an honest limit (database-spec.md, decision 9). The test below this one
-    checks the free text for those.
+    Without the free text (descriptions and notes): free text can hold names and
+    places that no pattern catches, an honest limit (database-spec.md, decision 9).
+    The redaction tests further down check the free text separately.
     """
     customer_id = maria_garcia_id(reader)
     results = [
@@ -258,6 +257,29 @@ def test_get_claim_redacts_phone_numbers_and_emails_in_notes(admin, reader):
         claim = str(rows(reader, "select notes from mcp.get_claim(%s)", number))
         assert not PHONE.search(claim), f"{number} returned a phone number"
         assert not EMAIL.search(claim), f"{number} returned an email address"
+
+
+def test_get_claim_replaces_the_customers_own_street_address_in_notes(admin, reader):
+    # No tool returns customers.street_address, but some notes write it out.
+    # The database knows whose claim it is, so it removes that exact address.
+    claims = admin.execute(
+        """
+        select distinct c.claim_number, cu.street_address
+        from insurance.claims as c
+        join insurance.policies as p on p.id = c.policy_id
+        join insurance.customers as cu on cu.id = p.customer_id
+        join insurance.claim_notes as n on n.claim_id = c.id
+        where position(cu.street_address in n.note) > 0
+        order by c.claim_number
+        limit 50
+        """
+    ).fetchall()
+    assert claims, "Expected some notes with the customer's address in the generated data."
+
+    for number, street_address in claims:
+        notes = str(rows(reader, "select notes from mcp.get_claim(%s)", number))
+        assert street_address not in notes, f"{number} returned {street_address}"
+        assert "[address]" in notes
 
 
 def test_get_claim_redacts_phone_numbers_and_emails_in_the_description(admin, reader):

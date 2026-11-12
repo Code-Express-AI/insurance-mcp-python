@@ -98,7 +98,8 @@ $$;
 -- Replaces US phone numbers and email addresses in free text (claim
 -- descriptions and notes) with [phone] and [email].
 -- It can't catch names, street addresses or injuries: patterns are easy to
--- match, meaning isn't.
+-- match, meaning isn't. The one address we can catch is the customer's own:
+-- the notes branches below replace it exactly, before calling this.
 create function insurance.redact_text(p_text text)
 returns text
 language sql
@@ -424,7 +425,9 @@ grant execute on function mcp.search_claims(uuid, uuid, text, text, numeric, int
 
 -- One claim with its payments and its latest 20 notes.
 -- Descriptions and notes are free text, so phone numbers and emails in them
--- are replaced with [phone] and [email] (insurance.redact_text).
+-- are replaced with [phone] and [email] (insurance.redact_text). Some notes
+-- also write out the customer's street address, which no tool returns, so
+-- it's replaced with [address].
 create function mcp.get_claim(p_claim_number text)
 returns table (
     claim_id         uuid,
@@ -493,7 +496,7 @@ begin
              select
                  n.created_at,
                  na.first_name || ' ' || na.last_name as adjuster_name,
-                 insurance.redact_text(n.note) as note
+                 insurance.redact_text(replace(n.note, cu.street_address, '[address]')) as note
              from insurance.claim_notes as n
              join insurance.adjusters as na on na.id = n.adjuster_id
              where n.claim_id = c.id
@@ -768,10 +771,14 @@ begin
             c.status,
             c.date_reported,
             c.reserve,
-            insurance.redact_text(b.note),
+            -- The customer's street address too, as in get_claim. Without it,
+            -- a search for "the customer's home address" collects them.
+            insurance.redact_text(replace(b.note, cu.street_address, '[address]')),
             round((1 - b.distance)::numeric, 3)
         from best as b
         join insurance.claims as c on c.id = b.claim_ref
+        join insurance.policies as p on p.id = c.policy_id
+        join insurance.customers as cu on cu.id = p.customer_id
         where (p_claim_type is null or c.claim_type = p_claim_type)
           and (p_status is null or c.status = p_status)
           and (p_min_reserve is null or c.reserve >= p_min_reserve)

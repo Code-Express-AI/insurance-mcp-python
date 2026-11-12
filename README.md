@@ -43,7 +43,7 @@ The commands are the same on Windows, macOS and Linux.
 2. **How often:** each caller has a limit per minute and per day.
 3. **What they can ask:** 10 fixed, read-only tools (13 with RAG), with every argument checked. There's no tool that runs SQL.
 4. **What the database allows:** the server logs in as `mcp_reader`, which can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit. Row-level security then returns only the customers the caller may see: each token sees its own states.
-5. **What can leak:** emails and driver's license numbers are masked, phone numbers and emails in free text are redacted, internal ids never leave the database, and unexpected errors become a generic message.
+5. **What can leak:** emails and driver's license numbers are masked, phone numbers, emails and the customer's street address in free text are redacted, internal ids never leave the database, and unexpected errors become a generic message.
 6. **What's recorded:** every tool call goes into an append-only audit log with a hash chain, so tampering can be detected. If the audit row can't be written, the answer isn't returned.
 
 The tests prove each layer holds, against a real PostgreSQL database in Docker. GitHub Actions runs them on every push.
