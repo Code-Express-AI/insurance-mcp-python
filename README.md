@@ -46,7 +46,7 @@ The commands are the same on Windows, macOS and Linux.
 5. **What can leak:** emails and driver's license numbers are masked, phone numbers, emails and the customer's street address in free text are redacted, internal ids never leave the database, and unexpected errors become a generic message.
 6. **What's recorded:** every tool call goes into an append-only audit log with a hash chain, so tampering can be detected. If the audit row can't be written, the answer isn't returned.
 
-The tests prove each layer holds, against a real PostgreSQL database in Docker. GitHub Actions runs them on every push.
+The tests prove each layer holds, against a real PostgreSQL database in Docker. GitHub Actions runs them on every push to `main` and every pull request.
 
 No design is perfect. [Using this with your own data](docs/using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place.
 

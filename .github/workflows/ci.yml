@@ -1,7 +1,10 @@
 name: CI
 
+# Pushes to main, and pull requests. Running on every push as well would test
+# a pull request's branch twice.
 on:
   push:
+    branches: [main]
   pull_request:
 
 # Read-only access to the repo is all these jobs need.
