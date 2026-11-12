@@ -6,7 +6,7 @@ Everything here follows normal PostgreSQL conventions.
 
 **Portable by design:** the same scripts must run unchanged on the local Docker database and on a hosted PostgreSQL service such as Neon (decision 14). So nothing may need a real superuser, the setup can't rely on Docker-only features, and the only difference between the two is the connection string.
 
-**Signed off by Liam on 2026-11-05.** Every decision below is Agreed.
+**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** a new decision 15, with small changes to decisions 6, 12 and 13.
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -28,6 +28,7 @@ Everything here follows normal PostgreSQL conventions.
 | 12 | Setup scripts | Agreed |
 | 13 | Tests that prove the lockdown | Agreed |
 | 14 | Hosting on Neon (optional) | Agreed |
+| 15 | Row-level security: each caller sees only its own customers | Agreed |
 
 ## The lockdown at a glance
 
@@ -43,6 +44,7 @@ Everything here follows normal PostgreSQL conventions.
 | A tamper-evident audit log | A trigger that blocks changes, plus a hash chain | 10 |
 | Errors only the database can spot reach the model | `RAISE EXCEPTION`, SQLSTATE `P0001` | 8 |
 | No free-form SQL | No `EXECUTE` (dynamic SQL) in functions | 7 |
+| Each caller sees only its own customers | Row-level security policies, keyed on a caller key the server sets | 15 |
 
 ## 1. PostgreSQL version and Docker image
 
@@ -136,7 +138,7 @@ And for `mcp_owner`: `USAGE` on schema `insurance`, `SELECT` on each table its f
 
 **What we can't lock down:** every role can read the system catalogs, which include table names, column names and the source code of every function. Revoking this breaks normal tools. Every role can also run PostgreSQL's built-in functions, such as `pg_sleep()`, and any extension's functions, such as pgvector's. Our revoke only covers functions our two owners create. Both only matter if someone can send raw SQL, which the MCP server never allows (layer 3). The docs say so plainly.
 
-**Honest limit: every token sees every customer.** There's no "this client can't see these customers". PostgreSQL's row-level security (RLS) is the natural next step: a policy on each table filters rows for every query, so no function can forget to. A possible later extra would hide VIP customers from some clients, with a second reader role (`mcp_reader_vip`) for the clients allowed to see them. The policies would check `session_user`, not `current_user`, because inside our `SECURITY DEFINER` functions `current_user` is always `mcp_owner`. Not built in this project.
+**Which rows each caller sees** is decided by row-level security (decision 15). The grants above decide what `mcp_reader` can do at all. Row-level security then decides which customers' rows the functions return for each caller.
 
 ## 7. The `mcp` functions
 
@@ -263,7 +265,7 @@ PostgreSQL has no built-in column masking. We mask **inside the functions**, wit
 
 **Status:** Agreed
 
-Table `insurance.audit_log`: `id`, `occurred_at`, `caller` (the token's name, such as `claude-code`: see spec decision 4), `tool_name`, `arguments` (`jsonb`), `rows_returned`, `duration_ms`, `succeeded`, `error`, `previous_hash`, `row_hash`.
+Table `insurance.audit_log`: `id`, `occurred_at`, `caller` (the token's name, such as `local` or `claude`: see spec decision 4), `tool_name`, `arguments` (`jsonb`), `rows_returned`, `duration_ms`, `succeeded`, `error`, `previous_hash`, `row_hash`.
 
 PostgreSQL has no built-in append-only tables, so the log is built from three parts:
 
@@ -321,6 +323,7 @@ The exact numbers are to be confirmed once the functions exist.
   - `03_permissions.sql`
   - `04_functions.sql`
   - `05_audit.sql`
+  - `06_row_security.sql`: the `caller_states` table, its rows and the row-level security policies (decision 15)
 - **One small Python setup command runs the files in order**, connecting as the admin role through a connection string in `.env`. It's the same command for Docker and Neon. We don't use Docker's `/docker-entrypoint-initdb.d`, because it only exists in Docker. We don't use `psql` either, because many Windows users won't have it installed, and the project needs Python anyway.
 - The `.sql` files are plain SQL with no `psql` commands, so any tool can run them.
 - **The `mcp_reader` password** comes from `.env`. The setup command sets it after running the files, with the value passed safely by psycopg. No password is ever written in a committed file. **The setup refuses a password shorter than 24 characters**, so nobody uses `password123`, even locally.
@@ -358,6 +361,20 @@ Tests connect as `mcp_reader` unless a test says otherwise. Each one shows a sec
 - `mcp_owner` has no `INSERT`, `UPDATE`, `DELETE` or `TRUNCATE` on any business table, and owns nothing in `insurance`. The test checks the system catalogs.
 - A `STABLE` function that tries to write fails. The test creates one as `mcp_owner` to prove the guard holds.
 - Every `mcp` function is `SECURITY DEFINER`, has `search_path` set, and is owned by `mcp_owner`. The test checks the system catalogs, so a function added later can't skip these rules.
+- **A snapshot of everything `mcp_reader` can do**, however it got the right: granted to it, to `PUBLIC` or to a role it belongs to. Any right the SQL files don't mean to give fails it, including one nobody thought to test for. Adding a function means adding it to the list.
+- A search made of invisible characters (the byte-order mark, zero-width characters, the soft hyphen) matches nothing. Some databases ignore these when comparing text. PostgreSQL doesn't, so the server needn't filter them out.
+
+Row-level security (decision 15). The tests' `mcp_reader` connection sets the `local` key for its whole session, so the tests above still check all the data. The tests below set their own keys.
+
+- With no caller key, an empty one or an unknown one, every function returns nothing.
+- Each named key sees only its own states, in every filtered table: a customer from Oklahoma is found by `claude` and `local`, but not by `copilot` or `inspector`. And the same for New Mexico (`copilot`) and Arizona (`inspector`).
+- Maria Garcia and Rutherford are found by every key, so the demos work with any token.
+- Another state's claim or policy number gets the same "Unknown..." message as a number that doesn't exist.
+- The RAG functions return no claim or note from another state.
+- The caller key is gone after the transaction, so a reused connection doesn't carry it to the next caller.
+- RLS is on for exactly the seven customer-data tables. The test reads the list from the system catalogs and compares it to a fixed one, so whoever adds a table must decide whether it holds customer data.
+- The admin still sees every row, so the data can be reloaded.
+- `mcp_reader` can't read `caller_states` (the snapshot test covers this).
 
 The tests use a throwaway container by default. Because nothing is Docker-specific, they could also be pointed at a Neon database with a connection string setting, which would prove that the hosted copy is locked down too. That setting is only added if hosting is.
 
@@ -375,3 +392,95 @@ The tests use a throwaway container by default. Because nothing is Docker-specif
 - **Extensions:** pgvector is available on Neon. Anything else we use must be too.
 - **Free plan storage:** check the current limit against our data volume, especially once the RAG extension adds embeddings. Each embedding is a few KB, and we'll have tens of thousands of notes. The embedding size (spec decision 11) may need to fit the free plan.
 - **A bonus:** Neon keeps a history of the database for a short time (point-in-time restore). That's a second way to catch someone who edits the audit log, next to the hash chain.
+
+## 15. Row-level security: each caller sees only its own customers
+
+**Status:** Agreed (signed off by Liam on 2026-11-12). Checked in a throwaway container on `full` data before writing: every claim below marked "checked" was run, not assumed.
+
+Until now, every token saw every customer (decision 6 listed this as an honest limit). Now each caller sees only the customers in the states it's given, along with their policies, vehicles, drivers, claims, payments and notes. Real insurers work like this: they're licensed state by state, and claims are handled by regional offices.
+
+PostgreSQL's row-level security (RLS) does the filtering. A policy on a table adds a hidden condition to every query on it, so no `mcp` function can forget the check, and a new function gets it for free.
+
+### Who's calling: the caller key
+
+The database doesn't know about tokens, sign-in or identity providers. It only sees one string, the **caller key**, which the server puts in a setting at the start of every call:
+
+```sql
+select set_config('mcp.caller_key', 'copilot', true);   -- true: only until the end of this transaction
+select * from mcp.find_customers('Garcia');
+```
+
+The policies read it back with `current_setting('mcp.caller_key', true)`. With named tokens, the key is the token's name. If the server is ever hosted with a sign-in provider such as Entra ID, Okta or Auth0, only the server changes: the key becomes the provider's stable user id, and the SQL stays the same ([server-spec.md](server-spec.md), decision 5).
+
+This is the standard PostgreSQL pattern. PostgREST and Supabase do the same thing: the server sets the verified identity with `set_config(..., true)` on each transaction, and RLS policies read it.
+
+- **It only lasts for one transaction.** A pooled connection can't carry one caller's key over to the next caller (checked: after the commit, the setting is empty). It also works through a transaction-mode pooler such as PgBouncer, which a hosted database might use.
+- **No key, an empty key or an unknown key sees nothing.** The policies fail closed (checked: every count is 0).
+
+### Which states each caller sees: `insurance.caller_states`
+
+```sql
+create table insurance.caller_states (
+    caller_key text not null,
+    state      text not null check (state ~ '^[A-Z]{2}$'),
+    primary key (caller_key, state)
+);
+```
+
+It's owned by `insurance_owner`. `mcp_owner` may read it, and `mcp_reader` gets nothing. A new file, `06_row_security.sql`, creates the table, the policies and these rows:
+
+| Caller key | States | Why |
+|---|---|---|
+| `local` | All five (TX, OK, CO, NM, AZ) | The one token you start with. Guides 1 to 3 use it for Copilot, Claude Code and MCP Inspector alike. |
+| `claude` | TX, CO, **OK** | Claude Code's own token, from the end of guide 3. |
+| `copilot` | TX, CO, **NM** | GitHub Copilot's own token. |
+| `inspector` | TX, CO, **AZ** | MCP Inspector's own token. |
+
+**Two shared states, and one state each.** All three named tokens see TX and CO. The planted demo customers are in those two states (Maria Garcia in TX, Eleanor Rutherford in CO), so every demo question works with any token, and no new planted data is needed. Each named token also sees one state the other two can't. So a customer from Oklahoma turns up for `claude` and nobody else, which is the row-level security demo.
+
+**Mapping states, not single customers,** keeps the table to 14 rows rather than one row per customer per caller. It's also easy to show on screen, and it reads like a real business rule.
+
+**The rows are set up as part of the SQL, not the generated data.** The data generator never touches `caller_states`, just as it never touches the audit log, so reloading the data keeps the mapping. The setup command rebuilds it with everything else.
+
+### The policies
+
+RLS is turned on for the seven tables that hold customer data. Each policy is `for select to mcp_owner`, because the `mcp` functions run as `mcp_owner` (`SECURITY DEFINER`). Each one follows the table's foreign key up to the customer:
+
+| Table | A row is visible if |
+|---|---|
+| `customers` | its `state` is in `caller_states` for the caller key |
+| `policies` | its customer is visible |
+| `vehicles`, `drivers`, `claims` | their policy is visible |
+| `claim_payments`, `claim_notes` | their claim is visible |
+
+Each policy only asks "is the parent visible?", and the parent's own policy applies inside that check, so the rule is written once, on `customers`. For example:
+
+```sql
+create policy visible_customer on insurance.policies for select to mcp_owner
+    using (exists (select from insurance.customers as c where c.id = customer_id));
+```
+
+**Not filtered:** `repair_shops`, `adjusters` and `policy_document_chunks` hold no customer data. The audit log isn't filtered either, because `mcp_owner` can only add to it. The tools that add up claims, such as `get_repair_shop_costs` and `get_adjuster_workload`, still only count the caller's claims, because they read `claims`.
+
+**The RAG tools are covered too.** `search_claim_text` and `find_similar_claims` read `claims` and `claim_notes`, so a search by meaning can't surface another state's claim.
+
+### What it means for callers
+
+- **A hidden record is "unknown".** `get_claim` with another state's claim number gets the same "Unknown claim number" message as a number that doesn't exist (checked), so the error doesn't confirm the record is there.
+- **`get_dataset_info` counts only what the caller can see.** `local` sees all 12,000 customers, and each named token fewer.
+- **A token whose name isn't in `caller_states` sees nothing.** Every answer is empty, not an error. The guides say so, and the troubleshooting section shows the `insert` that gives a new token its states.
+
+### What isn't filtered
+
+- **The admin sees every row.** The tables belong to `insurance_owner`, and table owners skip RLS, including an admin acting through membership of that role (checked). So loading, reloading and deleting the data work as before. We don't use `FORCE ROW LEVEL SECURITY`, which would filter the owner too. It would also break the data load: PostgreSQL refuses `COPY FROM` into a table whose row-level security applies to the user (found in the build, when a test switched `FORCE` on).
+- **`mcp_reader` can't read any table anyway** (decision 6). RLS is a second lock on what the functions return, not a replacement for the first.
+
+### Speed
+
+The policies add a check per row. Checked on `full` data, the slowest call is `get_dataset_info`, which counts every table: it went from about 4 ms to about 0.3 s. A scan of all 76,000 notes takes about 0.2 s. Both are well inside the 5-second statement timeout (decision 11), and small next to the time a model takes to answer. No new index is needed.
+
+### Honest limit: the database trusts the server
+
+`mcp_reader` can run `set_config` itself, so anyone with its password can claim to be any caller (checked). PostgreSQL has no read-only session setting. The MCP server sets the key from the token, and a model can't change it, because no tool runs raw SQL. So the `mcp_reader` password must be kept as secret as the tokens. Making the database check each user itself would mean a database login per person, which isn't how web apps normally connect. The docs say so.
+
+This replaces the `session_user` idea in decision 6: one reader role plus a caller key covers any number of callers, where a second reader role covered only one extra group.

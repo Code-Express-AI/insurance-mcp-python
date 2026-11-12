@@ -14,7 +14,8 @@ from psycopg_pool import AsyncConnectionPool
 async def connection_pool(database_url: str, max_size: int) -> AsyncIterator[AsyncConnectionPool]:
     """Open a pool of connections as mcp_reader, and close it at the end.
 
-    autocommit: every call is one statement, so there's no transaction to keep open.
+    autocommit: nothing stays open between calls. Each call opens its own short
+    transaction (call_function, below).
     dict_row: rows come back as dictionaries, ready to return as JSON.
     timeout: a call waits at most 5 seconds for a free connection.
     configure: money (numeric) comes back as float, not Decimal (below).
@@ -50,13 +51,20 @@ async def load_numbers_as_float(conn: AsyncConnection) -> None:
 
 
 async def call_function(
-    pool: AsyncConnectionPool, name: str, arguments: dict[str, Any]
+    pool: AsyncConnectionPool, caller: str, name: str, arguments: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Run one function in the mcp schema and return its rows.
+    """Run one function in the mcp schema, as `caller`, and return its rows.
 
-    call_function(pool, "find_customers", {"name": "Smith"}) runs
+    call_function(pool, "copilot", "find_customers", {"name": "Smith"}) runs
+        select set_config('mcp.caller_key', %s, true)
         select * from mcp.find_customers(p_name => %s)
-    with "Smith" passed separately as a parameter, never put into the SQL text.
+    in one transaction, with "copilot" and "Smith" passed separately as
+    parameters, never put into the SQL text.
+
+    The first line tells the database who's calling, so row-level security
+    (sql/06_row_security.sql) returns only that caller's rows. true: the setting
+    ends with the transaction, so the next caller to borrow this connection
+    starts with no key, and sees nothing until it sets its own.
 
     `name` and the argument names are always fixed strings in our code, never
     taken from a request. sql.Identifier quotes them anyway.
@@ -67,6 +75,7 @@ async def call_function(
     )
     query = sql.SQL("select * from mcp.{}({})").format(sql.Identifier(name), named_arguments)
 
-    async with pool.connection() as conn:
+    async with pool.connection() as conn, conn.transaction():
+        await conn.execute("select set_config('mcp.caller_key', %s, true)", [caller])
         cursor = await conn.execute(query, list(arguments.values()))
         return await cursor.fetchall()

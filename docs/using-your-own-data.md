@@ -18,12 +18,13 @@ Instead, copy the data the assistants need into a **read-only data warehouse**: 
 
 ## What you add to the warehouse
 
-The warehouse tables stay as they are. On top of them you add the same pieces this project has:
+The warehouse tables stay as they are, apart from switching on row-level security. On top of them you add the same pieces this project has:
 
 1. **The two roles:** `mcp_owner`, which owns the functions and only has `SELECT` on the tables, and `mcp_reader`, which the server logs in as and which can only run the functions it's granted. See `sql/01_roles.sql` and `sql/03_permissions.sql`.
 2. **One `mcp` function per question,** with fixed columns, a row limit, and masking on anything sensitive. See `sql/04_functions.sql`.
 3. **The audit log,** append-only and hash-chained. See `sql/05_audit.sql`.
-4. **One tool per function** in the server, with its arguments checked. See `src/insurance_mcp/tools.py`.
+4. **Row-level security,** if different callers should see different rows: a table that maps each caller to what it may see, and a policy on each table with customer data. Switching it on (`alter table ... enable row level security`) is the one change to the warehouse tables themselves. See `sql/06_row_security.sql`.
+5. **One tool per function** in the server, with its arguments checked. See `src/insurance_mcp/tools.py`.
 
 The lockdown tests in `tests/database/` check the system catalogs, so they also check functions you add: each one must be `SECURITY DEFINER`, set its `search_path` and be owned by `mcp_owner`.
 
@@ -45,8 +46,9 @@ Each of these is a real gap. Some are fixed by something outside the app, and so
 
 ### Who sees what
 
-- **Every token sees every customer.** There's no "this client can't see these customers". PostgreSQL's row-level security (RLS) is the natural next step: a policy on each table filters rows for every query. ([database-spec.md](specs/database-spec.md), decision 6)
-- **A token names a client, not a person.** The audit log shows `copilot`, not who was typing. To know the person, a hosted server would need OAuth. ([server-spec.md](specs/server-spec.md), decision 5)
+- **The database trusts the server to say who's calling.** Row-level security filters every query by a caller key that the server sets on each call. `mcp_reader` can set any key it likes, so anyone with its password can see every customer. Keep that password as secret as the tokens. Making the database check each person itself would mean a database login per person, which isn't how web apps normally connect. ([database-spec.md](specs/database-spec.md), decision 15)
+- **Who sees what is a fixed table.** `caller_states` maps each token name to its states. In a company, fill it from your identity provider's groups, such as "Texas claims team". A new token name sees nothing until it's given rows. ([database-spec.md](specs/database-spec.md), decision 15)
+- **A token names a client, not a person.** The audit log shows `copilot`, not who was typing. To know the person, a hosted server would need OAuth: Entra ID, Okta, Auth0, or Google sign-in through a broker. Only the function that works out the caller would change. The database and its row-level security stay as they are. ([server-spec.md](specs/server-spec.md), decision 5)
 - **Redaction catches patterns, not meaning.** Phone numbers and email addresses in claim notes become `[phone]` and `[email]`. Names, street addresses and injuries get through. ([database-spec.md](specs/database-spec.md), decision 9)
 - **Anyone connected can read the table and function definitions** in the system catalogs, and run PostgreSQL's built-in functions, such as `pg_sleep()`. Revoking these breaks normal tools. It only matters to someone who can send raw SQL, which the server never allows. ([database-spec.md](specs/database-spec.md), decision 6)
 

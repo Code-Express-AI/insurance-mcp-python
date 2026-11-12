@@ -16,16 +16,22 @@ from mcp.client.streamable_http import streamable_http_client
 from insurance_mcp.main import create_app
 from insurance_mcp.settings import Settings
 
-CLAUDE_TOKEN = "claude-code-test-token-0123456789abcdef"
+# local sees every state, and is what the tests use unless they say otherwise.
+# The other three see part of the data (sql/06_row_security.sql).
+LOCAL_TOKEN = "local-test-token-0123456789abcdefghijklm"
+CLAUDE_TOKEN = "claude-test-token-0123456789abcdefghijk"
 COPILOT_TOKEN = "copilot-test-token-0123456789abcdefghij"
-TOKENS = f"claude-code:{CLAUDE_TOKEN},copilot:{COPILOT_TOKEN}"
+INSPECTOR_TOKEN = "inspector-test-token-0123456789abcdefgh"
+TOKENS = (
+    f"local:{LOCAL_TOKEN},claude:{CLAUDE_TOKEN},copilot:{COPILOT_TOKEN},inspector:{INSPECTOR_TOKEN}"
+)
 
 BASE_URL = "http://localhost:8000"
 MCP_URL = f"{BASE_URL}/mcp"
 
 # What an MCP client sends with every POST.
 MCP_HEADERS = {
-    "Authorization": f"Bearer {CLAUDE_TOKEN}",
+    "Authorization": f"Bearer {LOCAL_TOKEN}",
     "Content-Type": "application/json",
     "Accept": "application/json, text/event-stream",
 }
@@ -46,7 +52,7 @@ def settings(reader_url) -> Settings:
 
 
 @asynccontextmanager
-async def serve(settings: Settings, token: str | None = CLAUDE_TOKEN):
+async def serve(settings: Settings, token: str | None = LOCAL_TOKEN):
     """Start a new app, and yield an HTTP client that sends requests to it."""
     app = create_app(settings)
     headers = {"Authorization": f"Bearer {token}"} if token else {}
@@ -59,7 +65,7 @@ async def serve(settings: Settings, token: str | None = CLAUDE_TOKEN):
 
 
 @asynccontextmanager
-async def connect(settings: Settings, mode: str = "auto", token: str = CLAUDE_TOKEN):
+async def connect(settings: Settings, mode: str = "auto", token: str = LOCAL_TOKEN):
     """Start a new app, and yield an MCP client connected to it.
 
     mode="auto" uses the 2026-07-28 protocol, mode="legacy" the older one with

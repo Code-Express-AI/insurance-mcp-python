@@ -47,7 +47,7 @@ async def test_every_tool_call_writes_one_audit_row_with_the_caller(settings, ad
 
     assert audit_row_count(admin) == before + 1
     assert latest_audit_row(admin) == {
-        "caller": "claude-code",
+        "caller": "local",
         "tool_name": "get_dataset_info",
         "arguments": {},
         "rows_returned": 1,
@@ -171,7 +171,7 @@ async def test_the_log_has_no_tool_arguments_or_results(settings, caplog):
     assert "Eleanor" not in server_log
     # The rejected argument is logged with the caller, tool and argument name.
     assert (
-        "Rejected argument: caller=claude-code tool=get_dataset_info argument='customer_name'"
+        "Rejected argument: caller=local tool=get_dataset_info argument='customer_name'"
         in server_log
     )
 
@@ -209,7 +209,7 @@ async def test_every_tool_works_end_to_end_and_is_audited(settings, admin, tool,
     assert not result.is_error, text_of(result)
     assert result.structured_content
     row = latest_audit_row(admin)
-    assert (row["tool_name"], row["succeeded"], row["caller"]) == (tool, True, "claude-code")
+    assert (row["tool_name"], row["succeeded"], row["caller"]) == (tool, True, "local")
 
 
 async def test_get_customer_takes_the_customer_id_from_find_customers(settings):

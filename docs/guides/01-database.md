@@ -106,7 +106,7 @@ docker compose exec db psql -U postgres -d insurance
 Try a few queries:
 
 ```sql
-select * from mcp.get_dataset_info();
+select state, count(*) from insurance.customers group by state order by count(*) desc;
 
 select claim_number, claim_type, status, reserve, description
 from insurance.claims
@@ -123,12 +123,21 @@ docker compose exec db psql -U mcp_reader -d insurance
 ```
 
 ```sql
-select * from mcp.get_dataset_info();   -- works: the function is granted to mcp_reader
 select * from insurance.claims;         -- ERROR: permission denied for schema insurance
 delete from insurance.claims;           -- ERROR: permission denied for schema insurance
+select * from mcp.get_dataset_info();   -- works, but every count is 0
 ```
 
 `mcp_reader` can run the functions it's been granted, one by one, and nothing else. That's the database's layer of security. [database-spec.md](../specs/database-spec.md) explains how it works.
+
+**Why are the counts 0?** Because the database doesn't know who's asking. Each caller sees only the customers in its own states (row-level security), and a caller it doesn't know sees nothing. Tell it you're `local`, the token you'll make in guide 2, which sees every state, and ask again:
+
+```sql
+select set_config('mcp.caller_key', 'local', false);
+select * from mcp.get_dataset_info();   -- now: 12,002 customers
+```
+
+The MCP server does the same before every call, with the name of the token that made the request. [Row-level security, step by step](#row-level-security-step-by-step) below shows the rest.
 
 **Why no password?** Inside the container, the PostgreSQL image trusts connections made on the container itself, so `psql` doesn't ask. Connections from outside the container, like the MCP server's, always need the password.
 
@@ -226,6 +235,10 @@ erDiagram
         text content
         vector embedding "for RAG"
     }
+    caller_states {
+        text caller_key PK "local, claude..."
+        text state PK "TX, OK..."
+    }
     audit_log {
         bigint id PK
         timestamptz occurred_at
@@ -241,7 +254,61 @@ erDiagram
 - **Redacted** text has any phone numbers and email addresses in it replaced with `[phone]` and `[email]` before it's returned. Adjusters sometimes type them into a note. Names and street addresses can't be caught this way.
 - **`id` never leaves the database.** The tables join on the `bigint` ids, but the functions return `public_id` UUIDs or business numbers (`AUT-…`, `CLM-…`) instead. A sequential id would give away how many rows there are, and let a caller guess other records by counting.
 - `policy_document_chunks` holds the three policy booklets, split into sections for RAG ([guide 4](04-rag.md)). It's linked to policies by `coverage_level`, not by a foreign key. The `embedding` columns stay empty until you run the embed command in that guide.
+- `caller_states` lists which states each caller may see, for row-level security: see [Row-level security, step by step](#row-level-security-step-by-step) below. It's linked to customers by `state`, not by a foreign key.
 - `audit_log` isn't linked to the other tables, because it records the tool calls, not the insurance data. Rows can be added but never changed or deleted, and a hash chain makes tampering detectable. [database-spec.md](../specs/database-spec.md) explains how.
+
+## Row-level security, step by step
+
+Each caller sees only the customers in its own states, along with their policies, claims and notes. Guides 1 to 3 use one token, `local`, which sees every state. At the end of guide 3 you'll give each client its own token, and each of those sees part of the data:
+
+| Caller | States | Sees, but the other two don't |
+|---|---|---|
+| `local` | All five | |
+| `claude` | TX, CO, OK | Oklahoma |
+| `copilot` | TX, CO, NM | New Mexico |
+| `inspector` | TX, CO, AZ | Arizona |
+
+All three named callers see Texas and Colorado, where the demo customers live (Maria Garcia in Texas, Eleanor Rutherford in Colorado), so the demo questions work with any token.
+
+In this walkthrough you play the part of the MCP server: you tell the database who's calling, then search for a customer.
+
+**Step 1: as the admin, look at the mapping.** Row-level security doesn't filter the admin, so in the `postgres` connection from step 5 you can see every row:
+
+```sql
+select caller_key, string_agg(state, ', ' order by state) as states
+from insurance.caller_states
+group by caller_key
+order by caller_key;
+```
+
+**Step 2: as `mcp_reader`, search as each caller.** Wei Kim lives in Oklahoma, so only `claude` (and `local`) can find them. In the `mcp_reader` connection, run these two lines together:
+
+```sql
+select set_config('mcp.caller_key', 'claude', false);
+select first_name, last_name, city, state from mcp.find_customers('Wei Kim');   -- found
+```
+
+Now be `copilot` and search again:
+
+```sql
+select set_config('mcp.caller_key', 'copilot', false);
+select first_name, last_name, city, state from mcp.find_customers('Wei Kim');   -- nothing
+```
+
+Try the others too. This is what you should see:
+
+| Search for | `local` | `claude` | `copilot` | `inspector` |
+|---|---|---|---|---|
+| `Wei Kim` (Oklahoma) | Found | Found | Nothing | Nothing |
+| `Mei Cruz` (New Mexico) | Found | Nothing | Found | Nothing |
+| `Ana Cook` (Arizona) | Found | Nothing | Nothing | Found |
+| `Maria Garcia` (Texas) | Found | Found | Found | Found |
+
+- **"Nothing" is an empty result, not an error.** To a caller, a customer it can't see doesn't exist. Ask for one of their claims by number and you get "Unknown claim number", the same as for a number that doesn't exist.
+- **A name the database doesn't know sees nothing at all.** Try `select set_config('mcp.caller_key', 'nobody', false);` and `get_dataset_info()` again.
+- **How it works:** a policy on each of the seven tables that hold customer data adds a hidden condition to every query, so no function can forget the check. The rule is in [`06_row_security.sql`](../../sql/06_row_security.sql), and [database-spec.md](../specs/database-spec.md) (decision 15) explains it.
+
+**The honest limit:** you just chose your own caller with one line. Anyone with the `mcp_reader` password can do the same, because PostgreSQL has no setting a session can't change. The MCP server sets the caller from the token, and no tool runs raw SQL, so a model can't change it. Keep the `mcp_reader` password as secret as the tokens.
 
 ## The data
 

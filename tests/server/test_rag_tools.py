@@ -117,7 +117,7 @@ async def test_every_rag_tool_works_end_to_end_and_audits_the_question_not_the_e
     assert not result.is_error, text_of(result)
     assert result.structured_content["result"]
     row = latest_audit_row(admin)
-    assert (row["tool_name"], row["succeeded"], row["caller"]) == (tool, True, "claude-code")
+    assert (row["tool_name"], row["succeeded"], row["caller"]) == (tool, True, "local")
     # The question, as the caller wrote it. Never the 384 numbers.
     assert row["arguments"] == audited_arguments
 

@@ -4,7 +4,7 @@ The detail behind decision 6 in [spec.md](spec.md). It says how the synthetic da
 
 All data is fake. Nothing describes a real person, vehicle or company.
 
-**Signed off by Liam on 2026-11-05.** Every decision below is Agreed.
+**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** a change to decision 10.
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -161,6 +161,8 @@ Planted facts are listed in one place in the code, so it's easy to see what the 
 - It uses psycopg's `COPY` support, which is the standard fast way to bulk-load PostgreSQL. 200,000 rows load in seconds.
 - Child rows need their parent's internal `id`, which the database creates. The generator reads back each parent table's `id` against a column it already knows (such as the policy number) before loading the children.
 - It loads everything in one transaction: either all the data arrives or none does.
+- **It never touches `insurance.caller_states`**, the row-level security mapping ([database-spec.md](database-spec.md), decision 15), just as it never touches the audit log. The mapping is set up by the SQL files, so reloading the data keeps it. The generator loads as the admin, which row-level security doesn't filter.
+- **The planted-fact tests use the `local` caller key,** which sees every state, so they check the whole data set.
 
 ## 11. Tests for the data
 
@@ -171,6 +173,7 @@ These run in the same throwaway container as the database tests, on `small` data
 - **Comparison facts are checked on `full` data, in CI.** Some planted facts are comparisons: one shop is clearly the most expensive, one adjuster clearly leads, a visible jump between two months, a handful of old open claims rather than hundreds, only one Rutherford. Whether they hold depends on the random data around them, so passing on `small` proves nothing about the demos. A separate CI job loads `full` and checks only the planted facts. Locally it's optional: `uv run pytest -m full_data`.
 
 - **Every planted fact holds**, by asking the questions through the real `mcp` functions as `mcp_reader`, the same way the model will. The data arrives before most of those functions do ([implementation-plan.md](implementation-plan.md)), so until each function is written with its tool, its planted fact is checked with plain SQL as the admin role.
+- **The guides' row-level security examples hold on `full` data:** Wei Kim (Oklahoma) is found only by `claude`, Mei Cruz (New Mexico) only by `copilot`, and Ana Cook (Arizona) only by `inspector`. They aren't planted: the fixed seed puts them there, so a change to the generator could move them, and the test says so.
 - **Running the generator twice gives the same data**, apart from the UUIDs.
 - **Rows make sense:** every claim's driver is listed on that claim's policy, no claim before its policy started, no payment on a denied claim, deductibles and values in sensible ranges.
 - **Personal data is fake:** every email is `@example.com` and every phone number is in the `555-01xx` range.

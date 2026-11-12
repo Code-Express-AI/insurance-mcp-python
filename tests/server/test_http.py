@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from .conftest import CLAUDE_TOKEN, COPILOT_TOKEN, LIST_TOOLS, MCP_HEADERS, serve
+from .conftest import COPILOT_TOKEN, LIST_TOOLS, LOCAL_TOKEN, MCP_HEADERS, serve
 
 pytestmark = pytest.mark.anyio
 
@@ -36,9 +36,9 @@ async def test_health_needs_no_token_and_says_nothing_about_the_database(setting
     [
         None,
         "Bearer wrong-token-0123456789abcdefghijklmnop",
-        f"Token {CLAUDE_TOKEN}",
+        f"Token {LOCAL_TOKEN}",
         "Bearer",
-        CLAUDE_TOKEN,
+        LOCAL_TOKEN,
     ],
     ids=["missing", "wrong", "wrong-scheme", "no-token", "no-scheme"],
 )
@@ -66,7 +66,7 @@ async def test_tokens_never_appear_in_the_log(settings, caplog):
         await post(http, json.dumps(LIST_TOOLS), {"Authorization": f"Bearer {wrong}"})
 
     assert "Rejected request: status=401" in caplog.text
-    assert CLAUDE_TOKEN not in caplog.text
+    assert LOCAL_TOKEN not in caplog.text
     assert wrong not in caplog.text
 
 

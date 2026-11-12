@@ -2,6 +2,7 @@
 
 import os
 import re
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 import docker
@@ -117,8 +118,31 @@ def admin(admin_url):
 
 @pytest.fixture
 def reader(reader_url):
-    """A connection as mcp_reader, the role the MCP server uses."""
+    """A connection as mcp_reader, the role the MCP server uses, as the local caller.
+
+    local sees every state, so the tests check all the data. The setting lasts
+    for the whole connection (false), not one transaction like the server's.
+    The row-level security tests use reader_as instead.
+    """
+    with connect_as_caller(reader_url, "local") as conn:
+        yield conn
+
+
+@pytest.fixture
+def reader_as(reader_url):
+    """Open mcp_reader connections as any caller key: reader_as("claude")."""
+    with ExitStack() as connections:
+        yield lambda caller_key: connections.enter_context(
+            connect_as_caller(reader_url, caller_key)
+        )
+
+
+@contextmanager
+def connect_as_caller(reader_url: str, caller_key: str | None):
+    """A connection as mcp_reader with mcp.caller_key set, or none set if None."""
     with psycopg.connect(reader_url, autocommit=True) as conn:
+        if caller_key is not None:
+            conn.execute("select set_config('mcp.caller_key', %s, false)", [caller_key])
         yield conn
 
 

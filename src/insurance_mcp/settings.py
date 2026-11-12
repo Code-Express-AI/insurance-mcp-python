@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     reader_database_url: str
 
     # NoDecode: these are plain comma-separated text in .env, not JSON.
-    # "claude-code:<token>,copilot:<token>" becomes {"claude-code": "<token>", ...}
+    # "local:<token>,claude:<token>" becomes {"local": "<token>", "claude": "<token>"}
     mcp_tokens: Annotated[dict[str, str], NoDecode]
     # "localhost,127.0.0.1" becomes ["localhost", "127.0.0.1"]
     allowed_hosts: Annotated[list[str], NoDecode] = ["localhost", "127.0.0.1"]

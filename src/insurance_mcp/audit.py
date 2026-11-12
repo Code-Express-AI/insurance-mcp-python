@@ -41,7 +41,7 @@ async def audited_call(
     rows = None
     error = None
     try:
-        rows = await call_function(pool, function, arguments)
+        rows = await call_function(pool, caller, function, arguments)
     except errors.RaiseException as exception:
         # SQLSTATE P0001: RAISE EXCEPTION in one of our own functions, such as
         # "Unknown policy number...". The message is written for the model, so it's
@@ -57,6 +57,7 @@ async def audited_call(
     try:
         await call_function(
             pool,
+            caller,
             "write_audit",
             {
                 "caller": caller,

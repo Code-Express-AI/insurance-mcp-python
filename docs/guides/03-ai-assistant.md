@@ -6,7 +6,7 @@ The main path is GitHub Copilot in VS Code, which has a free plan. To use Claude
 
 ## What you need
 
-- **Guides 1 and 2 done:** the database running with its data loaded, and your tokens in `MCP_TOKENS` in `.env`. MCP Inspector isn't needed.
+- **Guides 1 and 2 done:** the database running with its data loaded, and your `local` token in `MCP_TOKENS` in `.env`. MCP Inspector isn't needed.
 - **[VS Code](https://code.visualstudio.com/)** with **GitHub Copilot**. The [free plan](https://github.com/features/copilot/plans) is enough. Sign in to GitHub from VS Code when it asks.
 
 **If the server from guide 2 is still running, stop it first** (`Ctrl+C` in its terminal). Add the server to VS Code first, then start it. That's the order that works reliably: if you add it while the server is running, you may run into connection problems.
@@ -29,7 +29,7 @@ Open the Command Palette (`Ctrl+Shift+P` on Windows and Linux, `Cmd+Shift+P` on 
 }
 ```
 
-Replace `<token>` with the `copilot` token from `MCP_TOKENS` in `.env`: the part after `copilot:`, up to the comma. Save the file.
+Replace `<token>` with the `local` token from `MCP_TOKENS` in `.env`: the part after `local:`. Save the file.
 
 **Where the token lives:** in plain text, in your VS Code user configuration in your home folder, not in the repository. It only works against the server on your own machine. Never put it in a `.vscode/mcp.json` file inside a repository, where it could be committed.
 
@@ -125,7 +125,7 @@ echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 
 In VS Code on Windows, a new terminal isn't enough: quit and reopen VS Code. If `claude` still isn't found, see [Fix your PATH](https://code.claude.com/docs/en/troubleshoot-install#command-not-found-claude-after-installation).
 
-If the server is running, stop it first with `Ctrl+C`. Then run this from the repository folder, replacing `<token>` with the `claude-code` token from `MCP_TOKENS` in `.env`:
+If the server is running, stop it first with `Ctrl+C`. Then run this from the repository folder, replacing `<token>` with the `local` token from `MCP_TOKENS` in `.env`:
 
 ```bash
 claude mcp add --transport http insurance http://localhost:8000/mcp --header "Authorization: Bearer <token>"
@@ -135,7 +135,7 @@ This adds the server only for the folder you run it in, so run it from the repos
 
 Start the server again (`uv run python -m insurance_mcp.main`). Then start Claude Code with `claude`, run `/mcp`, and check that `insurance` shows as connected. A session that was already running, in the terminal or the VS Code extension, won't see the new server, so start a new one. The VS Code extension can use the server too, as long as VS Code has the repository folder open.
 
-Then try the questions above, including the one it must refuse. The audit log shows these calls under `claude-code`.
+Then try the questions above, including the one it must refuse. The audit log shows these calls under `local`, the same as Copilot's: the next section fixes that.
 
 To see which servers Claude Code has for this folder and whether each one connects, or to remove `insurance` so you can add it again (for example with a new token), run these from the repository folder. Stop the server before you remove and add `insurance`, and start it again afterwards.
 
@@ -144,13 +144,69 @@ claude mcp list
 claude mcp remove insurance
 ```
 
+## Give each client its own token
+
+So far every client has used `local`, so the audit log can't tell Copilot's calls from Claude Code's, and every client sees every customer. Now give each client its own token. Each named token sees Texas and Colorado, where the demo customers live, plus one state of its own:
+
+| Token | States | Sees, but the other two don't |
+|---|---|---|
+| `claude` | TX, CO, OK | Oklahoma |
+| `copilot` | TX, CO, NM | New Mexico |
+| `inspector` | TX, CO, AZ | Arizona |
+
+This is row-level security, which [guide 1](01-database.md#row-level-security-step-by-step) shows in SQL. Here you see it through the clients you already use.
+
+**1. Make three more tokens.** Run this three times:
+
+```bash
+uv run python -m insurance_mcp.auth
+```
+
+**2. Add them to `MCP_TOKENS` in `.env`,** after `local`, on the same line:
+
+```text
+MCP_TOKENS=local:<your local token>,claude:<new token 1>,copilot:<new token 2>,inspector:<new token 3>
+```
+
+Keep `local`: it still sees everything, which is handy for checking an answer.
+
+**3. Give each client its token.** Stop the server first (`Ctrl+C`).
+
+- **Copilot:** run **MCP: Open User Configuration** and replace the token after `Bearer ` with the `copilot` token.
+- **Claude Code:** from the repository folder, remove the server and add it again with the `claude` token:
+
+  ```bash
+  claude mcp remove insurance
+  claude mcp add --transport http insurance http://localhost:8000/mcp --header "Authorization: Bearer <claude token>"
+  ```
+
+Then start the server again (`uv run python -m insurance_mcp.main`), restart the `insurance` server in VS Code (**MCP: List Servers**, `insurance`, **Restart Server**), and start a new Claude Code session.
+
+**4. Ask both the same questions:**
+
+- "Find the customer called Wei Kim." Claude Code finds them in Oklahoma City. Copilot finds nobody: to Copilot, Wei Kim doesn't exist.
+- "Find the customer called Mei Cruz." The other way round: Copilot finds them in Albuquerque, Claude Code doesn't.
+- "Show me the claim history for Maria Garcia." Both find her, because both see Texas.
+
+The `inspector` token sees Arizona: try `Ana Cook` in [MCP Inspector](02-server.md#4-optional-call-a-tool-from-mcp-inspector) with it.
+
+**5. Check the audit log.** As in [guide 2](02-server.md#5-see-the-audit-log), the `caller` column now shows `claude` and `copilot` instead of `local`.
+
+**Your own token names.** A name the database doesn't know sees no customers at all: every answer comes back empty. To give a new name its states, connect as the admin (`docker compose exec db psql -U postgres -d insurance`) and add a row per state:
+
+```sql
+insert into insurance.caller_states (caller_key, state) values ('my-client', 'TX'), ('my-client', 'AZ');
+```
+
+Reloading the data keeps these rows. The setup command rebuilds the database from scratch, so after running it, add them again.
+
 ## Troubleshooting
 
 ### VS Code and Copilot
 
 **No insurance tools in the tools picker.** Check the server is still running and `http://localhost:8000/health` returns `{"status":"ok"}`, then restart the `insurance` server in VS Code: run **MCP: List Servers** from the Command Palette, choose `insurance`, then **Restart Server**.
 
-**`401` or "unauthorized" errors.** The token doesn't match. Check that the header reads `Bearer ` followed by the exact `copilot` token, with no `<` or `>` left in, then restart the `insurance` server. If you changed `MCP_TOKENS`, restart the server too: it reads `.env` only when it starts.
+**`401` or "unauthorized" errors.** The token doesn't match. Check that the header reads `Bearer ` followed by the exact token, with no `<` or `>` left in, then restart the `insurance` server. If you changed `MCP_TOKENS`, restart the server too: it reads `.env` only when it starts.
 
 **"Input and command variables are not supported by the Copilot harness".** The configuration still uses `${input:...}`. Replace it with the token itself, as shown in step 1, and delete the `inputs` block.
 
@@ -178,13 +234,15 @@ rm ~/.copilot/mcp-config.json
 
 **`insurance` shows as failed, with a `401`.** The token doesn't match. Stop the server, run `claude mcp remove insurance`, add it again with the right token, then start the server again.
 
+**Answers are empty, or a customer "doesn't exist".** Check which token the client uses. `local` sees everything. `claude`, `copilot` and `inspector` each see part of the data, and any other name sees nothing. See [Give each client its own token](#give-each-client-its-own-token).
+
 **`/mcp` doesn't list `insurance` at all.** Either the session started before you added the server, so start a new one, or you ran `claude mcp add` from a different folder. Run `claude mcp list` from the repository folder to check, and add it again from there if it's missing.
 
 **Still stuck installing Claude Code.** If you have the Claude Code extension in VS Code, ask it to add the `claude` install folder to your PATH.
 
 ## Other AI assistants
 
-The server isn't tied to VS Code or Claude Code. Any MCP client that can connect to a remote (HTTP) server and send an `Authorization` header can use it, with the same URL, `http://localhost:8000/mcp`. Give each client its own named token in `MCP_TOKENS`, so the audit log shows which one made each call. See your client's documentation for how to add a server.
+The server isn't tied to VS Code or Claude Code. Any MCP client that can connect to a remote (HTTP) server and send an `Authorization` header can use it, with the same URL, `http://localhost:8000/mcp`. Give each client its own named token in `MCP_TOKENS`, so the audit log shows which one made each call, and give its name some states, as in [Give each client its own token](#give-each-client-its-own-token). See your client's documentation for how to add a server.
 
 ## Next
 

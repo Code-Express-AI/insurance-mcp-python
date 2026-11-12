@@ -19,12 +19,11 @@ Each stage ends with something that runs, has passing tests, and has its guide w
 | 5 | **Guide 3** (connect an AI assistant), the "Using this with your own data" page, and the README ([spec.md](spec.md), decision 8) | Someone new can follow guides 1 to 3 on a clean machine and ask the demo questions in GitHub Copilot |
 | 6 | **RAG extension** ([spec.md](spec.md), decision 11) | The embeddings load with the local model, the RAG tools work, and the RAG security tests pass |
 | 7 | **Optional: hosted database guide** ([database-spec.md](database-spec.md), decision 14) | The same setup command works against a hosted database |
+| 8 | **Row-level security** ([database-spec.md](database-spec.md), decision 15): `06_row_security.sql`, the caller key on every call, the tests, and the step-by-step SQL section in guide 1, and "Give each client its own token" at the end of guide 3. Guides 1 to 3 switch to one `local` token, and the per-client tokens are `claude`, `copilot` and `inspector` (they were `claude-code` and `copilot`). The README's security layers, the "Using this with your own data" page and the specs' honest limits updated to match. Signed off 2026-11-12. Built before stage 7, which is on hold. | Each named token sees only its own states in every tool, the RAG tools included, the demos work with every token, and the guides' walkthroughs work as written |
 
 The MCP part (stages 0 to 5) is complete on its own. RAG comes after it.
 
 **Nothing is written before it can be tested.** Each `mcp` function arrives with its tool, so its results are checked against real data as soon as it exists. The lockdown tests that check the system catalogs (every function is `SECURITY DEFINER`, sets `search_path`, returns no internal ids) pick up each new function without changes.
-
-**Nice to have, not planned:** hiding VIP customers from some clients with row-level security ([database-spec.md](database-spec.md), decision 6).
 
 ## How we work
 
@@ -43,4 +42,5 @@ So at each stage review, we check the audit fixes in that stage. If a fix needs 
 The specs leave these details to be confirmed against the real libraries:
 
 - **MCP Python SDK (stage 0): done.** Checked against `mcp` 2.3.0, and [server-spec.md](server-spec.md) updated to match (decisions 1, 6, 7, 9, 13 and 14).
+- **Row-level security (stage 8): done** (2026-11-12, throwaway container, `full` data). The admin skips RLS through its membership of the owner role. Policies `to mcp_owner` filter the `SECURITY DEFINER` functions. No key or an unknown key sees nothing. `set_config(..., true)` is gone after the commit. A hidden claim gets "Unknown claim number". The slowest call takes about 0.3 s. `mcp_reader` can set the key itself (an honest limit). The SDK's `TokenVerifier` runs inside the `/mcp` mount, after our rate limiter, so we keep our own `caller_for` ([server-spec.md](server-spec.md), decision 5).
 - **pgvector, `real[]` and embedding time (stage 6): done.** Checked against pgvector 0.8.7 and fastembed 0.9.1, and [spec.md](spec.md) decision 11 updated to match: pgvector goes in `public` and needs a superuser to install, the operator is written `OPERATOR(public.<=>)`, the `real[]` cast works, and exact search replaces the HNSW index. Testing the demo questions on `full` data then changed the model to `all-MiniLM-L6-v2` (better matches, and `full` data embeds in about 3.5 minutes on a fast laptop) and split `search_claim_text` into descriptions or notes.

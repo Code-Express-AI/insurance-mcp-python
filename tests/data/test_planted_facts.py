@@ -129,3 +129,20 @@ def test_full_data_has_about_the_volumes_in_the_spec(full_data, admin, table, ex
     query = sql.SQL("select count(*) from {}").format(sql.Identifier("insurance", table))
     rows = admin.execute(query).fetchone()[0]
     assert 0.9 * expected <= rows <= 1.1 * expected
+
+
+# The row-level security examples in guides 1 and 3: one customer only each
+# named token can find. They aren't planted: the fixed seed puts them there.
+ONLY_FOUND_BY = {"Wei Kim": "claude", "Mei Cruz": "copilot", "Ana Cook": "inspector"}
+
+
+@pytest.mark.full_data
+@pytest.mark.parametrize("name", list(ONLY_FOUND_BY))
+def test_the_guides_row_security_examples_are_found_by_one_named_token(full_data, reader_as, name):
+    found_by = [
+        caller_key
+        for caller_key in ("claude", "copilot", "inspector")
+        if rows(reader_as(caller_key), "select * from mcp.find_customers(%s)", name)
+    ]
+    assert found_by == [ONLY_FOUND_BY[name]]
+    assert rows(reader_as("local"), "select * from mcp.find_customers(%s)", name)

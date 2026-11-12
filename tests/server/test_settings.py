@@ -14,14 +14,14 @@ def make_settings(**values) -> Settings:
 
 def test_tokens_are_read_as_name_and_token_pairs():
     first, second = new_token(), new_token()
-    settings = make_settings(mcp_tokens=f"claude-code:{first}, copilot:{second}")
+    settings = make_settings(mcp_tokens=f"claude:{first}, copilot:{second}")
 
-    assert settings.mcp_tokens == {"claude-code": first, "copilot": second}
+    assert settings.mcp_tokens == {"claude": first, "copilot": second}
 
 
 def test_the_server_refuses_to_start_with_a_token_under_32_characters():
     with pytest.raises(ValidationError, match="shorter than 32 characters"):
-        make_settings(mcp_tokens="claude-code:too-short")
+        make_settings(mcp_tokens="claude:too-short")
 
 
 @pytest.mark.parametrize("tokens", ["no-colon-at-all", ":no-name", "no-token:"])
@@ -32,7 +32,7 @@ def test_the_server_refuses_to_start_with_a_malformed_token_setting(tokens):
 
 def test_the_server_refuses_to_start_with_a_token_name_used_twice():
     with pytest.raises(ValidationError, match="used twice"):
-        make_settings(mcp_tokens=f"claude-code:{new_token()},claude-code:{new_token()}")
+        make_settings(mcp_tokens=f"claude:{new_token()},claude:{new_token()}")
 
 
 def test_allowed_hosts_are_read_as_a_list():

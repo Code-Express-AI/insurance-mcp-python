@@ -2,7 +2,7 @@
 
 The detail behind decisions 2, 4, 5, 7 and 9 in [spec.md](spec.md): the MCP server that sits between an AI assistant and the database. The database it calls is described in [database-spec.md](database-spec.md).
 
-**Signed off by Liam on 2026-11-05.** Every decision below is Agreed. Updated the same day, with Liam's OK, after checking the MCP SDK (implementation plan, stage 0).
+**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. Updated the same day, with Liam's OK, after checking the MCP SDK (implementation plan, stage 0). **Row-level security signed off by Liam on 2026-11-12:** changes to decisions 5, 8 and 13 ([database-spec.md](database-spec.md), decision 15).
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -34,7 +34,7 @@ Every request passes these checks in order. Each one holds even if the one befor
 3. **Host check:** is the request addressed to a host name we expect, from no unexpected browser origin? (decision 6)
 4. **Request size:** is the body under 64 KB? (decision 14)
 5. **Tool and arguments:** is it one of our tools, with valid arguments and nothing else? (decisions 9 and 14)
-6. **Database:** the tool runs exactly one `mcp` function as `mcp_reader`, which can do nothing else ([database-spec.md](database-spec.md)).
+6. **Database:** the tool runs exactly one `mcp` function as `mcp_reader`, which can do nothing else, and row-level security returns only the caller's own customers ([database-spec.md](database-spec.md), decisions 6 and 15).
 7. **Audit:** the call is recorded, and if it can't be, the result isn't returned.
 
 Steps 1 and 2 are our own FastAPI middleware. Steps 3 to 5 are done by the MCP SDK, inside the `/mcp` endpoint we mount, so they come after ours. That's why the host check isn't first: see decision 6.
@@ -126,14 +126,31 @@ All settings come from a git-ignored `.env`. A committed `.env.example` lists ev
 
 **Status:** Agreed
 
-- **Named bearer tokens.** `MCP_TOKENS` holds name and token pairs, for example `claude-code:<long random token>,inspector:<long random token>`. Each AI client sends its token in the `Authorization: Bearer ...` header.
+- **Named bearer tokens.** `MCP_TOKENS` holds name and token pairs, for example `local:<long random token>`, or later `local:<token>,claude:<token>,copilot:<token>,inspector:<token>`. Each AI client sends its token in the `Authorization: Bearer ...` header.
 - **The name is the caller.** It's what goes in the audit log's `caller` column and what the rate limiter counts against. You can tell which client did what, and revoke one without touching the others.
+- **The name is also the caller key** that row-level security uses ([database-spec.md](database-spec.md), decision 15). The server passes it to the database on every call (decision 8). A token whose name has no rows in `caller_states` gets empty answers.
+- **Start with one token, then one per client.** This is the order the guides teach it in:
+  1. **Guides 1 to 3 use one token, `local`, which sees every state.** `.env.example` holds just `MCP_TOKENS=local:<token>`, so getting started means making one token, not three. Copilot, Claude Code and MCP Inspector all use it. The catch: the audit log can't tell the clients apart.
+  2. **Then "Give each client its own token" (end of guide 3).** Add `claude`, `copilot` and `inspector` to the same `MCP_TOKENS` line, give each client its own token, and the audit log shows which client made each call. Each one sees two shared states plus one of its own, so the same question gets different answers ([database-spec.md](database-spec.md), decision 15).
+
+  All the tokens stay in `.env`. Python has no standard store for developer secrets outside the project. `keyring` (the operating system's keychain) is the closest, but it needs extra setup on Linux and adds a dependency to solve a problem the git-ignored `.env` already solves. Before stage 8 the guides used two tokens, `claude-code` and `copilot`. Stage 8 changes the code, tests and guides to the names above.
 - **Tokens are compared in constant time** (`hmac.compare_digest`), so response timing doesn't leak how much of a guess was right.
 - **Tokens are never logged**, not even rejected ones.
 - **Tokens must be at least 32 characters.** The server refuses to start if one is shorter, so a weak token can't slip into `.env`.
 - **A setup helper prints a new random token**, so nobody invents a weak one. It's a `uv run` command rather than a `python -c` one-liner, because quoting differs between PowerShell and other shells.
 - **The token also lives in each AI client's config,** and a config file inside a repo, such as `.mcp.json` or `.vscode/mcp.json`, gets committed by mistake. So guide 3 keeps it in the user's home folder: Claude Code's `claude mcp add` at its default local scope (stored in `~/.claude.json`), and Copilot's token in the VS Code user configuration. Both are plain text. VS Code can prompt for a secret with `${input:...}` instead, but Copilot's agent doesn't support input variables. **Honest limit:** anyone who can read your home folder can read the token. Locally that's acceptable, because the server only listens on `127.0.0.1`.
-- **Hosted, too.** If the server is ever hosted (spec decision 4), it keeps named tokens, over HTTPS. OAuth, which is optional in the MCP spec, is the next step if you need to know which person is calling. The rest of the request path would stay the same: only "who is the caller" changes.
+- **Hosted, too.** If the server is ever hosted (spec decision 4), it keeps named tokens, over HTTPS. OAuth, which is optional in the MCP spec, is the next step if you need to know which person is calling.
+
+**Ready for a sign-in provider, not built.** The aim is that hosting with Entra ID, Okta, Auth0, Keycloak or a broker in front of Google sign-in changes only how the server works out who's calling. The database, the tools, the rate limiter and the audit log stay as they are. The one function that turns an `Authorization` header into a caller (`caller_for` in `auth.py`) is that seam. To add a provider:
+
+1. **Replace `caller_for` with a JWT check.** The MCP server is an OAuth "resource server": it never sees a password, it checks a signed access token. Check the signature against the provider's published keys, and check the issuer (`iss`), the audience (`aud`, which must be this server) and the expiry (`exp`). PyJWT does this in a few lines.
+2. **Make the caller key the stable user id.** The standard one is `iss` plus `sub`, which is unique across providers. Entra ID also gives `oid`, the same for a user across every app in the tenant. Never use an email address: it can change. Add rows for those keys to `caller_states`, or, in a company, fill it from the provider's groups.
+3. **Tell clients where to sign in.** MCP clients find the provider through the server's protected resource metadata (RFC 9728) and a `WWW-Authenticate` header on the `401`. The SDK has a function that serves that metadata.
+4. **Record a readable name in the audit log.** With tokens, the name and the key are the same. With a provider they differ (`alice@example.com` versus a long id), so the audit log would get a `caller_key` column next to `caller`.
+
+**Why not the SDK's own token verifier now?** The SDK can check tokens itself: you give it a `TokenVerifier` and `AuthSettings`. But it checks them inside the `/mcp` mount, after our middleware, and our rate limiter, which counts per caller, runs before the mount. Using it would mean moving and rewriting the rate limiter now, for a hosting step we may never take. Keeping one `caller_for` function is the smaller change today, and it's still a one-function swap later. If the server is ever hosted, look at the SDK verifier again then. (Checked against `mcp` 2.3.0.)
+
+**Google sign-in on its own isn't enough.** Google issues ID tokens for signing in to your own app, not access tokens for your API, and it doesn't let MCP clients register themselves. People put a broker in front (Auth0, Keycloak, WorkOS, Cognito), which lets users sign in with Google and issues standard access tokens.
 
 ## 6. Host checks
 
@@ -163,6 +180,7 @@ The server only answers requests addressed to host names in `ALLOWED_HOSTS` (by 
 - **An async connection pool** (`psycopg_pool.AsyncConnectionPool`), connecting as `mcp_reader` with `READER_DATABASE_URL`. FastAPI and the MCP SDK run on one event loop, so the tools are `async def` and *await* the database. While one query runs, other requests carry on instead of waiting.
 - **At most 5 connections** (`DB_POOL_MAX_SIZE`). What uses connections is calls running *at the same time*, not the number of calls: successive calls each borrow a connection for a few milliseconds and hand it back, so a question that needs five calls in a row still uses one. The `mcp_reader` role allows 10 connections in total (database decision 11), so 5 leaves room for a second server process, a test, or someone connecting as `mcp_reader` by hand to show what it can't do.
 - **One helper calls a function and returns rows as dictionaries:** `select * from mcp.find_customers(%s)`. Values are always passed as parameters, never put into the SQL text.
+- **Each call tells the database who's calling.** The helper takes the caller key, and runs two statements in one short transaction: `select set_config('mcp.caller_key', %s, true)`, then the function. The `true` means the setting ends with the transaction, so a pooled connection can't hand one caller's key to the next. The connection stays in autocommit mode otherwise, so the transaction is explicit (`async with conn.transaction()`). The audit write doesn't need the key, and runs as before.
 - **Function names are fixed strings in the code**, never taken from a request.
 - **The statement timeout and the connection limit are set on the role in the database**, not in `.env`, so the server can't forget them. The connection limit holds whatever happens. The timeout is a default the server never changes: anyone with raw SQL access could switch it off (database decision 11).
 
@@ -307,6 +325,8 @@ pytest, in `tests/server/`. Most use the real database in the test container (sp
 - **Input limits:** a body over 64 KB gets `413`, with and without a `Content-Length` header. Deeply nested JSON is rejected without crashing the server. An over-long string, a null byte, a blank name, a badly formatted policy number and an unknown argument each come back as a tool error, and the database is never called (decision 14).
 - **Error responses:** every row of the error table in decision 14 has a test that checks its status code or tool error and its message.
 - **Health:** `/health` answers without a token and says nothing about the database (decision 3).
+- **Row-level security, end to end:** the same search with the `claude` and `copilot` tokens gets different answers: a customer from Oklahoma for `claude` only, and `local` finds both. A claim number from Oklahoma gets "Unknown claim number" for `copilot`. Maria Garcia is found by every token. A token with no rows in `caller_states` gets empty results, not an error.
+- **The caller key doesn't leak between calls:** with a pool of one connection, a call from one token and then another each see only their own rows.
 - **Settings:** the server's settings have no admin connection string (decision 4).
 
 **How the tests talk to the server:**

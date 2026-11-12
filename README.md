@@ -31,8 +31,8 @@ With the optional RAG part, it can also search by meaning:
 Follow the guides in order. Each one starts with what you need installed.
 
 1. [The database](docs/guides/01-database.md): start PostgreSQL in Docker, lock it down and load the data.
-2. [The server](docs/guides/02-server.md): make your tokens, start the MCP server, and optionally try it in MCP Inspector.
-3. [Connect an AI assistant](docs/guides/03-ai-assistant.md): GitHub Copilot in VS Code (free) or Claude Code.
+2. [The server](docs/guides/02-server.md): make a token, start the MCP server, and optionally try it in MCP Inspector.
+3. [Connect an AI assistant](docs/guides/03-ai-assistant.md): GitHub Copilot in VS Code (free) or Claude Code. Then give each client its own token, and see each one get a different part of the data.
 4. Optional: [Search by meaning](docs/guides/04-rag.md) (RAG), with a free model that runs on your own machine and pgvector.
 
 The commands are the same on Windows, macOS and Linux.
@@ -42,7 +42,7 @@ The commands are the same on Windows, macOS and Linux.
 1. **Who can call:** every request needs a named bearer token, and is refused if it's addressed to an unexpected host name or comes from a web page.
 2. **How often:** each caller has a limit per minute and per day.
 3. **What they can ask:** 10 fixed, read-only tools (13 with RAG), with every argument checked. There's no tool that runs SQL.
-4. **What the database allows:** the server logs in as `mcp_reader`, which can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit.
+4. **What the database allows:** the server logs in as `mcp_reader`, which can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit. Row-level security then returns only the customers the caller may see: each token sees its own states.
 5. **What can leak:** emails and driver's license numbers are masked, phone numbers and emails in free text are redacted, internal ids never leave the database, and unexpected errors become a generic message.
 6. **What's recorded:** every tool call goes into an append-only audit log with a hash chain, so tampering can be detected. If the audit row can't be written, the answer isn't returned.
 
@@ -55,7 +55,7 @@ No design is perfect. [Using this with your own data](docs/using-your-own-data.m
 | Folder | What's in it |
 |---|---|
 | `src/insurance_mcp/` | The MCP server, the setup command, the data generator, and the embed command and policy booklets for RAG |
-| `sql/` | The database: roles, tables, permissions, the `mcp` functions and the audit log |
+| `sql/` | The database: roles, tables, permissions, the `mcp` functions, the audit log and row-level security |
 | `tests/` | The database lockdown tests, the server tests, the data tests and the RAG tests |
 | `docs/guides/` | The step-by-step guides |
 | `docs/specs/` | The specs: every design decision, and why it was made |

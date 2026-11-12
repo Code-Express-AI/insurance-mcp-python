@@ -2,7 +2,7 @@
 
 A secure, read-only MCP server for a fictitious auto insurance claims system, built with Python, FastAPI and PostgreSQL. It shows how to make an MCP server safe to point at a real database, with several independent layers of security. It then extends to RAG with pgvector.
 
-**Signed off by Liam on 2026-11-05.** Every decision below is Agreed.
+**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** changes to decisions 3, 4 and 8.
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -53,6 +53,7 @@ A secure, read-only MCP server for a fictitious auto insurance claims system, bu
 **Proposal:**
 - **Database access:** PostgreSQL functions in an `mcp` schema, set to `SECURITY DEFINER`. `mcp_reader` gets `EXECUTE` on each function, granted one by one, and no access to the tables.
 - **Masking:** sensitive columns are masked inside the functions. The alternative is the `postgresql_anonymizer` extension.
+- **Row-level security:** each caller sees only the customers in its own states, with their policies, claims and notes. The server tells the database who's calling with a caller key on every call, and policies on the tables filter every query, so no function can forget. See [database-spec.md](database-spec.md), decision 15.
 - **Audit log:** PostgreSQL has no built-in tamper-proof tables, so we can't promise that even the admin can't change the log. Instead:
   - a trigger blocks UPDATE, DELETE and TRUNCATE, and nobody gets write grants;
   - a hash chain, checked by a `verify_audit_log()` function, lets us detect tampering.
@@ -68,7 +69,7 @@ Instead, copy the data the assistants need into a **read-only data warehouse**: 
 - **The data generator stands in for the nightly load.** In a real company, an ETL job (extract, transform, load) would fill these tables from the live system instead.
 - **Only the tables and columns the tools need are copied.** Data that isn't in the warehouse can't leak from it.
 - **Nothing reads back into the live system.** Even a total failure of every layer only exposes a copy.
-- **What you add to the warehouse:** the `mcp` schema and its functions, the `mcp_owner` and `mcp_reader` roles, and the audit log. The warehouse tables stay as they are: `mcp_owner` only needs `SELECT` on them ([database-spec.md](database-spec.md), decision 2).
+- **What you add to the warehouse:** the `mcp` schema and its functions, the `mcp_owner` and `mcp_reader` roles, and the audit log. The warehouse tables stay as they are: `mcp_owner` only needs `SELECT` on them ([database-spec.md](database-spec.md), decision 2). The one change to them is switching on row-level security, if callers should see different rows (decision 15 there).
 - **For staff, consider a front end you build yourself.** A general-purpose assistant may also have tools that can send data out, which opens the lethal trifecta ([server-spec.md](server-spec.md), decision 11). A front end with a fixed set of tools, which never loads remote images, closes it by design. It then becomes the thing to keep closed: features like "email this report" open it again. This project doesn't build one (decision 4).
 
 The docs include a short page on this, as a pointer rather than a build.
@@ -86,7 +87,9 @@ The docs include a short page on this, as a pointer rather than a build.
 
 **A hosted server keeps named tokens, over HTTPS.** OAuth is optional in the MCP spec for HTTP servers, and named tokens are a fair production choice for a small set of known clients. What tokens can't do: they identify a client, not a person, they're rotated by hand, and anyone holding a copy can use one. OAuth is the next step when you need to know which *person* is calling. It isn't part of this project.
 
-**The audit log's `caller` column holds the token's name** (`claude-code`, `copilot`). If OAuth is ever added, the same column holds the signed-in identity, and the table doesn't change.
+**The audit log's `caller` column holds the token's name** (`local` at first, then `claude`, `copilot` and `inspector` once each client has its own). The same name is the caller key that row-level security uses.
+
+**Built so a sign-in provider is a small change.** If the server is ever hosted with OAuth (Entra ID, Okta, Auth0, Keycloak, or Google sign-in through a broker), only the function that works out the caller changes: it checks a signed token instead of a named one, and the caller key becomes the provider's stable user id. The database, the row-level security policies and the tools stay the same. The audit log would get a `caller_key` column, because a person's readable name and their stable id differ. [server-spec.md](server-spec.md), decision 5, lists the steps.
 
 **Web front end: decided against.** The AI assistants (GitHub Copilot, Claude Code) are the front end. We don't build a web app of our own.
 
@@ -132,12 +135,13 @@ The docs include a short page on this, as a pointer rather than a build.
 
 - **Specs in `docs/specs/`, user guides in `docs/guides/`.** The guides are numbered, step-by-step, and each one starts with what you need installed:
   1. **Database:** start PostgreSQL in Docker, run the setup command, load the data.
-  2. **Server:** create tokens, start the server, and optionally try it in MCP Inspector.
-  3. **Connect an AI assistant:** GitHub Copilot's free plan, or Claude Code.
+  2. **Server:** create a token, start the server, and optionally try it in MCP Inspector.
+  3. **Connect an AI assistant:** GitHub Copilot's free plan, or Claude Code. Guides 1 to 3 use one token, `local`, which sees everything. Guide 3 ends with **"Give each client its own token"**: add `claude`, `copilot` and `inspector` to `MCP_TOKENS`, give each client its own, and see that each one sees part of the data (row-level security), while the audit log now shows which client made each call.
   4. **Optional: search by meaning (RAG):** the embed command and the RAG tools (decision 11).
   5. **Optional:** a hosted database (decision 4).
 - **The MCP part is complete on its own.** Guides 1 to 3 give a working project without the RAG extension.
 - **Commands work on Windows, macOS and Linux.** Tasks are `uv run` Python commands with settings in `.env`, so one set of commands serves all three. The guides are written on macOS, with a short Windows note only where needed.
+- **The database guide shows row-level security step by step in SQL:** as the admin, see which states each caller key may see, then, as `mcp_reader`, set a caller key and search, the way the server does. It also shows the honest limit: `mcp_reader` can set any key it likes.
 - **The database guide explains every setting and password in `.env`:** what each one is for, which program reads it, which ones must match, and how to make a strong one. The specs only list them.
 - **MCP Inspector is optional.** It needs Node.js (it runs with `npx`), so a reader can go straight to Copilot or Claude Code. The guide gives a pinned version (`npx @modelcontextprotocol/inspector@<version>`), so readers run the version we tested rather than whatever is newest.
 - **The "connect an assistant" guide includes a short safety note:** keep the assistant asking before it runs a tool, and don't connect this server to an assistant that also has tools that can send data out ([server-spec.md](server-spec.md), decision 11).

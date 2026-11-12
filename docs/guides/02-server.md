@@ -9,15 +9,15 @@ Everything here is free, and the commands are the same on Windows, macOS and Lin
 - **Guide 1 done:** the database running in Docker (`docker compose ps` says `healthy`) and the data loaded.
 - **Optional, for MCP Inspector only:** [Node.js](https://nodejs.org/), the current LTS version. It provides `npx`, which downloads and runs Inspector. The server itself doesn't need Node.js.
 
-## 1. Make your tokens
+## 1. Make your token
 
-AI clients prove who they are with a **bearer token**: a long random secret sent in the `Authorization` header of every request. Each client gets its own token, with a name:
+AI clients prove who they are with a **bearer token**: a long random secret sent in the `Authorization` header of every request. Each token has a name. You start with one, called `local`:
 
 ```text
-MCP_TOKENS=claude-code:<a long random token>,copilot:<another long random token>
+MCP_TOKENS=local:<a long random token>
 ```
 
-The name is who the server thinks is calling. It goes in the audit log next to every tool call, and the rate limits count calls per name. With one token per client, you can see which client did what, and replace one token without touching the others.
+The name is who the server thinks is calling. It goes in the audit log next to every tool call, the rate limits count calls per name, and it decides which customers the caller sees: `local` sees them all (see [row-level security](01-database.md#row-level-security-step-by-step) in guide 1). Guides 2 and 3 use `local` for every client. At the end of guide 3 you give each client its own token, so the audit log shows which client did what.
 
 This command prints a new random token:
 
@@ -25,9 +25,9 @@ This command prints a new random token:
 uv run python -m insurance_mcp.auth
 ```
 
-Run it once for each client, and paste each token into `MCP_TOKENS` in your `.env`, in place of `replace-with-a-generated-token` and `replace-with-another-generated-token`. Keep the names, or change them to whatever you like. Tokens must be at least 32 characters, and the server refuses to start with a shorter one.
+Paste it into `MCP_TOKENS` in your `.env`, in place of `replace-with-a-generated-token`. Keep the name `local`: a name the database doesn't know sees no customers at all. Tokens must be at least 32 characters, and the server refuses to start with a shorter one.
 
-Treat the tokens like passwords: they stay in `.env`, which is git-ignored. Guide 3 shows how to give a token to an AI client without pasting it into a file that might get committed.
+Treat tokens like passwords: they stay in `.env`, which is git-ignored. Guide 3 shows how to give a token to an AI client without pasting it into a file that might get committed.
 
 ### The server settings
 
@@ -110,7 +110,7 @@ The version is pinned, so you run the one this guide was tested with. The first 
 
 1. Choose the **Streamable HTTP** transport.
 2. Enter the URL `http://localhost:8000/mcp`.
-3. Add a header `Authorization` with the value `Bearer <your token>`: the word `Bearer`, a space, then one of the tokens from your `MCP_TOKENS`.
+3. Add a header `Authorization` with the value `Bearer <your token>`: the word `Bearer`, a space, then your `local` token from `MCP_TOKENS`.
 4. Connect, open the tools list, and run `get_dataset_info`. It takes no arguments.
 
 You should get:
@@ -149,7 +149,7 @@ docker compose exec db psql -U postgres -d insurance -c "select occurred_at, cal
 ```text
           occurred_at          |   caller    |    tool_name     | rows_returned | succeeded
 -------------------------------+-------------+------------------+---------------+-----------
- 2026-11-05 22:41:07.512836+00 | claude-code | get_dataset_info |             1 | t
+ 2026-11-05 22:41:07.512836+00 | local       | get_dataset_info |             1 | t
 ```
 
 The `caller` is the name of the token that made the call. If the server can't write the audit row, it doesn't return the tool's result either: no audit, no answer. Requests that never reach a tool, such as ones with a bad token, aren't in the audit log. They're in the server's own log, because anyone can send a bad token, and the audit log can never be cleaned up.
@@ -186,15 +186,17 @@ The tests start the server inside the test process, with no network port, and ta
 
 ## Troubleshooting
 
-**`The token for 'claude-code' is shorter than 32 characters.`** Make a token with `uv run python -m insurance_mcp.auth` and put it in `MCP_TOKENS`.
+**`The token for 'local' is shorter than 32 characters.`** Make a token with `uv run python -m insurance_mcp.auth` and put it in `MCP_TOKENS`.
 
-**`MCP_TOKENS must be name:token pairs, separated by commas.`** Each entry needs a name, a colon and a token, such as `claude-code:abc...`, with a comma between entries.
+**`MCP_TOKENS must be name:token pairs, separated by commas.`** Each entry needs a name, a colon and a token, such as `local:abc...`, with a comma between entries.
 
 **The server stops with `Connection refused` and `Application startup failed`.** It checks the database when it starts, and stops if it can't connect. Start Docker, then run `docker compose up -d`.
 
 **`password authentication failed for user "mcp_reader"`.** The password in `READER_DATABASE_URL` isn't the one in the database. The setup command sets it, so run it again after changing the password: `uv run python -m insurance_mcp.setup_db`.
 
 **`address already in use`.** Something else is using port 8000. Stop it, or set `PORT` in `.env` to another port, such as `8001`, and use that port in the URLs.
+
+**Every tool answers, but finds nothing (0 customers).** The token's name isn't one the database knows. Use `local`, or one of `claude`, `copilot` and `inspector` from guide 3. [Row-level security](01-database.md#row-level-security-step-by-step) in guide 1 explains why.
 
 **`401 Unauthorized` with a token.** The header must be `Authorization: Bearer <token>`, with the word `Bearer` and one space. Check the token matches one in `MCP_TOKENS` exactly, and restart the server after changing `.env`: it reads the file only when it starts.
 
