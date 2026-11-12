@@ -1,9 +1,13 @@
 # Secrets: connection strings, passwords, tokens
 .env
 
-# Private: Claude's project instructions and the notes for the videos
+# Private: Claude's project instructions, the notes for the videos and the security review
 CLAUDE.md
 docs/video-notes.md
+security-review.md
+
+# Throwaway prototype: never checked in
+prototype-dashboard/
 
 # Python
 __pycache__/

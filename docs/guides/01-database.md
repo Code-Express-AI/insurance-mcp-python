@@ -132,6 +132,117 @@ delete from insurance.claims;           -- ERROR: permission denied for schema i
 
 **Why no password?** Inside the container, the PostgreSQL image trusts connections made on the container itself, so `psql` doesn't ask. Connections from outside the container, like the MCP server's, always need the password.
 
+## The tables
+
+All the tables are in the `insurance` schema. Only the main columns are shown here:
+
+```mermaid
+erDiagram
+    customers ||--o{ policies : "holds"
+    policies ||--|| vehicles : "covers"
+    policies ||--|{ drivers : "lists"
+    policies ||--o{ claims : "has"
+    drivers ||--o{ claims : "was driving"
+    adjusters ||--o{ claims : "handles"
+    repair_shops |o--o{ claims : "repairs"
+    claims ||--o{ claim_payments : "pays out"
+    claims ||--o{ claim_notes : "has"
+    adjusters ||--o{ claim_notes : "writes"
+
+    customers {
+        bigint id PK
+        uuid public_id
+        text first_name
+        text last_name
+        text email "masked"
+        text drivers_license_number "masked"
+    }
+    policies {
+        bigint id PK
+        uuid public_id
+        text policy_number "AUT-104233"
+        bigint customer_id FK
+        text coverage_level
+        numeric premium
+        numeric deductible
+        text status
+    }
+    vehicles {
+        bigint id PK
+        bigint policy_id FK
+        text license_plate
+        text make
+        text model
+    }
+    drivers {
+        bigint id PK
+        bigint policy_id FK
+        text first_name
+        text last_name
+        date date_of_birth
+        text relationship
+    }
+    claims {
+        bigint id PK
+        uuid public_id
+        text claim_number "CLM-1048271"
+        bigint policy_id FK
+        bigint driver_id FK
+        bigint adjuster_id FK
+        bigint repair_shop_id FK "empty if no shop"
+        text claim_type
+        text status
+        numeric reserve
+        text description "redacted"
+        vector embedding "for RAG"
+    }
+    claim_payments {
+        bigint id PK
+        bigint claim_id FK
+        text payment_type
+        numeric amount
+    }
+    claim_notes {
+        bigint id PK
+        bigint claim_id FK
+        bigint adjuster_id FK
+        text note "redacted"
+        vector embedding "for RAG"
+    }
+    adjusters {
+        bigint id PK
+        text first_name
+        text last_name
+    }
+    repair_shops {
+        bigint id PK
+        text name
+        text city
+    }
+    policy_document_chunks {
+        bigint id PK
+        text coverage_level
+        text heading
+        text content
+        vector embedding "for RAG"
+    }
+    audit_log {
+        bigint id PK
+        timestamptz occurred_at
+        text caller
+        text tool_name
+        jsonb arguments
+        boolean succeeded
+        text row_hash
+    }
+```
+
+- **Masked** columns are never returned in full: the functions show only part of an email (`m***@example.com`) and the last four characters of a driver's license number.
+- **Redacted** text has any phone numbers and email addresses in it replaced with `[phone]` and `[email]` before it's returned. Adjusters sometimes type them into a note. Names and street addresses can't be caught this way.
+- **`id` never leaves the database.** The tables join on the `bigint` ids, but the functions return `public_id` UUIDs or business numbers (`AUT-…`, `CLM-…`) instead. A sequential id would give away how many rows there are, and let a caller guess other records by counting.
+- `policy_document_chunks` holds the three policy booklets, split into sections for RAG ([guide 4](04-rag.md)). It's linked to policies by `coverage_level`, not by a foreign key. The `embedding` columns stay empty until you run the embed command in that guide.
+- `audit_log` isn't linked to the other tables, because it records the tool calls, not the insurance data. Rows can be added but never changed or deleted, and a hash chain makes tampering detectable. [database-spec.md](../specs/database-spec.md) explains how.
+
 ## The data
 
 All of it is fake. Nothing describes a real person, vehicle or company.
@@ -199,6 +310,8 @@ docker compose down -v
 Then start again from step 3.
 
 ## Troubleshooting
+
+**`no configuration file provided: not found`.** You're not in the project folder, so Docker can't find `docker-compose.yml`. Run `cd insurance-mcp-python`, then run the command again.
 
 **`password authentication failed for user "postgres"`.** Docker only reads `POSTGRES_PASSWORD` the first time it creates the database. If you changed it afterwards, the database still has the old one. Either put the old password back, or delete the database with `docker compose down -v` and start again from step 3.
 

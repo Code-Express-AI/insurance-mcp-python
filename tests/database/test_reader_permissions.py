@@ -93,3 +93,116 @@ def test_reader_cannot_log_in_with_a_wrong_password(reader_url):
     wrong = reader_url.replace(":test-reader-password", ":wrong-password")
     with pytest.raises(psycopg.OperationalError):
         psycopg.connect(wrong)
+
+
+# The snapshot -------------------------------------------------------------------------
+# The tests above check the mistakes we thought of. This one lists everything
+# mcp_reader can actually do, however it got the right: granted to it, to PUBLIC
+# (every role is in PUBLIC) or to a role it's a member of. Any right the SQL
+# files don't mean to give makes it fail, including one we never thought of.
+# Adding a tool means adding its function to the list below.
+
+# Every object in our schemas, and in public, with the rights to check on it.
+# PostgreSQL's own schemas (pg_catalog, information_schema) are left out: every
+# role can read them, and that can't be turned off. So are the objects that
+# belong to an extension (pgvector's vector type and its functions), which
+# PostgreSQL makes usable by everyone.
+#
+# Only our own database is checked. By default PUBLIC may connect to every
+# database on the server and create temporary tables in it, so mcp_reader can
+# open the empty "postgres" database too. 03_permissions.sql can only revoke
+# that for our database. It gives no access to any table there.
+EFFECTIVE_RIGHTS = """
+with ours as (
+    select oid from pg_namespace
+    where nspname not like 'pg\\_%' and nspname <> 'information_schema'
+),
+not_extension as (
+    select objid from pg_depend where deptype = 'e'
+)
+select 'role ' || r.rolname, a.attribute
+from pg_roles as r
+cross join lateral (values
+    ('superuser', r.rolsuper), ('createrole', r.rolcreaterole), ('createdb', r.rolcreatedb),
+    ('replication', r.rolreplication), ('bypassrls', r.rolbypassrls)
+) as a(attribute, has_it)
+where r.rolname = 'mcp_reader' and a.has_it
+
+union all
+select 'member of', m.roleid::regrole::text
+from pg_auth_members as m
+where m.member = 'mcp_reader'::regrole
+
+union all
+select 'database ' || d.datname, p.privilege
+from pg_database as d
+cross join unnest(array['CONNECT', 'CREATE', 'TEMPORARY']) as p(privilege)
+where d.datname = current_database()
+  and has_database_privilege('mcp_reader', d.oid, p.privilege)
+
+union all
+select 'schema ' || n.nspname, p.privilege
+from pg_namespace as n
+cross join unnest(array['USAGE', 'CREATE']) as p(privilege)
+where n.oid in (select oid from ours)
+  and has_schema_privilege('mcp_reader', n.oid, p.privilege)
+
+union all
+select 'table ' || c.oid::regclass::text, p.privilege
+from pg_class as c
+cross join unnest(
+    array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']
+) as p(privilege)
+where c.relnamespace in (select oid from ours)
+  and c.relkind in ('r', 'p', 'v', 'm', 'f')
+  and c.oid not in (select objid from not_extension)
+  and (has_table_privilege('mcp_reader', c.oid, p.privilege)
+       -- A right on one column only, such as SELECT (id). Columns have only four kinds.
+       or case when p.privilege in ('SELECT', 'INSERT', 'UPDATE', 'REFERENCES')
+               then has_any_column_privilege('mcp_reader', c.oid, p.privilege) end)
+
+union all
+select 'sequence ' || c.oid::regclass::text, p.privilege
+from pg_class as c
+cross join unnest(array['USAGE', 'SELECT', 'UPDATE']) as p(privilege)
+where c.relnamespace in (select oid from ours)
+  and c.relkind = 'S'
+  and has_sequence_privilege('mcp_reader', c.oid, p.privilege)
+
+union all
+select 'function ' || f.oid::regproc::text, 'EXECUTE'
+from pg_proc as f
+where f.pronamespace in (select oid from ours)
+  and f.oid not in (select objid from not_extension)
+  and has_function_privilege('mcp_reader', f.oid, 'EXECUTE')
+
+order by 1, 2
+"""
+
+
+def test_reader_holds_only_the_rights_the_sql_files_give(admin):
+    database = admin.execute("select current_database()").fetchone()[0]
+
+    expected = [
+        (f"database {database}", "CONNECT"),
+        ("function mcp.count_claims_by_driver_age", "EXECUTE"),
+        ("function mcp.count_claims_by_month", "EXECUTE"),
+        ("function mcp.find_customers", "EXECUTE"),
+        ("function mcp.find_similar_claims", "EXECUTE"),
+        ("function mcp.get_adjuster_workload", "EXECUTE"),
+        ("function mcp.get_claim", "EXECUTE"),
+        ("function mcp.get_customer", "EXECUTE"),
+        ("function mcp.get_dataset_info", "EXECUTE"),
+        ("function mcp.get_policy", "EXECUTE"),
+        ("function mcp.get_repair_shop_costs", "EXECUTE"),
+        ("function mcp.search_claim_text", "EXECUTE"),
+        ("function mcp.search_claims", "EXECUTE"),
+        ("function mcp.search_policy_wording", "EXECUTE"),
+        ("function mcp.write_audit", "EXECUTE"),
+        ("schema mcp", "USAGE"),
+        # PostgreSQL's default: every role may look in public, but not create
+        # anything there. It holds only pgvector, left out above.
+        ("schema public", "USAGE"),
+    ]
+
+    assert admin.execute(EFFECTIVE_RIGHTS).fetchall() == sorted(expected)

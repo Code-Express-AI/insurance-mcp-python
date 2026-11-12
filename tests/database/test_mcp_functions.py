@@ -129,6 +129,18 @@ def test_find_customers_treats_wildcards_as_plain_characters(reader, search):
     assert rows(reader, "select * from mcp.find_customers(%s)", search) == []
 
 
+# Invisible characters: the byte-order mark, the zero-width joiner, the zero-width
+# space and the soft hyphen. Some databases' text rules ignore them when they
+# compare, so two of them pass the 2-character minimum and match every name.
+# PostgreSQL compares every character, so they match nothing, and the server
+# doesn't need to filter them out.
+@pytest.mark.parametrize("invisible", ["﻿", "‍", "​", "­"])
+def test_find_customers_does_not_ignore_invisible_characters(reader, invisible):
+    assert rows(reader, "select * from mcp.find_customers(%s)", invisible * 2) == []
+    # Inside a real name too: "Gar<invisible>cia" isn't "Garcia".
+    assert rows(reader, "select * from mcp.find_customers(%s)", f"Gar{invisible}cia") == []
+
+
 @pytest.mark.parametrize("search", ["", "a", "  a  ", None])
 def test_find_customers_needs_at_least_2_characters(reader, search):
     assert rows(reader, "select * from mcp.find_customers(%s)", search) == []
