@@ -33,7 +33,21 @@ class SetupSettings(BaseSettings):
 
 
 class SetupError(Exception):
-    """A problem with the settings, explained in plain words."""
+    """A problem with the settings or the connection, explained in plain words."""
+
+
+def connect(database_url: str) -> psycopg.Connection:
+    """Connect as the admin. If it fails, say so in a few lines, not a traceback.
+
+    psycopg's own message is kept, because it says what went wrong, such as
+    "password authentication failed", and the troubleshooting page matches on it.
+    """
+    try:
+        return psycopg.connect(database_url)
+    except psycopg.OperationalError as error:
+        raise SetupError(
+            f"Couldn't connect to the database.\n{error}\nSee docs/troubleshooting.md."
+        ) from None
 
 
 def reader_password(reader_database_url: str) -> str:
@@ -57,7 +71,7 @@ def setup_database(admin_database_url: str, reader_database_url: str, size: str 
     """
     password = reader_password(reader_database_url)
 
-    with psycopg.connect(admin_database_url) as conn:
+    with connect(admin_database_url) as conn:
         for path in sorted(SQL_DIR.glob("*.sql")):
             print(f"Running {path.name}")
             conn.execute(path.read_text())

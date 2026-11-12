@@ -1,12 +1,11 @@
 """uv run python -m insurance_mcp.generate [--size small]"""
 
 import argparse
-
-import psycopg
+import sys
 
 from insurance_mcp.generate import load_data
 from insurance_mcp.generate.config import SIZES
-from insurance_mcp.setup_db import SetupSettings
+from insurance_mcp.setup_db import SetupError, SetupSettings, connect
 
 
 def main() -> None:
@@ -20,9 +19,12 @@ def main() -> None:
     args = parser.parse_args()
 
     settings = SetupSettings()
-    # One transaction: if anything fails, the old data stays.
-    with psycopg.connect(settings.admin_database_url) as conn:
-        load_data(conn, args.size)
+    try:
+        # One transaction: if anything fails, the old data stays.
+        with connect(settings.admin_database_url) as conn:
+            load_data(conn, args.size)
+    except SetupError as error:
+        sys.exit(f"Loading stopped: {error}")
 
 
 if __name__ == "__main__":

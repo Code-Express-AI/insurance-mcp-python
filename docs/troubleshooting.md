@@ -10,9 +10,13 @@ Find the step you're on, then the message you see.
 
 ## The database
 
+**`Cannot connect to the Docker daemon`** or **`docker: command not found`.** Docker isn't started, or isn't installed. Open Docker Desktop and wait until it says it's running, then run the command again.
+
 **`no configuration file provided: not found`.** You're not in the project folder, so Docker can't find `docker-compose.yml`. Run `cd insurance-mcp-python`, then run the command again.
 
 **`password authentication failed for user "postgres"`.** Docker only reads `POSTGRES_PASSWORD` the first time it creates the database. If you changed it afterwards, the database still has the old one. Either put the old password back, or delete the database with `docker compose down -v` and run the quickstart's step 3 again. This also happens if you delete `.env` and run `init` again: the new `.env` has a new password, but the old database still has the old one.
+
+It happens with a second copy of the repository too, in a folder with the same name, such as a fresh clone somewhere else. Docker names the database volume after the folder, so both copies share one database, with the first copy's password. Copy `.env` from the first copy into the second, then run `init` to print its client config.
 
 **`port is already allocated` or `address already in use`.** Something else on your machine, probably another PostgreSQL, is using port 5432. Stop it, or change the first `5432` under `ports:` in `docker-compose.yml` (for example to `127.0.0.1:5433:5432`) and use the same port in both connection strings in `.env`.
 

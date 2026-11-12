@@ -21,6 +21,7 @@ from psycopg import sql
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from insurance_mcp.embeddings import load_model
+from insurance_mcp.setup_db import SetupError, connect
 
 BOOKLETS_DIR = Path(__file__).parent / "booklets"
 
@@ -169,7 +170,7 @@ def embed_everything(admin_database_url: str) -> None:
     print("Loading the embedding model. The first time, it downloads it (90 MB).")
     model = load_model()
 
-    with psycopg.connect(admin_database_url) as conn:
+    with connect(admin_database_url) as conn:
         load_booklets(conn, model)
         embed_rows(conn, model, "Claim descriptions", "claims", DESCRIPTIONS)
         embed_rows(conn, model, "Claim notes", "claim_notes", NOTES)
@@ -183,6 +184,8 @@ def main() -> None:
     except KeyboardInterrupt:
         # Ctrl+C. Every finished batch is already saved.
         sys.exit("\nStopped. Run the command again to carry on where it stopped.")
+    except SetupError as error:
+        sys.exit(f"Embed stopped: {error}")
 
 
 if __name__ == "__main__":

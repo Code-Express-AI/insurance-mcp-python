@@ -21,6 +21,13 @@ def test_setup_refuses_a_reader_url_for_another_role():
         setup_database(UNUSED_ADMIN_URL, admin_as_reader)
 
 
+def test_a_wrong_admin_password_is_a_short_message_not_a_traceback(admin_url, reader_url):
+    # What happens when .env has a new password but the Docker volume has the old one.
+    wrong_password = admin_url.replace(":test-admin-password@", ":not-the-password@")
+    with pytest.raises(SetupError, match="password authentication failed"):
+        setup_database(wrong_password, reader_url)
+
+
 def test_setup_can_run_again_to_start_over(admin_url, reader_url):
     # The first run happened when the test database was built. This one drops
     # and recreates everything, as running the command again would.

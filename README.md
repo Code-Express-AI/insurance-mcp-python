@@ -2,16 +2,18 @@
 
 [![CI](https://github.com/Code-Express-AI/insurance-mcp-python/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Code-Express-AI/insurance-mcp-python/actions/workflows/ci.yml)
 
-A secure, read-only MCP server for a fictional auto insurer, built with Python, FastAPI and PostgreSQL. Connect GitHub Copilot or Claude Code to it, and ask questions about customers, policies and claims in plain English. The assistant can read the data, but it can't change any of it. All the data is fake.
+A secure, read-only MCP and RAG server for a fictional auto insurer, built with Python, FastAPI and PostgreSQL. Connect GitHub Copilot or Claude Code to it, and ask questions about customers, policies and claims in plain English. The assistant can read the data, but it can't change any of it. All the data is fake.
 
 It's free to install, run and test.
+
+Follow along with the [video tutorials on YouTube](https://www.youtube.com/@CodeExpressAI) by Liam Grossmann of Code Express AI, who has been building software for 35 years.
 
 ## Quickstart
 
 You need:
 
 - [Git](https://git-scm.com/downloads)
-- [Docker](https://www.docker.com/products/docker-desktop/), running
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine on Linux), installed and started
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (it installs Python for you)
 - [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans) (the free plan is enough)
 
