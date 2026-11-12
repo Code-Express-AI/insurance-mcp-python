@@ -8,14 +8,16 @@ It's free to install, run and test.
 
 Follow along with the [video tutorials on YouTube](https://www.youtube.com/@CodeExpressAI) from Code Express AI.
 
-## Quickstart
-
-You need:
+## What you need
 
 - [Git](https://git-scm.com/downloads)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine on Linux), installed and started
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) (it installs Python for you)
-- [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans) (the free plan is enough)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/), which installs Python for you
+- An AI assistant, either of:
+  - [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans): the free plan is enough
+  - [Claude Code](docs/troubleshooting.md#installing-it), with a paid Claude plan (Pro or above)
+
+## Quickstart part 1: MCP
 
 **1. Get the code and copy the settings.**
 
@@ -25,9 +27,28 @@ cd insurance-mcp-python
 cp .env.example .env
 ```
 
-On Windows (Command Prompt), use `copy .env.example .env`. The settings work as they are, on your own machine. Everyone knows the example passwords and token, so replace them with your own before you run this anywhere else: [guide 3](docs/guides/03-server-security.md#tokens) shows how.
+On Windows (Command Prompt), use `copy .env.example .env`. The settings work as they are, on your own machine. Everyone knows the example passwords and token, so replace them with your own before you run this anywhere else: [guide 3](docs/guides/03-server-security.md#replace-the-example-token) shows how.
 
-**2. Connect VS Code to the server.** Open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows and Linux), run **MCP: Open User Configuration**, and paste this in. If the file already lists other servers, add `insurance` alongside them.
+**2. Start the database and load the data.**
+
+```bash
+docker compose up -d --wait
+uv run python -m insurance_mcp.setup_db
+```
+
+`--wait` waits until PostgreSQL is ready. The first time, Docker downloads the PostgreSQL image, which takes a minute or two.
+
+**3. Start the MCP server,** and leave it running.
+
+```bash
+uv run python -m insurance_mcp.main
+```
+
+Check it's up: open [http://localhost:8000/health](http://localhost:8000/health) in your browser. It should say `{"status":"ok"}`.
+
+**4. Connect your AI assistant.**
+
+*GitHub Copilot:* in VS Code, open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows and Linux), run **MCP: Open User Configuration**, and paste this in. If the file already lists other servers, add `insurance` alongside them.
 
 ```json
 {
@@ -43,37 +64,30 @@ On Windows (Command Prompt), use `copy .env.example .env`. The settings work as 
 }
 ```
 
-Using [Claude Code](docs/troubleshooting.md#installing-it) instead? Run this from the repository folder:
+Then open Copilot Chat and switch it to **Agent** mode. If VS Code shows `insurance` failing to connect, run **MCP: List Servers**, choose `insurance`, then **Restart Server**.
+
+*Claude Code:* in a second terminal, in the repository folder, add the server, then start Claude Code:
 
 ```bash
 claude mcp add --transport http insurance http://localhost:8000/mcp --header "Authorization: Bearer local-only-token-replace-with-your-own"
+claude
 ```
 
-If you change the token in `.env`, change it here too.
+Run `/mcp` in Claude Code: `insurance` should show as connected.
 
-**3. Start the database and load the data.**
+If you change the token in `.env`, change it in your assistant too.
 
-```bash
-docker compose up -d --wait
-uv run python -m insurance_mcp.setup_db
-```
-
-**4. Start the server,** and leave it running.
-
-```bash
-uv run python -m insurance_mcp.main
-```
-
-**5. Ask a question.** Open Copilot Chat, switch it to **Agent** mode, and ask:
+**5. Ask a question:**
 
 - "Use the insurance server to find the customer called Rutherford and show their policies."
 
-Copilot asks before each tool call: allow each one, rather than choosing "always allow", and watch it work. With Claude Code, run `claude` from the repository folder and ask the same. Then try these:
+Your assistant asks before each tool call: allow each one, rather than choosing "always allow", and watch it work. Then try these:
 
 - "What's covered on policy AUT-104233, and what's the deductible?"
 - "Which open claims are over $20k and more than 90 days old?"
 - "Which repair shops have the highest average repair cost this year?"
 - "Show me the claim history for Maria Garcia. Has she claimed more than twice in three years?"
+- "Does Maria Garcia have any open claims?"
 - "How many at-fault claims involved a teenage driver this year?"
 
 And one it must refuse:
@@ -84,25 +98,39 @@ No tool can change a claim, and even if one tried, the database wouldn't let it.
 
 Stuck? See [troubleshooting](docs/troubleshooting.md).
 
-## Search by meaning (optional)
+## Quickstart part 2: search by meaning (RAG)
 
-Now let the assistant find claims by what they mean, not just by exact fields. This is RAG (retrieval-augmented generation), with a free model that runs on your own machine.
+Now let the assistant answer "am I covered?" questions from the policy booklets, by what they mean, not just by exact words. This is RAG (retrieval-augmented generation), with a free model that runs on your own machine.
 
-Leave the server running, and in a second terminal run:
+**1. Load the policy booklets.** Leave the server running, and in a second terminal run:
+
+```bash
+uv run python -m insurance_mcp.embed --booklets-only
+```
+
+The first time, it downloads the model. It's a 90 MB file, so this may take a moment, depending on your connection. Then it reads the booklets' 37 sections in a few seconds.
+
+**2. Ask about the booklets:**
+
+- "Am I covered for flood damage with liability + collision?"
+
+**3. Combine the two.** These need the MCP tools to look up the customer's policies, then the booklets to say what those policies cover:
+
+- "Eleanor Rutherford's cars were both damaged in a hailstorm. Is she covered?"
+- "Maria Garcia has a chip in her windshield. What will it cost her to fix?"
+
+### Search the claims too (optional)
+
+The same command without `--booklets-only` also reads every accident description and adjuster's note, so you can search the claims by meaning:
 
 ```bash
 uv run python -m insurance_mcp.embed
 ```
 
-It downloads the model (90 MB) and reads the policy booklets and the accident descriptions first. That takes about a minute, so you can start asking these straight away:
+The descriptions take about a minute. The 76,630 notes take a few minutes on a fast laptop and 15 or more on an older one, and your fans will get loud. You can ask these as soon as the descriptions are done:
 
 - "Find claims where the car was hit while parked at a supermarket."
-- "Am I covered for flood damage with liability + collision?"
-- "What do I pay to fix a chip in my windshield?"
-
-It carries on with 76,630 adjusters' notes, which take a few minutes on a fast laptop and 15 or more on an older one. Your fans will get loud. Searching the notes works while it runs, but finds more once it says `Embeddings ready.`:
-
-- "Which claims have notes about a neck injury?"
+- "Which claims have notes about a neck injury?" (it finds more once it says `Embeddings ready.`)
 
 Stopping it with `Ctrl+C` is fine: run it again and it carries on where it stopped.
 

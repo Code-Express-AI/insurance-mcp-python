@@ -50,7 +50,7 @@ uv run python -c "import secrets; print(secrets.token_urlsafe(24))"
 
 It only uses letters, digits, `-` and `_`, so the password can go straight into a connection string without any escaping.
 
-**The example passwords are in a public repository, so everyone knows them.** On your own machine that's fine, because the database only listens on `127.0.0.1`. Before you use a database anyone else can reach, replace them. Docker reads `POSTGRES_PASSWORD` only when it first creates the database, so to change it on a database you already have, run `docker compose down -v`, which deletes the database, then the quickstart's step 3 again. The `mcp_reader` password is simpler: change it in `READER_DATABASE_URL` and run the setup command again.
+**The example passwords are in a public repository, so everyone knows them.** On your own machine that's fine, because the database only listens on `127.0.0.1`. Before you use a database anyone else can reach, replace them. Docker reads `POSTGRES_PASSWORD` only when it first creates the database, so to change it on a database you already have, run `docker compose down -v`, which deletes the database, then the quickstart's step 2 again. The `mcp_reader` password is simpler: change it in `READER_DATABASE_URL` and run the setup command again.
 
 The database only listens on `127.0.0.1`, so other machines on your network can't reach it.
 
@@ -344,7 +344,7 @@ It empties the tables and loads everything again, in one transaction. It never t
 
 Add `--size small` to either command for about 1/20 of the data, which loads in under a second. The tests use it. The guides and demos assume the full data.
 
-To delete the database completely, including the Docker volume it's stored in, run `docker compose down -v`. Then run the quickstart's step 3 again.
+To delete the database completely, including the Docker volume it's stored in, run `docker compose down -v`. Then run the quickstart's step 2 again.
 
 ## Run the tests
 

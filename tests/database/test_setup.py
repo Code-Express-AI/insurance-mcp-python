@@ -28,6 +28,12 @@ def test_a_wrong_admin_password_is_a_short_message_not_a_traceback(admin_url, re
         setup_database(wrong_password, reader_url)
 
 
+def test_no_database_running_says_how_to_start_it(reader_url):
+    # Port 1: nothing listens there, as when Docker isn't started.
+    with pytest.raises(SetupError, match="Start Docker, then: docker compose up -d --wait"):
+        setup_database("postgresql://postgres:unused@127.0.0.1:1/insurance", reader_url)
+
+
 def test_setup_can_run_again_to_start_over(admin_url, reader_url):
     # The first run happened when the test database was built. This one drops
     # and recreates everything, as running the command again would.

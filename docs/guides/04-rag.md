@@ -1,6 +1,6 @@
 # Guide 4: search by meaning in depth
 
-In the quickstart, the embed command let your assistant find claims by what they mean, not just by exact fields: "claims where the car was hit while parked at a supermarket" finds them even when none of those words appear. It can also answer "am I covered?" questions by quoting the policy booklets. This guide shows how.
+In quickstart part 2, the embed command let your assistant answer "am I covered?" questions by quoting the policy booklets, and, if you embedded the claims too, find claims by what they mean, not just by exact fields: "claims where the car was hit while parked at a supermarket" finds them even when none of those words appear. This guide shows how.
 
 This is **RAG**, retrieval-augmented generation: the server finds the most relevant text, and the assistant writes its answer from it. Everything runs on your own machine, for free, with no account or API key. The notes never leave it, apart from the search results your assistant reads.
 
@@ -16,12 +16,13 @@ The embedding model isn't the chat model. It only finds the text. Copilot or Cla
 ## What the embed command did
 
 ```bash
-uv run python -m insurance_mcp.embed
+uv run python -m insurance_mcp.embed --booklets-only    # the booklets, in seconds
+uv run python -m insurance_mcp.embed                    # everything, in minutes
 ```
 
 The first time, it downloads the model (90 MB) into a `.cache` folder in the repository. Hugging Face, where the model comes from, may print a warning about `HF_TOKEN`. Ignore it: no account is needed. The download can be slow, and if it stalls, stop it and run the command again.
 
-Then it embeds the text, showing its progress as it goes:
+Then it splits the three policy booklets at their headings and embeds the 37 sections. With `--booklets-only` it stops there. Without it, it carries on with the claims, showing its progress as it goes:
 
 ```text
 Policy booklets:    37 sections
@@ -29,7 +30,7 @@ Claim descriptions: 15,090 / 15,090 (100%)
 Claim notes:        23,040 / 76,630 (30%), about 2 min left
 ```
 
-**It does the quick parts first.** The policy booklets and the 15,090 accident descriptions take about a minute, so the policy and accident searches work almost straight away. Until it's finished, the searches simply skip the text that isn't embedded yet.
+**It does the quick parts first.** The booklets take seconds, and the 15,090 accident descriptions about a minute, so the policy and accident searches work almost straight away. Until it's finished, the searches simply skip the text that isn't embedded yet.
 
 **The 76,630 adjusters' notes take the rest of the time, and your fans will run loud.** The notes are about three times as long as the descriptions, and there are five times as many. The model uses every CPU core, and that's normal. On a fast laptop the whole run takes about 3.5 minutes. An older one can take 15 minutes or more.
 

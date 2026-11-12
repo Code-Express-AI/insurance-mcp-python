@@ -52,6 +52,23 @@ def test_every_text_fits_in_what_the_model_reads(admin):
         assert tokens(longest) <= 256, table
 
 
+def test_booklets_only_loads_the_booklets_and_leaves_the_claims(admin, admin_url):
+    # The README's RAG quickstart: the booklets in seconds, the claims later.
+    # Runs before the `embedded` fixture, so nothing is embedded yet.
+    embed_everything(admin_url, booklets_only=True)
+    try:
+        counts = admin.execute(
+            """
+            select (select count(*) from insurance.policy_document_chunks),
+                   (select count(*) from insurance.claims where embedding is not null),
+                   (select count(*) from insurance.claim_notes where embedding is not null)
+            """
+        ).fetchone()
+        assert counts == (37, 0, 0)
+    finally:
+        admin.execute("delete from insurance.policy_document_chunks")
+
+
 def test_the_embed_command_embeds_every_text(embedded, admin):
     missing = admin.execute(
         """
@@ -90,6 +107,19 @@ def test_the_embed_command_carries_on_where_it_stopped(embedded, admin, admin_ur
         (
             "My windshield has a chip from a stone. What do I pay?",
             None,
+            "Windshield and window glass",
+        ),
+        # The README's combined questions: Eleanor Rutherford's two cars and the
+        # hailstorm, and Maria Garcia's windshield chip (full coverage).
+        ("Is hail damage covered?", "full", "Weather damage"),
+        (
+            "Is hail damage covered?",
+            "liability_collision",
+            "What Liability + collision does not cover",
+        ),
+        (
+            "What does it cost to fix a chip in the windshield?",
+            "full",
             "Windshield and window glass",
         ),
     ],

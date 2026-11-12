@@ -1,7 +1,10 @@
 """Embed the text the RAG tools search: the policy booklets, the accident
 descriptions and the claim notes.
 
-Run it with:  uv run python -m insurance_mcp.embed
+Run it with:  uv run python -m insurance_mcp.embed [--booklets-only]
+
+--booklets-only loads just the policy booklets, in seconds: enough for
+"am I covered?" questions. Run it again without the flag to embed the claims.
 
 Run it after the setup command. It connects as the admin role, using
 ADMIN_DATABASE_URL from .env. The first run downloads the model (90 MB).
@@ -11,6 +14,7 @@ safe to stop: each batch is saved as soon as it's embedded, and only rows
 without an embedding are embedded. Run it again and it carries on.
 """
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -166,21 +170,34 @@ def embed_rows(
 # The command ------------------------------------------------------------------------
 
 
-def embed_everything(admin_database_url: str) -> None:
+def embed_everything(admin_database_url: str, booklets_only: bool = False) -> None:
     print("Loading the embedding model. The first time, it downloads it (90 MB).")
     model = load_model()
 
     with connect(admin_database_url) as conn:
         load_booklets(conn, model)
+        if booklets_only:
+            print(
+                "Booklets ready. Run the command again without --booklets-only to embed the claims."
+            )
+            return
         embed_rows(conn, model, "Claim descriptions", "claims", DESCRIPTIONS)
         embed_rows(conn, model, "Claim notes", "claim_notes", NOTES)
     print("Embeddings ready.")
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Embed the text the RAG tools search.")
+    parser.add_argument(
+        "--booklets-only",
+        action="store_true",
+        help="load just the policy booklets, in seconds, and leave the claims for later",
+    )
+    args = parser.parse_args()
+
     settings = EmbedSettings()
     try:
-        embed_everything(settings.admin_database_url)
+        embed_everything(settings.admin_database_url, args.booklets_only)
     except KeyboardInterrupt:
         # Ctrl+C. Every finished batch is already saved.
         sys.exit("\nStopped. Run the command again to carry on where it stopped.")

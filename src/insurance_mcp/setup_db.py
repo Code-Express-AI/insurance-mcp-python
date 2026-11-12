@@ -45,9 +45,12 @@ def connect(database_url: str) -> psycopg.Connection:
     try:
         return psycopg.connect(database_url)
     except psycopg.OperationalError as error:
-        raise SetupError(
-            f"Couldn't connect to the database.\n{error}\nSee docs/troubleshooting.md."
-        ) from None
+        if "Connection refused" in str(error):
+            # Nothing is listening: Docker or the database isn't running.
+            advice = "Is the database running? Start Docker, then: docker compose up -d --wait"
+        else:
+            advice = "See docs/troubleshooting.md."
+        raise SetupError(f"Couldn't connect to the database.\n{error}\n{advice}") from None
 
 
 def reader_password(reader_database_url: str) -> str:

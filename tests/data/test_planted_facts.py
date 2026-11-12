@@ -39,6 +39,14 @@ def test_there_is_one_rutherford_with_two_policies(reader):
     customer = rows(reader, "select * from mcp.get_customer(%s)", found["customer_id"])[0]
     assert customer["first_name"] == "Eleanor"
     assert [p["policy_number"] for p in customer["policies"]] == ["AUT-108514", "AUT-109372"]
+    # One car on each policy, both insured now.
+    cars = [
+        rows(reader, "select * from mcp.get_policy(%s)", p)[0] for p in ("AUT-108514", "AUT-109372")
+    ]
+    assert [(c["make"], c["model"], c["status"]) for c in cars] == [
+        ("Subaru", "Outback", "active"),
+        ("Ford", "F-150", "active"),
+    ]
 
 
 def test_policy_aut_104233_has_full_coverage_and_a_500_deductible(reader):
