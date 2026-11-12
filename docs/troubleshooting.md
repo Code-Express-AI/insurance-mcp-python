@@ -4,9 +4,9 @@ Find the step you're on, then the message you see.
 
 ## Setting up
 
-**`init` says `.env already exists, so it's unchanged.`** That's on purpose: it never overwrites your settings. It still prints the client config from your `.env`. To start again with new secrets, delete `.env`, then delete the old database with `docker compose down -v`, because the database keeps its first password. Then run `init` and the rest of the quickstart again.
+**`Field required` for `admin_database_url` or `reader_database_url`.** There's no `.env` file, or the command isn't running in the repository folder. Run `cd insurance-mcp-python`, then `cp .env.example .env` (on Windows, `copy .env.example .env`).
 
-**`The token for 'local' is shorter than 32 characters.`** from `init` or the server. `.env` still has the example token, probably because it was copied from `.env.example` by hand. Make a token with `uv run python -m insurance_mcp.auth` and put it in `MCP_TOKENS`, or delete `.env` and run `init`.
+**`The token for 'local' is shorter than 32 characters.`** A token in `MCP_TOKENS` is too short. Make one with `uv run python -m insurance_mcp.auth` and put it in `MCP_TOKENS`.
 
 ## The database
 
@@ -14,9 +14,7 @@ Find the step you're on, then the message you see.
 
 **`no configuration file provided: not found`.** You're not in the project folder, so Docker can't find `docker-compose.yml`. Run `cd insurance-mcp-python`, then run the command again.
 
-**`password authentication failed for user "postgres"`.** Docker only reads `POSTGRES_PASSWORD` the first time it creates the database. If you changed it afterwards, the database still has the old one. Either put the old password back, or delete the database with `docker compose down -v` and run the quickstart's step 3 again. This also happens if you delete `.env` and run `init` again: the new `.env` has a new password, but the old database still has the old one.
-
-It happens with a second copy of the repository too, in a folder with the same name, such as a fresh clone somewhere else. Docker names the database volume after the folder, so both copies share one database, with the first copy's password. Copy `.env` from the first copy into the second, then run `init` to print its client config.
+**`password authentication failed for user "postgres"`.** Docker only reads `POSTGRES_PASSWORD` the first time it creates the database. If you changed it afterwards, the database still has the old one. Either put the old password back, or delete the database with `docker compose down -v` and run the quickstart's step 3 again. It happens with a second copy of the repository too, in a folder with the same name, such as a fresh clone somewhere else. Docker names the database volume after the folder, so both copies share one database, with the first copy's password. If you changed the passwords in the first copy, copy its `.env` into the second.
 
 **`port is already allocated` or `address already in use`.** Something else on your machine, probably another PostgreSQL, is using port 5432. Stop it, or change the first `5432` under `ports:` in `docker-compose.yml` (for example to `127.0.0.1:5433:5432`) and use the same port in both connection strings in `.env`.
 
@@ -54,7 +52,7 @@ It happens with a second copy of the repository too, in a folder with the same n
 
 **`401` or "unauthorized" errors.** The token doesn't match. Check that the header reads `Bearer ` followed by the exact token, with no `<` or `>` left in, then restart the `insurance` server. If you changed `MCP_TOKENS`, restart the server too: it reads `.env` only when it starts.
 
-**"Input and command variables are not supported by the Copilot harness".** The configuration still uses `${input:...}`. Replace it with the token itself, as `init` prints it, and delete the `inputs` block.
+**"Input and command variables are not supported by the Copilot harness".** The configuration still uses `${input:...}`. Replace it with the token itself, as the README shows, and delete the `inputs` block.
 
 **"Failed to read configuration from .../.copilot/mcp-config.json: mcpServers: Required".** The Copilot CLI's own configuration file is empty or invalid, and Copilot's agent reads it as well as the VS Code configuration. Delete it, then restart VS Code.
 

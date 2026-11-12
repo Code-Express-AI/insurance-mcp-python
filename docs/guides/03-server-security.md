@@ -6,10 +6,10 @@ You need the quickstart done, with the server running (`uv run python -m insuran
 
 ## Tokens
 
-AI clients prove who they are with a **bearer token**: a long random secret sent in the `Authorization` header of every request. Each token has a name. `init` made one called `local` and wrote it into `.env`:
+AI clients prove who they are with a **bearer token**: a long random secret sent in the `Authorization` header of every request. Each token has a name. The `.env` you copied has one, called `local`:
 
 ```text
-MCP_TOKENS=local:<a long random token>
+MCP_TOKENS=local:local-only-token-replace-with-your-own
 ```
 
 The name is who the server thinks is calling. It goes in the audit log next to every tool call, the rate limits count calls per name, and it decides which customers the caller sees: `local` sees them all (see [row-level security](02-database-security.md#row-level-security-step-by-step) in guide 2). At the end of this guide you give each client its own token, so the audit log shows which client did what.
@@ -22,7 +22,17 @@ uv run python -m insurance_mcp.auth
 
 Tokens must be at least 32 characters, and the server refuses to start with a shorter one. A name the database doesn't know sees no customers at all.
 
-Treat tokens like passwords: they stay in `.env`, which is git-ignored. To see your client config again, with the `local` token filled in, run `uv run python -m insurance_mcp.init`: with a `.env` already there, it changes nothing and only prints the config.
+Treat tokens like passwords: they stay in `.env`, which is git-ignored.
+
+### Replace the example token
+
+The example token is in a public repository, so everyone knows it. On your own machine that's fine: the server only listens on `127.0.0.1`, so nothing else can reach it. Before you run the server anywhere else, replace it:
+
+1. Make a new token with `uv run python -m insurance_mcp.auth`.
+2. Put it in `MCP_TOKENS` in `.env`, after `local:`, and restart the server. It reads `.env` only when it starts.
+3. Put it in your AI assistant too. In VS Code, run **MCP: Open User Configuration** and replace the token after `Bearer `. In Claude Code, stop the server, run `claude mcp remove insurance`, run the `claude mcp add` line from the README with the new token, and start the server again.
+
+Replace the example database passwords the same way: [guide 2](02-database-security.md#the-database-settings) shows how.
 
 ### Where your AI assistant keeps the token
 

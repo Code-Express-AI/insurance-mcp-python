@@ -6,7 +6,7 @@ A secure, read-only MCP and RAG server for a fictional auto insurer, built with 
 
 It's free to install, run and test.
 
-Follow along with the [video tutorials on YouTube](https://www.youtube.com/@CodeExpressAI) by Liam Grossmann of Code Express AI, who has been building software for 35 years.
+Follow along with the [video tutorials on YouTube](https://www.youtube.com/@CodeExpressAI) from Code Express AI.
 
 ## Quickstart
 
@@ -17,17 +17,39 @@ You need:
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (it installs Python for you)
 - [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans) (the free plan is enough)
 
-**1. Get the code and make your settings.**
+**1. Get the code and copy the settings.**
 
 ```bash
 git clone https://github.com/Code-Express-AI/insurance-mcp-python.git
 cd insurance-mcp-python
-uv run python -m insurance_mcp.init
+cp .env.example .env
 ```
 
-`init` makes a `.env` file with random passwords and a token, then prints the config for your AI assistant.
+On Windows (Command Prompt), use `copy .env.example .env`. The settings work as they are, on your own machine. Everyone knows the example passwords and token, so replace them with your own before you run this anywhere else: [guide 3](docs/guides/03-server-security.md#tokens) shows how.
 
-**2. Paste the config into VS Code,** as `init` tells you: Command Palette, **MCP: Open User Configuration**. Using [Claude Code](docs/troubleshooting.md#installing-it) instead? Run the `claude mcp add` command it printed.
+**2. Connect VS Code to the server.** Open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows and Linux), run **MCP: Open User Configuration**, and paste this in. If the file already lists other servers, add `insurance` alongside them.
+
+```json
+{
+  "servers": {
+    "insurance": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer local-only-token-replace-with-your-own"
+      }
+    }
+  }
+}
+```
+
+Using [Claude Code](docs/troubleshooting.md#installing-it) instead? Run this from the repository folder:
+
+```bash
+claude mcp add --transport http insurance http://localhost:8000/mcp --header "Authorization: Bearer local-only-token-replace-with-your-own"
+```
+
+If you change the token in `.env`, change it here too.
 
 **3. Start the database and load the data.**
 

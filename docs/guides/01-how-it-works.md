@@ -42,7 +42,7 @@ The whole request path is in a handful of short files:
 | [`auth.py`](../../src/insurance_mcp/auth.py), [`rate_limit.py`](../../src/insurance_mcp/rate_limit.py), [`settings.py`](../../src/insurance_mcp/settings.py) | Tokens, rate limits and the settings from `.env` |
 | [`sql/`](../../sql/) | The database: roles, tables, permissions, the `mcp` functions, the audit log and row-level security, run in order by `setup_db` |
 
-The other commands you ran are next to them: [`init.py`](../../src/insurance_mcp/init.py) made your `.env`, [`setup_db.py`](../../src/insurance_mcp/setup_db.py) built the database, [`generate/`](../../src/insurance_mcp/generate/) made the fake data, and [`embed.py`](../../src/insurance_mcp/embed.py) made the embeddings for search by meaning.
+The other commands you ran are next to them: [`setup_db.py`](../../src/insurance_mcp/setup_db.py) built the database, [`generate/`](../../src/insurance_mcp/generate/) made the fake data, and [`embed.py`](../../src/insurance_mcp/embed.py) made the embeddings for search by meaning.
 
 ### One tool, top to bottom
 

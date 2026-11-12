@@ -29,7 +29,7 @@ It drops and rebuilds everything each time, so you can run it again whenever you
 
 ### The database settings
 
-`init` wrote these into `.env` for you:
+These are in the `.env` you copied from `.env.example`:
 
 | Setting | What it's for | Read by |
 |---|---|---|
@@ -37,7 +37,7 @@ It drops and rebuilds everything each time, so you can run it again whenever you
 | `ADMIN_DATABASE_URL` | How the setup command and the data generator connect: as `postgres`, with full rights | The setup command and the data generator, never the MCP server |
 | `READER_DATABASE_URL` | How the MCP server connects: as `mcp_reader`, which can only run the `mcp` functions | The MCP server, and the setup command, which sets this password on `mcp_reader` |
 
-Two things must match, and `init` made sure they do:
+Two things must match. They do in the example, so if you change a password, keep them that way:
 
 - **The password in `ADMIN_DATABASE_URL` is the same as `POSTGRES_PASSWORD`.**
 - **The `mcp_reader` password is written only in `READER_DATABASE_URL`.** The setup command takes it from there and sets it on the role, so there's no second copy to keep in step. It must be at least 24 characters.
@@ -48,7 +48,9 @@ To make a strong password by hand, this prints 32 random characters:
 uv run python -c "import secrets; print(secrets.token_urlsafe(24))"
 ```
 
-It only uses letters, digits, `-` and `_`, so the password can go straight into a connection string without any escaping. Docker reads `POSTGRES_PASSWORD` only when it first creates the database, so changing it later needs `docker compose down -v`, which deletes the database, then the quickstart's step 3 again.
+It only uses letters, digits, `-` and `_`, so the password can go straight into a connection string without any escaping.
+
+**The example passwords are in a public repository, so everyone knows them.** On your own machine that's fine, because the database only listens on `127.0.0.1`. Before you use a database anyone else can reach, replace them. Docker reads `POSTGRES_PASSWORD` only when it first creates the database, so to change it on a database you already have, run `docker compose down -v`, which deletes the database, then the quickstart's step 3 again. The `mcp_reader` password is simpler: change it in `READER_DATABASE_URL` and run the setup command again.
 
 The database only listens on `127.0.0.1`, so other machines on your network can't reach it.
 
@@ -87,7 +89,7 @@ select * from mcp.get_dataset_info();   -- works, but every count is 0
 
 `mcp_reader` can run the functions it's been granted, one by one, and nothing else. That's the database's layer of security. [database-spec.md](../specs/database-spec.md) explains how it works.
 
-**Why are the counts 0?** Because the database doesn't know who's asking. Each caller sees only the customers in its own states (row-level security), and a caller it doesn't know sees nothing. Tell it you're `local`, the token `init` made for you, which sees every state, and ask again:
+**Why are the counts 0?** Because the database doesn't know who's asking. Each caller sees only the customers in its own states (row-level security), and a caller it doesn't know sees nothing. Tell it you're `local`, the token in your `.env`, which sees every state, and ask again:
 
 ```sql
 select set_config('mcp.caller_key', 'local', false);
