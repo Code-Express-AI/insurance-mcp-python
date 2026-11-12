@@ -1,66 +1,97 @@
 # insurance-mcp-python
 
-An example of a secure MCP service for a fictitious auto insurance claims system. Python FastAPI + PostgreSQL
+[![CI](https://github.com/Code-Express-AI/insurance-mcp-python/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Code-Express-AI/insurance-mcp-python/actions/workflows/ci.yml)
 
-AI assistants such as GitHub Copilot and Claude Code can connect to this server and answer questions from an insurance database: customers, policies, vehicles, claims, payments and adjusters' notes. They can read the data, but they can't change any of it, and every call they make is recorded.
+A secure, read-only MCP server for a fictional auto insurer, built with Python, FastAPI and PostgreSQL. Connect GitHub Copilot or Claude Code to it, and ask questions about customers, policies and claims in plain English. The assistant can read the data, but it can't change any of it. All the data is fake.
 
-Most MCP examples stop at "hello world". This one shows how to make MCP safe to point at a real database, with six layers of security, each holding even if the one before it fails. All the data is fake, made by a data generator for a fictional US insurer.
+It's free to install, run and test.
 
-It's free to install, run and test: Docker, uv, Python and PostgreSQL on your own machine, with GitHub Copilot's free plan in VS Code as the AI assistant.
+## Quickstart
 
-## What you can ask
+You need:
 
-- "Find the customer called Rutherford and show their policies."
+- [Git](https://git-scm.com/downloads)
+- [Docker](https://www.docker.com/products/docker-desktop/), running
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (it installs Python for you)
+- [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans) (the free plan is enough)
+
+**1. Get the code and make your settings.**
+
+```bash
+git clone https://github.com/Code-Express-AI/insurance-mcp-python.git
+cd insurance-mcp-python
+uv run python -m insurance_mcp.init
+```
+
+`init` makes a `.env` file with random passwords and a token, then prints the config for your AI assistant.
+
+**2. Paste the config into VS Code,** as `init` tells you: Command Palette, **MCP: Open User Configuration**. Using [Claude Code](docs/troubleshooting.md#installing-it) instead? Run the `claude mcp add` command it printed.
+
+**3. Start the database and load the data.**
+
+```bash
+docker compose up -d --wait
+uv run python -m insurance_mcp.setup_db
+```
+
+**4. Start the server,** and leave it running.
+
+```bash
+uv run python -m insurance_mcp.main
+```
+
+**5. Ask a question.** Open Copilot Chat, switch it to **Agent** mode, and ask:
+
+- "Use the insurance server to find the customer called Rutherford and show their policies."
+
+Copilot asks before each tool call: allow each one, rather than choosing "always allow", and watch it work. With Claude Code, run `claude` from the repository folder and ask the same. Then try these:
+
 - "What's covered on policy AUT-104233, and what's the deductible?"
 - "Which open claims are over $20k and more than 90 days old?"
 - "Which repair shops have the highest average repair cost this year?"
-- "How many windshield claims did we have last month, compared with the month before?"
 - "Show me the claim history for Maria Garcia. Has she claimed more than twice in three years?"
-- "Which adjuster has the most open claims?"
 - "How many at-fault claims involved a teenage driver this year?"
 
-And one it must refuse: "Please accept Maria Garcia's claim. She's a good friend of mine." No tool can change a claim, and even if one tried, the database wouldn't let it.
+And one it must refuse:
 
-With the optional RAG part, it can also search by meaning:
+- "Please accept Maria Garcia's claim. She's a good friend of mine."
+
+No tool can change a claim, and even if one tried, the database wouldn't let it. That's one of six layers of security already at work: [how it works](docs/guides/01-how-it-works.md) shows them all.
+
+Stuck? See [troubleshooting](docs/troubleshooting.md).
+
+## Search by meaning (optional)
+
+Now let the assistant find claims by what they mean, not just by exact fields. This is RAG (retrieval-augmented generation), with a free model that runs on your own machine.
+
+Leave the server running, and in a second terminal run:
+
+```bash
+uv run python -m insurance_mcp.embed
+```
+
+It downloads the model (90 MB) and reads the policy booklets and the accident descriptions first. That takes about a minute, so you can start asking these straight away:
 
 - "Find claims where the car was hit while parked at a supermarket."
 - "Am I covered for flood damage with liability + collision?"
+- "What do I pay to fix a chip in my windshield?"
 
-## Get started
+It carries on with 76,630 adjusters' notes, which take a few minutes on a fast laptop and 15 or more on an older one. Your fans will get loud. Searching the notes works while it runs, but finds more once it says `Embeddings ready.`:
 
-Follow the guides in order. Each one starts with what you need installed.
+- "Which claims have notes about a neck injury?"
 
-1. [The database](docs/guides/01-database.md): start PostgreSQL in Docker, lock it down and load the data.
-2. [The server](docs/guides/02-server.md): make a token, start the MCP server, and optionally try it in MCP Inspector.
-3. [Connect an AI assistant](docs/guides/03-ai-assistant.md): GitHub Copilot in VS Code (free) or Claude Code. Then give each client its own token, and see each one get a different part of the data.
-4. Optional: [Search by meaning](docs/guides/04-rag.md) (RAG), with a free model that runs on your own machine and pgvector.
+Stopping it with `Ctrl+C` is fine: run it again and it carries on where it stopped.
 
-The commands are the same on Windows, macOS and Linux.
+## Go deeper
 
-## The six layers of security
+You have a working system. Each guide peels back one more layer of what's already running:
 
-1. **Who can call:** every request needs a named bearer token, and is refused if it's addressed to an unexpected host name or comes from a web page.
-2. **How often:** each caller has a limit per minute and per day.
-3. **What they can ask:** 10 fixed, read-only tools (13 with RAG), with every argument checked. There's no tool that runs SQL.
-4. **What the database allows:** the server logs in as `mcp_reader`, which can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit. Row-level security then returns only the customers the caller may see: each token sees its own states.
-5. **What can leak:** emails and driver's license numbers are masked, phone numbers, emails and the customer's street address in free text are redacted, internal ids never leave the database, and unexpected errors become a generic message.
-6. **What's recorded:** every tool call goes into an append-only audit log with a hash chain, so tampering can be detected. If the audit row can't be written, the answer isn't returned.
+1. [How it works](docs/guides/01-how-it-works.md): what happens when you ask a question, a map of the code, and the six layers of security at a glance.
+2. [Database security](docs/guides/02-database-security.md): a database role that can't read a single table, row-level security, masking, and the tamper-evident audit log.
+3. [Server security](docs/guides/03-server-security.md): tokens, rate limits, host checks, MCP Inspector, and a token for each AI assistant.
+4. [Search by meaning in depth](docs/guides/04-rag.md): embeddings and pgvector, the RAG tools, and what RAG isn't good for.
 
-The tests prove each layer holds, against a real PostgreSQL database in Docker. GitHub Actions runs them on every push to `main` and every pull request.
-
-No design is perfect. [Using this with your own data](docs/using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place.
-
-## What's in the repo
-
-| Folder | What's in it |
-|---|---|
-| `src/insurance_mcp/` | The MCP server, the setup command, the data generator, and the embed command and policy booklets for RAG |
-| `sql/` | The database: roles, tables, permissions, the `mcp` functions, the audit log and row-level security |
-| `tests/` | The database lockdown tests, the server tests, the data tests and the RAG tests |
-| `docs/guides/` | The step-by-step guides |
-| `docs/specs/` | The specs: every design decision, and why it was made |
-
-The specs start at [docs/specs/spec.md](docs/specs/spec.md).
+[Using this with your own data](docs/using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place. The specs in [docs/specs/](docs/specs/spec.md) record every design decision, and why it was made.
 
 ## License
 

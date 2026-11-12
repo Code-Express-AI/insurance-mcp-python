@@ -1,14 +1,8 @@
-# Guide 4: search by meaning (RAG)
+# Guide 4: search by meaning in depth
 
-By the end of this guide your AI assistant can find claims by what they mean, not just by exact fields: "claims where the car was hit while parked at a supermarket" finds them even when none of those words appear. It can also answer "am I covered?" questions by quoting the policy booklets.
+In the quickstart, the embed command let your assistant find claims by what they mean, not just by exact fields: "claims where the car was hit while parked at a supermarket" finds them even when none of those words appear. It can also answer "am I covered?" questions by quoting the policy booklets. This guide shows how.
 
-This is **RAG**, retrieval-augmented generation: the server finds the most relevant text, and the assistant writes its answer from it. Everything runs on your own machine, for free. The notes never leave it, apart from the search results your assistant reads.
-
-## What you need
-
-- **Guides 1 to 3 done:** the database loaded, the server running, and an AI assistant connected.
-- **About 300 MB of disk space** for the model and the embeddings.
-- Nothing else. No account, no API key, no extra app.
+This is **RAG**, retrieval-augmented generation: the server finds the most relevant text, and the assistant writes its answer from it. Everything runs on your own machine, for free, with no account or API key. The notes never leave it, apart from the search results your assistant reads.
 
 ## How it works
 
@@ -19,7 +13,7 @@ An **embedding** is a list of 384 numbers that stands for the meaning of a text.
 
 The embedding model isn't the chat model. It only finds the text. Copilot or Claude still reads the results and writes the answer.
 
-## 1. Embed the text
+## What the embed command did
 
 ```bash
 uv run python -m insurance_mcp.embed
@@ -35,15 +29,17 @@ Claim descriptions: 15,090 / 15,090 (100%)
 Claim notes:        23,040 / 76,630 (30%), about 2 min left
 ```
 
-**It takes a few minutes, and your fans will run loud.** The model uses every CPU core, and that's normal. On a fast laptop it takes about 3.5 minutes. An older one can take 15 minutes or more.
+**It does the quick parts first.** The policy booklets and the 15,090 accident descriptions take about a minute, so the policy and accident searches work almost straight away. Until it's finished, the searches simply skip the text that isn't embedded yet.
+
+**The 76,630 adjusters' notes take the rest of the time, and your fans will run loud.** The notes are about three times as long as the descriptions, and there are five times as many. The model uses every CPU core, and that's normal. On a fast laptop the whole run takes about 3.5 minutes. An older one can take 15 minutes or more.
 
 **Stopping it is fine.** Press Ctrl+C at any time. Every finished batch is already saved, so run the command again and it carries on where it stopped.
 
-**After running the setup command again** (guide 1), run the embed command again too. The setup command rebuilds the database, and the embeddings with it.
+**After running the setup command again,** run the embed command again too. The setup command rebuilds the database, and the embeddings with it.
 
-You don't need to restart the server. It loads the model the first time a RAG tool is used, so the MCP part from guides 1 to 3 never loads it.
+You don't need to restart the server. It loads the model the first time a RAG tool is used, so the server never loads it if you only use the other tools.
 
-## 2. Ask questions
+## The RAG tools
 
 The server has three tools for this:
 
@@ -91,14 +87,6 @@ uv run pytest -m embedding_model
 ```
 
 They embed the small test data, check that the demo questions find the right things, and take under a minute once the model is downloaded.
-
-## Troubleshooting
-
-**The assistant says "Run the embed command first."** Either the embed command hasn't been run, or the setup command has been run since. Run step 1.
-
-**`permission denied to create extension "vector"`** from the setup command. pgvector can only be installed by a superuser. Locally, `ADMIN_DATABASE_URL` connects as `postgres`, which is one. On a hosted database, use the admin role the service gives you, or install the extension from the service's dashboard.
-
-**The download stops or fails.** Hugging Face can be slow, or limit requests. Stop the command and run it again.
 
 ## Next
 

@@ -2,7 +2,7 @@
 
 A secure, read-only MCP server for a fictitious auto insurance claims system, built with Python, FastAPI and PostgreSQL. It shows how to make an MCP server safe to point at a real database, with several independent layers of security. It then extends to RAG with pgvector.
 
-**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** changes to decisions 3, 4 and 8.
+**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** changes to decisions 3, 4 and 8. **Docs by layer signed off by Liam on 2026-11-12:** decision 8.
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -131,20 +131,29 @@ The docs include a short page on this, as a pointer rather than a build.
 
 ## 8. Docs and guides
 
-**Status:** Agreed
+**Status:** Agreed. Signed off by Liam on 2026-11-12, replacing the four step-by-step guides agreed on 2026-11-05.
 
-- **Specs in `docs/specs/`, user guides in `docs/guides/`.** The guides are numbered, step-by-step, and each one starts with what you need installed:
-  1. **Database:** start PostgreSQL in Docker, run the setup command, load the data.
-  2. **Server:** create a token, start the server, and optionally try it in MCP Inspector.
-  3. **Connect an AI assistant:** GitHub Copilot's free plan, or Claude Code. Guides 1 to 3 use one token, `local`, which sees everything. Guide 3 ends with **"Give each client its own token"**: add `claude`, `copilot` and `inspector` to `MCP_TOKENS`, give each client its own, and see that each one sees part of the data (row-level security), while the audit log now shows which client made each call.
-  4. **Optional: search by meaning (RAG):** the embed command and the RAG tools (decision 11).
-  5. **Optional:** a hosted database (decision 4).
-- **The MCP part is complete on its own.** Guides 1 to 3 give a working project without the RAG extension.
-- **Commands work on Windows, macOS and Linux.** Tasks are `uv run` Python commands with settings in `.env`, so one set of commands serves all three. The guides are written on macOS, with a short Windows note only where needed.
+- **The docs peel the system back one layer at a time.** The README gets you from a fresh clone to your first question as fast as possible. Each guide after it goes one layer deeper into what was already running. You can stop after any step and still have something that works.
+  1. **README, quickstart:** clone the repo, then five steps: `init`, `docker compose up -d --wait` (it waits until the database is ready), `setup_db`, `main`, and paste the client config that `init` printed. GitHub Copilot's free plan in VS Code is the main path, and Claude Code is one `claude mcp add` line. Then a few questions to ask, and the one it must refuse. Only one line of explanation per step, plus a line saying that six layers of security are already at work, with a link to guide 1.
+  2. **README, search by meaning (RAG), a separate optional step:** the embed command, then a few questions. It says up front that the embed command takes a few minutes on a fast laptop and 15 or more on an older one, and that it can run in a second terminal while you try the MCP questions. It embeds the policy booklets and the accident descriptions first, so the policy and accident questions work after the first minute or two. Only the searches of adjusters' notes wait for the whole run.
+  3. **Guide 1, how it works:** the request path and a map of the code at a high level, and the six layers of security at a glance.
+  4. **Guide 2, database security:** the lockdown, the tables, row-level security step by step, the data, the database settings in `.env`, and the tests.
+  5. **Guide 3, server security:** tokens and the server settings, the `curl` checks, MCP Inspector (optional), the audit log, keeping the assistant safe, and **"Give each client its own token"**: add `claude`, `copilot` and `inspector` to `MCP_TOKENS`, give each client its own, and see that each one sees part of the data (row-level security), while the audit log now shows which client made each call. Until then, everything uses one token, `local`, which sees everything.
+  6. **Guide 4, RAG in depth:** how the embeddings are made and searched, the RAG tools, and what RAG isn't good for (decision 11).
+  7. **Troubleshooting,** for every step, on one page (`docs/troubleshooting.md`). It includes installing Claude Code and fixing its PATH.
+  8. **Optional:** a hosted database (decision 4).
+- **The `init` command** (`uv run python -m insurance_mcp.init`) means nobody has to edit `.env` by hand to get started:
+  - **With no `.env`,** it copies `.env.example` to `.env`, comments included, and puts in random secrets: one admin password, written in both `POSTGRES_PASSWORD` and `ADMIN_DATABASE_URL` so they match, one `mcp_reader` password, and one `local` token.
+  - **Then it prints the client config** with the token filled in: the JSON for VS Code's user configuration, and the `claude mcp add` command for Claude Code.
+  - **With a `.env` already there,** it changes nothing and only prints the client config from it. So it also answers "what was my config again?".
+  - **It never writes a client's config itself.** Those files live in your home folder, and changing them is your decision.
+  - **Honest limit:** Docker keeps the admin password from the first `docker compose up`. A new `.env` on an old database volume needs `docker compose down -v` first, which deletes the old database. Troubleshooting says so.
+- **The MCP part is complete on its own.** The quickstart works without RAG.
+- **Commands work on Windows, macOS and Linux.** Tasks are `uv run` Python commands with settings in `.env`, so one set of commands serves all three. The docs are written on macOS, with a short Windows note only where needed.
 - **The database guide shows row-level security step by step in SQL:** as the admin, see which states each caller key may see, then, as `mcp_reader`, set a caller key and search, the way the server does. It also shows the honest limit: `mcp_reader` can set any key it likes.
-- **The database guide explains every setting and password in `.env`:** what each one is for, which program reads it, which ones must match, and how to make a strong one. The specs only list them.
+- **The guides explain every setting and password in `.env`:** the database guide the database settings, and the server guide the server settings. Each says what a setting is for, which program reads it and which ones must match, and shows how to make a strong secret by hand. The specs only list them.
 - **MCP Inspector is optional.** It needs Node.js (it runs with `npx`), so a reader can go straight to Copilot or Claude Code. The guide gives a pinned version (`npx @modelcontextprotocol/inspector@<version>`), so readers run the version we tested rather than whatever is newest.
-- **The "connect an assistant" guide includes a short safety note:** keep the assistant asking before it runs a tool, and don't connect this server to an assistant that also has tools that can send data out ([server-spec.md](server-spec.md), decision 11).
+- **A short safety note:** keep the assistant asking before it runs a tool, and don't connect this server to an assistant that also has tools that can send data out ([server-spec.md](server-spec.md), decision 11). One line of it in the quickstart, and the full note in the server guide.
 - **A short page, "Using this with your own data",** explains the read-only data warehouse (decision 3) and lists the honest limits in one place, with links to the specs.
 
 ## 9. Domain model and tools

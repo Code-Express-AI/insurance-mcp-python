@@ -15,7 +15,7 @@ set role insurance_owner;
 create table insurance.audit_log (
     id            bigint generated always as identity primary key,
     occurred_at   timestamptz not null,   -- set by write_audit, never passed in
-    caller        text not null,          -- the token's name, such as claude-code
+    caller        text not null,          -- the token's name, such as local
     tool_name     text not null,
     arguments     jsonb not null,
     rows_returned integer,

@@ -131,7 +131,7 @@ def test_full_data_has_about_the_volumes_in_the_spec(full_data, admin, table, ex
     assert 0.9 * expected <= rows <= 1.1 * expected
 
 
-# The row-level security examples in guides 1 and 3: one customer only each
+# The row-level security examples in guides 2 and 3: one customer only each
 # named token can find. They aren't planted: the fixed seed puts them there.
 ONLY_FOUND_BY = {"Wei Kim": "claude", "Mei Cruz": "copilot", "Ana Cook": "inspector"}
 

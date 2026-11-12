@@ -431,7 +431,7 @@ It's owned by `insurance_owner`. `mcp_owner` may read it, and `mcp_reader` gets 
 
 | Caller key | States | Why |
 |---|---|---|
-| `local` | All five (TX, OK, CO, NM, AZ) | The one token you start with. Guides 1 to 3 use it for Copilot, Claude Code and MCP Inspector alike. |
+| `local` | All five (TX, OK, CO, NM, AZ) | The one token you start with. The quickstart and guides use it for Copilot, Claude Code and MCP Inspector alike. |
 | `claude` | TX, CO, **OK** | Claude Code's own token, from the end of guide 3. |
 | `copilot` | TX, CO, **NM** | GitHub Copilot's own token. |
 | `inspector` | TX, CO, **AZ** | MCP Inspector's own token. |
@@ -468,7 +468,7 @@ create policy visible_customer on insurance.policies for select to mcp_owner
 
 - **A hidden record is "unknown".** `get_claim` with another state's claim number gets the same "Unknown claim number" message as a number that doesn't exist (checked), so the error doesn't confirm the record is there.
 - **`get_dataset_info` counts only what the caller can see.** `local` sees all 12,000 customers, and each named token fewer.
-- **A token whose name isn't in `caller_states` sees nothing.** Every answer is empty, not an error. The guides say so, and the troubleshooting section shows the `insert` that gives a new token its states.
+- **A token whose name isn't in `caller_states` sees nothing.** Every answer is empty, not an error. The guides say so, and guide 3 shows the `insert` that gives a new token its states.
 
 ### What isn't filtered
 

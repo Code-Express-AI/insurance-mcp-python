@@ -1,4 +1,4 @@
-# The local PostgreSQL database. Start it with: docker compose up -d
+# The local PostgreSQL database. Start it with: docker compose up -d --wait
 #
 # The image includes the pgvector extension, which the RAG part of the project
 # uses later. Keep the same image from the start: changing it means rebuilding
