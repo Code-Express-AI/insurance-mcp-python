@@ -5,6 +5,9 @@ import logging
 
 import pytest
 
+from insurance_mcp import main as main_module
+from insurance_mcp.main import reject
+
 from .conftest import COPILOT_TOKEN, LIST_TOOLS, LOCAL_TOKEN, MCP_HEADERS, serve
 
 pytestmark = pytest.mark.anyio
@@ -68,6 +71,26 @@ async def test_tokens_never_appear_in_the_log(settings, caplog):
     assert "Rejected request: status=401" in caplog.text
     assert LOCAL_TOKEN not in caplog.text
     assert wrong not in caplog.text
+
+
+def test_an_address_with_spaces_cant_forge_fields_in_the_log(caplog):
+    # Behind a proxy, the address comes from a header the client writes.
+    reject(401, "Missing or invalid bearer token.", "10.0.0.1 status=200 caller=copilot")
+
+    assert "ip='10.0.0.1 status=200 caller=copilot'" in caplog.text
+
+
+def test_the_server_ignores_x_forwarded_for(settings, monkeypatch):
+    # uvicorn would otherwise take the client's address from X-Forwarded-For on
+    # any request from 127.0.0.1, and a fake address per request dodges the
+    # bad-token limit. These tests call the app directly, so they check the
+    # setting main() passes to uvicorn.
+    passed = {}
+    monkeypatch.setattr(main_module, "Settings", lambda: settings)
+    monkeypatch.setattr(main_module.uvicorn, "run", lambda app, **options: passed.update(options))
+    main_module.main()
+
+    assert passed["proxy_headers"] is False
 
 
 # Rate limits ----------------------------------------------------------------------

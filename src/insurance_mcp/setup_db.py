@@ -62,9 +62,16 @@ def setup_database(admin_database_url: str, reader_database_url: str, size: str 
             print(f"Running {path.name}")
             conn.execute(path.read_text())
 
+        # Hashed here, before it's sent, as psql's \password does. Sent as it
+        # is, the password would be in the SQL text, and a database that logs
+        # its statements (log_statement = 'ddl', common on hosted ones) would
+        # write it to the log. PostgreSQL stores a SCRAM hash exactly as it's given.
+        verifier = conn.pgconn.encrypt_password(password.encode(), b"mcp_reader", b"scram-sha-256")
         # ALTER ROLE can't take a $1 parameter like a query can, so psycopg
-        # quotes the password safely as a literal instead.
-        conn.execute(sql.SQL("alter role mcp_reader password {}").format(sql.Literal(password)))
+        # quotes it safely as a literal instead.
+        conn.execute(
+            sql.SQL("alter role mcp_reader password {}").format(sql.Literal(verifier.decode()))
+        )
 
         load_data(conn, size)
     print("Database ready.")

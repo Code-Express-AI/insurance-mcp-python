@@ -105,7 +105,9 @@ def reject(
     status: int, message: str, ip: str, caller: str | None = None, retry_after: int | None = None
 ) -> JSONResponse:
     """Log a rejected request (never its token) and answer it."""
-    logger.warning("Rejected request: status=%s caller=%s ip=%s", status, caller, ip)
+    # %r puts quotes around the address, so a value with spaces in it can't
+    # pass itself off as more fields on the line.
+    logger.warning("Rejected request: status=%s caller=%s ip=%r", status, caller, ip)
     headers = {"WWW-Authenticate": "Bearer"} if status == 401 else {}
     if retry_after is not None:
         headers["Retry-After"] = str(retry_after)
@@ -118,7 +120,13 @@ def main() -> None:
     # client. In stateless mode there's no session, so it's only noise.
     logging.getLogger("mcp.server.streamable_http").setLevel(logging.WARNING)
     settings = Settings()
-    uvicorn.run(create_app(settings), host=settings.host, port=settings.port)
+    # uvicorn trusts an X-Forwarded-For header from 127.0.0.1 by default, as if
+    # every program on this machine were a proxy. The header is whatever the
+    # client writes, so a new fake address per request would dodge the bad-token
+    # limit. With no proxy in front, the address the connection comes from is
+    # the only one to trust. A hosted server behind a proxy would pass the
+    # proxy's address as forwarded_allow_ips instead.
+    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, proxy_headers=False)
 
 
 if __name__ == "__main__":

@@ -94,7 +94,7 @@ On Windows, `curl` is built in from Windows 10 onwards. In Windows PowerShell 5.
 In the server's terminal, the rejected request is logged without its token:
 
 ```text
-WARNING: insurance_mcp.main: Rejected request: status=401 caller=None ip=127.0.0.1
+WARNING: insurance_mcp.main: Rejected request: status=401 caller=None ip='127.0.0.1'
 INFO:     127.0.0.1:65431 - "POST /mcp HTTP/1.1" 401 Unauthorized
 ```
 

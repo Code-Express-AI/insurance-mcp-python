@@ -10,7 +10,10 @@
 -- Extra rules for the mcp functions (the only ones mcp_reader can call):
 --   SECURITY DEFINER     runs with mcp_owner's rights: it can read the tables,
 --                        and nothing more.
---   STABLE               PostgreSQL refuses INSERT, UPDATE or DELETE inside it.
+--   STABLE               PostgreSQL refuses INSERT, UPDATE or DELETE written in
+--                        the function. It doesn't check the functions it calls:
+--                        what really stops writes is that mcp_owner has no
+--                        write rights on the business tables.
 --   RETURNS TABLE        fixed columns, and a LIMIT on every result.
 --   public keys only     a table's public_id is returned as <thing>_id.
 --   no dynamic SQL       no EXECUTE, no format(): every query is written out.
