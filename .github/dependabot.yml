@@ -1,21 +1,49 @@
 # Dependabot opens a pull request when something we depend on has an update,
-# so security fixes don't sit unnoticed.
+# and CI tests it before we merge.
+#
+# Version updates are calm on purpose: once a month, one pull request per kind
+# of dependency, and only for releases that have been out for a while. A release
+# that's been out for two weeks without a quick fix after it is one other people
+# have already tried. Dependabot never suggests a beta or other pre-release
+# unless we're already on one.
+#
+# Security fixes don't wait: Dependabot security updates (switched on in the
+# repo's settings) open a pull request as soon as a fix is out, with no cooldown.
 version: 2
 updates:
   # Python packages, from pyproject.toml and uv.lock.
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    cooldown:
+      semver-patch-days: 7
+      semver-minor-days: 14
+      semver-major-days: 30
+    groups:
+      python-packages:
+        patterns: ["*"]
 
   # The PostgreSQL image in docker-compose.yml.
   - package-ecosystem: "docker-compose"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    # Stay on PostgreSQL 18. A new major version can't read the old one's data
+    # files, so moving to it is a deliberate upgrade, not a pull request.
+    ignore:
+      - dependency-name: "pgvector/pgvector"
+        update-types: ["version-update:semver-major"]
 
   # The actions in .github/workflows.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    cooldown:
+      default-days: 14
+    groups:
+      github-actions:
+        patterns: ["*"]
