@@ -55,7 +55,7 @@ Each of these is a real gap. Some are fixed by something outside the app, and so
 ### The audit log
 
 - **The database admin can rewrite it.** The admin can switch off the trigger, change rows and recompute the hash chain. No database can fully protect a log from its own admin. The fix is to copy the latest hash somewhere the admin can't reach. ([database-spec.md](specs/database-spec.md), decision 10)
-- **Whoever has the `mcp_reader` password can write audit rows,** with any caller name, and call the functions without being audited, because the server writes the audit rows, not the functions. The database limits what can be done; the server records who did it. Keep that password long and secret. ([database-spec.md](specs/database-spec.md), decision 10)
+- **Whoever has the `mcp_reader` password can write audit rows,** with any caller name, and call the functions without being audited, because the server writes the audit rows, not the functions. Functions that log themselves wouldn't fix it: in PostgreSQL a caller can roll the log row back along with its own transaction. The database limits what can be done; the server records who did it. Keep that password long and secret. ([database-spec.md](specs/database-spec.md), decision 10)
 - **Personal data is kept forever.** The log records what was searched for, such as a customer's name, and an append-only table can't have it removed. Privacy laws such as the GDPR give people a right to have their data deleted, so a real system needs a retention period. ([database-spec.md](specs/database-spec.md), decision 10)
 - **The trigger doesn't stop `DROP TABLE`.** Blocking it needs a real superuser, which hosted databases don't give you. ([database-spec.md](specs/database-spec.md), decision 10)
 
