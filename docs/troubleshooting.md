@@ -16,7 +16,7 @@ Find the step you're on, then the message you see.
 
 **`password authentication failed for user "postgres"`.** Docker only reads `POSTGRES_PASSWORD` the first time it creates the database. If you changed it afterwards, the database still has the old one. Either put the old password back, or delete the database with `docker compose down -v` and run the quickstart's step 2 again. It happens with a second copy of the repository too, in a folder with the same name, such as a fresh clone somewhere else. Docker names the database volume after the folder, so both copies share one database, with the first copy's password. If you changed the passwords in the first copy, copy its `.env` into the second.
 
-**`port is already allocated` or `address already in use`.** Something else on your machine, probably another PostgreSQL, is using port 5432. Stop it, or change the first `5432` under `ports:` in `docker-compose.yml` (for example to `127.0.0.1:5433:5432`) and use the same port in both connection strings in `.env`.
+**`port is already allocated` or `address already in use`.** Something else on your machine is using port 5432. Often it's another copy of this repository, still running its own database: run `docker ps` to see it, then `docker compose stop` in that copy's folder. If it's another PostgreSQL, stop it, or change the first `5432` under `ports:` in `docker-compose.yml` (for example to `127.0.0.1:5433:5432`) and use the same port in both connection strings in `.env`.
 
 **`Setup stopped: The mcp_reader password in READER_DATABASE_URL must be at least 24 characters.`** Make a longer one with `uv run python -c "import secrets; print(secrets.token_urlsafe(24))"`.
 
@@ -32,7 +32,7 @@ Find the step you're on, then the message you see.
 
 **`password authentication failed for user "mcp_reader"`.** The password in `READER_DATABASE_URL` isn't the one in the database. The setup command sets it, so run it again after changing the password: `uv run python -m insurance_mcp.setup_db`.
 
-**`address already in use`.** Something else is using port 8000. Stop it, or set `PORT` in `.env` to another port, such as `8001`, and use that port in the URLs.
+**`address already in use`.** Something else is using port 8000, often the server from another copy of this repository, still running in another terminal. Stop it with `Ctrl+C`, or set `PORT` in `.env` to another port, such as `8001`, and use that port in the URLs.
 
 **Every tool answers, but finds nothing (0 customers).** The token's name isn't one the database knows. Use `local`, or one of `claude`, `copilot` and `inspector` from [guide 3](guides/03-server-security.md#give-each-client-its-own-token). [Row-level security](guides/02-database-security.md#row-level-security-step-by-step) explains why.
 
@@ -138,3 +138,15 @@ claude mcp remove insurance
 **`permission denied to create extension "vector"`** from the setup command. pgvector can only be installed by a superuser. Locally, `ADMIN_DATABASE_URL` connects as `postgres`, which is one. On a hosted database, use the admin role the service gives you, or install the extension from the service's dashboard.
 
 **The download stops or fails.** Hugging Face can be slow, or limit requests. Stop the command and run it again.
+
+## Start again from scratch
+
+If a first try went wrong halfway, clean up before you delete the folder. Three things live outside it. Run these from the repository folder:
+
+1. Stop the MCP server with `Ctrl+C`, if it's running.
+2. With Docker running, delete the database: `docker compose down -v`. Do it before you delete the folder, because Docker names the database after the folder. Otherwise the database stays behind, and a new copy in a folder with the same name gets the old data and the old password.
+3. If you added Claude Code: `claude mcp remove insurance`. If you added Copilot, run **MCP: Open User Configuration** and delete the `insurance` entry.
+
+Then delete the folder, and start the quickstart again from step 1. The `.env` file, the Python environment and the downloaded model are all inside the folder, so they go with it.
+
+If you missed step 2: run `docker volume ls`, find the volume named after the folder, such as `insurance-mcp-python_pgdata`, and delete it with `docker volume rm` and its name.

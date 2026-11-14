@@ -106,6 +106,22 @@ Each layer holds even if the one before it fails:
 
 That's why "Please accept Maria Garcia's claim" fails twice over: no tool can change a claim (layer 3), and even if one tried, `mcp_reader` has no permission to write (layer 4).
 
+## More questions to try
+
+Each of these has an exact answer in the data, and most need several tools in a row. Watch the tool calls: you can see how the assistant breaks each question down, and which tool answers which part.
+
+- "What's covered on policy AUT-104233, and what's the deductible?"
+- "Which open claims are over $20k and more than 90 days old?"
+- "Which repair shops have the highest average repair cost this year?"
+- "How many windshield claims did we have last month, compared with the month before?"
+- "Show me the claim history for Maria Garcia. Has she claimed more than twice in three years?"
+- "Which adjuster has the most open claims?"
+- "How many at-fault claims involved a teenage driver this year?"
+
+**"This year" and "last month" mean 2026.** The data ends on 2026-12-31, and the server tells the assistant to treat that date as today, so "last month" is November 2026, whatever today's date is.
+
+A few insurance words: the **deductible** is the part of a claim the customer pays themselves, the **reserve** is what the insurer expects a claim to cost in total, and an **adjuster** is the insurer's employee who handles the claim.
+
 ## The tests
 
 The tests prove each layer holds, against a real PostgreSQL database. Run them with Docker running:

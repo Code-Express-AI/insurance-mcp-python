@@ -8,18 +8,18 @@ It's free to install, run and test.
 
 Follow along with the [video tutorials on YouTube](https://www.youtube.com/@CodeExpressAI) from Code Express AI.
 
-## What you need
+## Try it for free
 
 - [Git](https://git-scm.com/downloads)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine on Linux), installed and started
 - [uv](https://docs.astral.sh/uv/getting-started/installation/), which installs Python for you
-- An AI assistant, either of:
-  - [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans): the free plan is enough
-  - [Claude Code](docs/troubleshooting.md#installing-it), with a paid Claude plan (Pro or above)
+- [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans): the free plan is enough
+- Or [Claude Code](docs/troubleshooting.md#installing-it), with a paid Claude plan (Pro or above)
+- Optional: [Node.js](https://nodejs.org/), only to test the server with [MCP Inspector](docs/guides/03-server-security.md#optional-call-a-tool-from-mcp-inspector)
 
 ## Quickstart part 1: MCP
 
-**1. Get the code and copy the settings.**
+### 1. Get the code and copy the settings
 
 ```bash
 git clone https://github.com/Code-Express-AI/insurance-mcp-python.git
@@ -27,18 +27,25 @@ cd insurance-mcp-python
 cp .env.example .env
 ```
 
-On Windows (Command Prompt), use `copy .env.example .env`. The settings work as they are, on your own machine. Everyone knows the example passwords and token, so replace them with your own before you run this anywhere else: [guide 3](docs/guides/03-server-security.md#replace-the-example-token) shows how.
+On Windows (Command Prompt), use `copy .env.example .env`. The settings work as they are, on your own machine.
 
-**2. Start the database and load the data.**
+### 2. Start the database and load the data
 
 ```bash
 docker compose up -d --wait
 uv run python -m insurance_mcp.setup_db
 ```
 
-`--wait` waits until PostgreSQL is ready. The first time, Docker downloads the PostgreSQL image, which takes a minute or two.
+`--wait` waits until PostgreSQL is ready. The first time, Docker downloads the PostgreSQL image, which takes a minute or two. The setup command takes a few seconds, and ends with:
 
-**3. Start the MCP server,** and leave it running.
+```text
+Loaded full data: 12,002 customers, 14,930 policies, 15,090 claims, 76,630 claim notes.
+Database ready.
+```
+
+### 3. Start the MCP server
+
+Leave it running.
 
 ```bash
 uv run python -m insurance_mcp.main
@@ -46,9 +53,11 @@ uv run python -m insurance_mcp.main
 
 Check it's up: open [http://localhost:8000/health](http://localhost:8000/health) in your browser. It should say `{"status":"ok"}`.
 
-**4. Connect your AI assistant.**
+### 4. Connect GitHub Copilot
 
-*GitHub Copilot:* in VS Code, open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows and Linux), run **MCP: Open User Configuration**, and paste this in. If the file already lists other servers, add `insurance` alongside them.
+Prefer Claude Code? Skip to [step 5](#5-connect-claude-code).
+
+In VS Code, open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows and Linux), run **MCP: Open User Configuration**, and paste this in. If the file already lists other servers, add `insurance` alongside them.
 
 ```json
 {
@@ -66,29 +75,25 @@ Check it's up: open [http://localhost:8000/health](http://localhost:8000/health)
 
 Then open Copilot Chat and switch it to **Agent** mode. If VS Code shows `insurance` failing to connect, run **MCP: List Servers**, choose `insurance`, then **Restart Server**.
 
-*Claude Code:* in a second terminal, in the repository folder, add the server, then start Claude Code:
+### 5. Connect Claude Code
+
+In a second terminal, in the repository folder, add the server:
 
 ```bash
 claude mcp add --transport http insurance http://localhost:8000/mcp --header "Authorization: Bearer local-only-token-replace-with-your-own"
-claude
 ```
 
-Run `/mcp` in Claude Code: `insurance` should show as connected.
+Then open the repository folder in VS Code and start a new session in the Claude Code extension, or run `claude` in the terminal. Run `/mcp`: `insurance` should show as connected.
 
 If you change the token in `.env`, change it in your assistant too.
 
-**5. Ask a question:**
+### 6. Ask a question
 
 - "Use the insurance server to find the customer called Rutherford and show their policies."
 
-Your assistant asks before each tool call: allow each one, rather than choosing "always allow", and watch it work. Then try these:
+Your assistant asks before each tool call: allow each one, rather than choosing "always allow", and watch it work. Then try:
 
-- "What's covered on policy AUT-104233, and what's the deductible?"
-- "Which open claims are over $20k and more than 90 days old?"
-- "Which repair shops have the highest average repair cost this year?"
-- "Show me the claim history for Maria Garcia. Has she claimed more than twice in three years?"
 - "Does Maria Garcia have any open claims?"
-- "How many at-fault claims involved a teenage driver this year?"
 
 And one it must refuse:
 
@@ -102,7 +107,9 @@ Stuck? See [troubleshooting](docs/troubleshooting.md).
 
 Now let the assistant answer "am I covered?" questions from the policy booklets, by what they mean, not just by exact words. This is RAG (retrieval-augmented generation), with a free model that runs on your own machine.
 
-**1. Load the policy booklets.** Leave the server running, and in a second terminal run:
+### 1. Load the policy booklets
+
+Leave the server running, and in a second terminal run:
 
 ```bash
 uv run python -m insurance_mcp.embed --booklets-only
@@ -110,11 +117,13 @@ uv run python -m insurance_mcp.embed --booklets-only
 
 The first time, it downloads the model. It's a 90 MB file, so this may take a moment, depending on your connection. Then it reads the booklets' 37 sections in a few seconds.
 
-**2. Ask about the booklets:**
+### 2. Ask about the booklets
 
 - "Am I covered for flood damage with liability + collision?"
 
-**3. Combine the two.** These need the MCP tools to look up the customer's policies, then the booklets to say what those policies cover:
+### 3. Combine the two
+
+These need the MCP tools to look up the customer's policies (MCP using exact lookups), then the booklets to say what those policies cover (MCP using RAG):
 
 - "Eleanor Rutherford's cars were both damaged in a hailstorm. Is she covered?"
 - "Maria Garcia has a chip in her windshield. What will it cost her to fix?"
@@ -136,12 +145,16 @@ Stopping it with `Ctrl+C` is fine: run it again and it carries on where it stopp
 
 ## Go deeper
 
-You have a working system. Each guide peels back one more layer of what's already running:
+You have a working system. Each video and guide peels back one more layer of what's already running:
 
-1. [How it works](docs/guides/01-how-it-works.md): what happens when you ask a question, a map of the code, and the six layers of security at a glance.
-2. [Database security](docs/guides/02-database-security.md): a database role that can't read a single table, row-level security, masking, and the tamper-evident audit log.
-3. [Server security](docs/guides/03-server-security.md): tokens, rate limits, host checks, MCP Inspector, and a token for each AI assistant.
-4. [Search by meaning in depth](docs/guides/04-rag.md): embeddings and pgvector, the RAG tools, and what RAG isn't good for.
+| # | Video | Guide | What's in it |
+|---|---|---|---|
+| 1 | Coming soon | [Quickstart part 1: MCP](#quickstart-part-1-mcp) | From clone to your first question, and the one it must refuse |
+| 2 | Coming soon | [Quickstart part 2: RAG](#quickstart-part-2-search-by-meaning-rag) | "Am I covered?" from the policy booklets, combined with the MCP tools |
+| 3 | Coming soon | [How it works](docs/guides/01-how-it-works.md) | What happens when you ask a question, a map of the code, and the six layers of security at a glance |
+| 4 | Coming soon | [Database security](docs/guides/02-database-security.md) | A database role that can't read a single table, row-level security, masking, and the tamper-evident audit log |
+| 5 | Coming soon | [Server security](docs/guides/03-server-security.md) | Tokens, rate limits, host checks, MCP Inspector, and a token for each AI assistant |
+| 6 | Coming soon | [Search by meaning in depth](docs/guides/04-rag.md) | Embeddings and pgvector, the RAG tools, and what RAG isn't good for |
 
 [Using this with your own data](docs/using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place. The specs in [docs/specs/](docs/specs/spec.md) record every design decision, and why it was made.
 
