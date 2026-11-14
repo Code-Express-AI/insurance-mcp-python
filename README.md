@@ -117,6 +117,8 @@ uv run python -m insurance_mcp.embed --booklets-only
 
 The first time, it downloads the model. It's a 90 MB file, so this may take a moment, depending on your connection. Then it reads the booklets' 37 sections in a few seconds.
 
+You may see `Warning: You are sending unauthenticated requests to the HF Hub`. You can ignore it: the model is free and public, so you don't need a Hugging Face account or token.
+
 ### 2. Ask about the booklets
 
 - "Am I covered for flood damage with liability + collision?"

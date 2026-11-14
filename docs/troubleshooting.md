@@ -137,6 +137,8 @@ claude mcp remove insurance
 
 **`permission denied to create extension "vector"`** from the setup command. pgvector can only be installed by a superuser. Locally, `ADMIN_DATABASE_URL` connects as `postgres`, which is one. On a hosted database, use the admin role the service gives you, or install the extension from the service's dashboard.
 
+**`You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN`.** You can ignore it. Hugging Face shows it for every download without a token, but the model is free and public, so you don't need an account or a token.
+
 **The download stops or fails.** Hugging Face can be slow, or limit requests. Stop the command and run it again.
 
 ## Start again from scratch
