@@ -124,7 +124,18 @@ def main() -> None:
     # limit. With no proxy in front, the address the connection comes from is
     # the only one to trust. A hosted server behind a proxy would pass the
     # proxy's address as forwarded_allow_ips instead.
-    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, proxy_headers=False)
+    #
+    # On Ctrl+C, uvicorn waits for every open connection to close, and a
+    # connected MCP client can hold one open indefinitely. timeout_graceful_shutdown
+    # gives requests in progress 5 seconds to finish, then closes the rest, so
+    # one Ctrl+C is enough.
+    uvicorn.run(
+        create_app(settings),
+        host=settings.host,
+        port=settings.port,
+        proxy_headers=False,
+        timeout_graceful_shutdown=5,
+    )
 
 
 if __name__ == "__main__":
