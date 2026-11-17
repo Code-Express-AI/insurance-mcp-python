@@ -79,3 +79,8 @@ create policy visible_claim on insurance.claim_notes for select to mcp_owner
     using (exists (select from insurance.claims as c where c.id = claim_notes.claim_id));
 
 reset role;
+
+-- What can mcp_reader do at this point?
+-- The same functions, but each one now returns only rows for customers in the
+-- states linked to the caller key the server set. No key means no rows. It can
+-- set the key itself with set_config, so the database trusts the server.

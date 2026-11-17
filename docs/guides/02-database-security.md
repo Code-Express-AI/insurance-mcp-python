@@ -87,7 +87,7 @@ delete from insurance.claims;           -- ERROR: permission denied for schema i
 select * from mcp.get_dataset_info();   -- works, but every count is 0
 ```
 
-`mcp_reader` can run the functions it's been granted, one by one, and nothing else. That's the database's layer of security. [database-spec.md](../specs/database-spec.md) explains how it works.
+`mcp_reader` reaches the data only through the functions it's been granted, one by one. To see how each setup script gets it there, read [how mcp_reader is locked down, step by step](./mcp-reader-permissions.md). The decisions behind it are in [database-spec.md](../specs/database-spec.md).
 
 **Why are the counts 0?** Because the database doesn't know who's asking. Each caller sees only the customers in its own states (row-level security), and a caller it doesn't know sees nothing. Tell it you're `local`, the token in your `.env`, which sees every state, and ask again:
 

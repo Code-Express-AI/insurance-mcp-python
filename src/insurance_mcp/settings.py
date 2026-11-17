@@ -26,7 +26,6 @@ class Settings(BaseSettings):
     allowed_hosts: Annotated[list[str], NoDecode] = ["localhost", "127.0.0.1"]
 
     rate_limit_per_minute: int = 60
-    rate_limit_per_day: int = 1000
     db_pool_max_size: int = 5
     host: str = "127.0.0.1"
     port: int = 8000

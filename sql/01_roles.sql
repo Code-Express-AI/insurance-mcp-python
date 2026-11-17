@@ -58,3 +58,10 @@ alter role mcp_reader connection limit 10;
 -- Let the admin role act as the two owners, so it can create objects that
 -- belong to them (and drop them next time). The owners still can't log in.
 grant insurance_owner, mcp_owner to current_user;
+
+-- What can mcp_reader do at this point?
+-- It can log in and connect, because PUBLIC still has its default CONNECT and
+-- TEMPORARY rights (03_permissions.sql takes those away). It can run plain SQL,
+-- read the system catalogs and create temporary tables, but there's no data
+-- to see: the insurance and mcp schemas don't exist yet.
+-- New sessions get a 5-second statement timeout, and at most 10 connections.

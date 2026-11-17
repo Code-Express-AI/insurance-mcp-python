@@ -27,7 +27,7 @@ cd insurance-mcp-python
 cp .env.example .env
 ```
 
-On Windows (Command Prompt), use `copy .env.example .env`. The settings work as they are, on your own machine.
+On Windows (Command Prompt), use `copy .env.example .env`. The settings work as they are, on your own machine: you don't need to change them.
 
 ### 2. Start the database and load the data
 
@@ -57,11 +57,11 @@ Check it's up: open [http://localhost:8000/health](http://localhost:8000/health)
 
 Prefer Claude Code? Skip to [step 5](#5-connect-claude-code).
 
-In VS Code, open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows and Linux), run **MCP: Open User Configuration**, and paste this in. If the file already lists other servers, add `insurance` alongside them.
+In VS Code, open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on Windows and Linux), run **MCP: Open User Configuration**, and choose **Copilot Global** (marked Recommended, `mcp-config.json`). Then paste this in. If the file already lists other servers, add `insurance` alongside them.
 
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "insurance": {
       "type": "http",
       "url": "http://localhost:8000/mcp",
@@ -73,7 +73,7 @@ In VS Code, open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on 
 }
 ```
 
-Then open Copilot Chat and switch it to **Agent** mode. If VS Code shows `insurance` failing to connect, run **MCP: List Servers**, choose `insurance`, then **Restart Server**.
+Then open Copilot Chat, switch it to **Agent** mode, and go to [step 6](#6-ask-a-question).
 
 ### 5. Connect Claude Code
 
@@ -83,9 +83,7 @@ In a second terminal, in the repository folder, add the server:
 claude mcp add --transport http insurance http://localhost:8000/mcp --header "Authorization: Bearer local-only-token-replace-with-your-own"
 ```
 
-Then open the repository folder in VS Code and start a new session in the Claude Code extension, or run `claude` in the terminal. Run `/mcp`: `insurance` should show as connected.
-
-If you change the token in `.env`, change it in your assistant too.
+Then open the repository folder in VS Code and start a new session in the Claude Code extension, or run `claude` in the terminal. Run `/mcp` to check `insurance` is connected, then go to [step 6](#6-ask-a-question).
 
 ### 6. Ask a question
 
@@ -125,7 +123,7 @@ You may see `Warning: You are sending unauthenticated requests to the HF Hub`. Y
 
 ### 3. Combine the two
 
-These need the MCP tools to look up the customer's policies (MCP using exact lookups), then the booklets to say what those policies cover (MCP using RAG):
+These need the MCP tools to look up the customer's policies (MCP using exact lookups, by name or number), then the booklets to say what those policies cover (MCP using RAG, also called semantic search):
 
 - "Eleanor Rutherford's cars were both damaged in a hailstorm. Is she covered?"
 - "Maria Garcia has a chip in her windshield. What will it cost her to fix?"
@@ -138,7 +136,7 @@ The same command without `--booklets-only` also reads every accident description
 uv run python -m insurance_mcp.embed
 ```
 
-The descriptions take about a minute. The 76,630 notes take a few minutes on a fast laptop and 15 or more on an older one, and your fans will get loud. You can ask these as soon as the descriptions are done:
+The descriptions take about a minute. The 76,630 notes take a few minutes on a fast laptop and 15 or more on an older one, and the fans on your machine may get loud. You can ask these as soon as the descriptions are done:
 
 - "Find claims where the car was hit while parked at a supermarket."
 - "Which claims have notes about a neck injury?" (it finds more once it says `Embeddings ready.`)

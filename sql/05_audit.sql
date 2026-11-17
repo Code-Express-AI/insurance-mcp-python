@@ -183,3 +183,9 @@ grant execute on function mcp.write_audit(
 ) to mcp_reader;
 
 reset role;
+
+-- What can mcp_reader do at this point?
+-- It can call the read-only functions from 04_functions.sql, and mcp.write_audit
+-- to add entries to the audit log. It can add any entry it likes, but never
+-- read, change or delete one. It still can't reach the insurance tables
+-- directly or change business data.

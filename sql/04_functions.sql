@@ -906,3 +906,13 @@ $$;
 grant execute on function mcp.search_policy_wording(real[], text, integer) to mcp_reader;
 
 reset role;
+
+-- What can mcp_reader do at this point?
+-- It can call get_dataset_info, find_customers, get_customer, get_policy,
+-- search_claims, get_claim, count_claims_by_month, get_repair_shop_costs,
+-- get_adjuster_workload, count_claims_by_driver_age, search_claim_text,
+-- find_similar_claims and search_policy_wording. These functions return fixed
+-- columns and limited rows, and can't change data. It still can't reach the
+-- insurance tables directly, and it can't call the insurance helper functions,
+-- which are granted to mcp_owner only. No row-level security yet: the functions
+-- see every customer (06_row_security.sql).

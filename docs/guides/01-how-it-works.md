@@ -98,7 +98,7 @@ Each layer holds even if the one before it fails:
 | # | Layer | What it does | Where |
 |---|---|---|---|
 | 1 | **Who can call** | Every request needs a named bearer token, and is refused if it's addressed to an unexpected host name or comes from a web page. | [Guide 3](03-server-security.md) |
-| 2 | **How often** | Each caller has a limit per minute and per day. | [Guide 3](03-server-security.md) |
+| 2 | **How often** | Each caller has a limit per minute. | [Guide 3](03-server-security.md) |
 | 3 | **What they can ask** | 13 fixed, read-only tools, with every argument checked. There's no tool that runs SQL. | [Guide 3](03-server-security.md) |
 | 4 | **What the database allows** | `mcp_reader` can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit. Row-level security then returns only the customers in the caller's states. | [Guide 2](02-database-security.md) |
 | 5 | **What can leak** | Emails and driver's license numbers are masked. Phone numbers, emails and the customer's street address in free text are redacted. Internal ids never leave the database, and unexpected errors become a generic message. | [Guide 2](02-database-security.md) |

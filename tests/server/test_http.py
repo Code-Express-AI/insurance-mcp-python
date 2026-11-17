@@ -110,14 +110,6 @@ async def test_the_call_after_the_per_minute_limit_gets_429_and_others_are_unaff
     assert copilot.status_code == 200
 
 
-async def test_the_call_after_the_daily_cap_gets_429(settings):
-    settings = settings.model_copy(update={"rate_limit_per_day": 3})
-    async with serve(settings) as http:
-        statuses = [(await post(http, json.dumps(LIST_TOOLS))).status_code for _ in range(4)]
-
-    assert statuses == [200, 200, 200, 429]
-
-
 async def test_the_11th_bad_token_in_a_minute_from_one_address_gets_429(settings):
     bad = {"Authorization": "Bearer wrong-token-0123456789abcdefghijklmnop"}
     async with serve(settings) as http:

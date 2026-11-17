@@ -11,7 +11,7 @@ The detail behind decisions 2, 4, 5, 7 and 9 in [spec.md](spec.md): the MCP serv
 | # | Decision | Status |
 |---|----------|--------|
 | 1 | Stack and libraries | Agreed |
-| 2 | Project layout | Agreed |
+| 2 | Project layout | Proposed (2026-11-17): two packages |
 | 3 | Transport and endpoints | Agreed |
 | 4 | Configuration | Agreed |
 | 5 | Authentication | Agreed |
@@ -62,33 +62,66 @@ Exact versions are pinned in `uv.lock`. The design was checked against `mcp` 2.3
 
 ## 2. Project layout
 
-**Status:** Agreed
+**Status:** Proposed (2026-11-17), replacing the single package. Awaiting sign-off.
 
-A standard `src` layout with flat, plainly named modules. No layers or folders for their own sake.
+Two packages in one repository, as a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/): the server, and the admin tools that build and load the database. Each has its own `pyproject.toml` and a standard `src` layout with flat, plainly named modules. No layers or folders for their own sake.
 
 ```
-pyproject.toml
+pyproject.toml          the workspace: dev tools (pytest, ruff, testcontainers), ruff and pytest settings, no code
+uv.lock                 one lock file for both packages
 .python-version
-.env.example          every setting, with safe example values (committed)
+.env.example            every setting, with safe example values (committed)
 docker-compose.yml
-sql/                  the database setup scripts
-src/insurance_mcp/
-  main.py             builds the FastAPI app, mounts MCP, adds middleware
-  settings.py         reads .env
-  auth.py             named bearer tokens
-  rate_limit.py       per-caller limiter
-  db.py               connection pool, calling a database function
-  audit.py            writes the audit row, fail closed
-  tools.py            the tools
-  setup_db.py         the setup command (runs sql/, then the generator)
-  generate/           the data generator and its seed text files
+sql/                    the database setup scripts, read by setup_db
+server/
+  pyproject.toml        insurance-mcp
+  src/insurance_mcp/
+    main.py             builds the FastAPI app, mounts MCP, adds middleware
+    settings.py         reads .env
+    auth.py             named bearer tokens
+    rate_limit.py       per-caller limiter
+    db.py               connection pool, calling a database function
+    audit.py            writes the audit row, fail closed
+    tools.py            the tools
+    embeddings.py       loads the embedding model (shared with admin)
+admin/
+  pyproject.toml        insurance-admin, depends on insurance-mcp
+  src/insurance_admin/
+    setup_db.py         the setup command (runs sql/, then the generator)
+    embed.py            the embed command
+    generate/           the data generator and its seed text files
+    booklets/           the policy booklets, loaded by embed
 tests/
   conftest.py
   database/
   server/
+  ...
 ```
 
-**The admin code ships with the server.** `setup_db.py` and `generate/` connect as the admin role, and they sit in the same package as the server. That's the simplest setup: one project, one `pyproject.toml`, one `uv run`. The server never imports them, and its settings never load the admin connection string (decision 4), but the code is there. A stricter project would make the setup and generator a separate package. We accept this because the admin connection string, not the code, is what gives admin rights, and a hosted server is never given it.
+**Why two packages.** The server should carry only the code it runs. The setup command drops and rebuilds every schema, and the generator reloads the data. Neither belongs on a server, even though they can't do anything there without the admin connection string (decision 4), which a server is never given. With one package, any install of the server includes them. With two, a server install is just the server:
+
+```bash
+uv sync --package insurance-mcp --no-dev
+```
+
+That installs `insurance-mcp` and its libraries only. The admin package, `sql/` and `tests/` aren't part of it. A future server container copies `server/` and runs this.
+
+**The one shared module.** The server embeds each search query, and the embed command embeds the claims and booklets. Both must load the same model the same way, or searches quietly get worse, so `embeddings.py` lives once, in the server package, and admin imports it. The dependency runs one way: admin depends on the server, never the reverse, so the server can't import admin code even by mistake. No third "shared" package, and no copy that could drift.
+
+**Locally nothing changes.** The workspace's dev group lists both packages, so `uv run` in the repository installs everything, as before. The admin commands move to the new package:
+
+```bash
+uv run python -m insurance_admin.setup_db
+uv run python -m insurance_admin.embed
+uv run python -m insurance_admin.generate
+uv run python -m insurance_mcp.main          # unchanged
+```
+
+**Checked 2026-11-17** with uv 0.13.6 in a throwaway workspace: a plain `uv run` at the root runs both packages' commands, admin imports `insurance_mcp.embeddings`, `uv sync --package insurance-mcp --no-dev` leaves `insurance_admin` out (`ModuleNotFoundError`), and the built server wheel holds only server files.
+
+**A test guards the boundary:** importing every server module pulls in no `insurance_admin` module.
+
+**The cost:** three `pyproject.toml` files instead of one, and new names for the admin commands everywhere they appear (README, guides, troubleshooting, specs, CI).
 
 ## 3. Transport and endpoints
 
@@ -114,7 +147,6 @@ All settings come from a git-ignored `.env`. A committed `.env.example` lists ev
 | `MCP_TOKENS` | The named tokens (decision 5). | Server |
 | `ALLOWED_HOSTS` | Host names the server answers to (decision 6). | Server |
 | `RATE_LIMIT_PER_MINUTE` | Calls per caller per minute (decision 7). | Server |
-| `RATE_LIMIT_PER_DAY` | Calls per caller per day (decision 7). | Server |
 | `DB_POOL_MAX_SIZE` | Most database connections the server opens at once. Default 5 (decision 8). | Server |
 | `HOST`, `PORT` | Where the server listens. Default `127.0.0.1:8000`. | Server |
 
@@ -167,7 +199,7 @@ The server only answers requests addressed to host names in `ALLOWED_HOSTS` (by 
 
 - **Our own small limiter, about 30 lines**, not a library, so it's easy to read in one go.
 - **A sliding window per caller:** `RATE_LIMIT_PER_MINUTE` calls (default 60) per token name. A question usually takes a few tool calls, and a model takes 20 seconds or more to answer, so 60 leaves plenty of room for normal use while stopping a runaway loop.
-- **A daily cap per caller:** `RATE_LIMIT_PER_DAY` (default 1,000). The per-minute limit stops a runaway loop. The daily cap stops slow, steady copying: without it, a caller could page through every claim in a few minutes (decision 10). 1,000 calls is a few hundred questions, far more than a person asks in a day.
+- **No daily cap** (dropped 2026-11-17). It was meant to stop slow, steady copying, but it can't. Reading all 15,090 claims takes about 300 calls of 50 rows, about 5 minutes at 60 a minute, so a cap low enough to stop that would break normal use. It also counts every request, connecting and listing tools included, across every client that shares a token, so a day of testing could hit it. Any higher number would be a guess that protects nothing. Copying is slowed by the row and page limits and made visible by the audit log instead (decision 10).
 - **Failed tokens are limited per IP address:** after 10 requests with a bad token in a minute, that address gets `429` too. Guessing a 256-bit token is hopeless anyway. This stops someone flooding the log with rejected requests. Behind a reverse proxy, every request comes from the proxy's address, so a hosted server must read the client's real address from the proxy's header, and only from a proxy it trusts. The docs say so. Locally there's no proxy, so the server trusts no proxy header at all (`proxy_headers=False`). uvicorn's default trusts `X-Forwarded-For` from `127.0.0.1`, so any program on the machine could send a new fake address with each request and never hit the limit, and write spaces into the address to forge fields on the log line. The log quotes the address (`ip='127.0.0.1'`) for the same reason. **Honest limit:** the limiter never forgets an address, which is fine with the handful a local server sees. A hosted server would clear out old ones.
 - **It counts requests to `/mcp`.** The SDK rejects JSON-RPC batches (several calls in one request) with `400`, so one request carries at most one tool call, and counting requests can't be dodged with a batch. It also means the limiter never reads the request body. Requests that aren't tool calls (connecting, listing tools) count too, but a client makes only a few of those. A test proves batches are rejected.
 - Over the limit: HTTP `429 Too Many Requests` with a `Retry-After` header.
@@ -251,7 +283,7 @@ That's 10 tools. Each answers a real question, and every list has a hard row lim
 
 The RAG part adds three more, `search_claim_text`, `find_similar_claims` and `search_policy_wording`, set out in [spec.md](spec.md), decision 11. `search_claim_text` and `search_policy_wording` embed the `query` first, in a worker thread, and pass the 384 numbers to their function. Their audit row records the `query` as the caller wrote it, not the numbers.
 
-**Row limits slow copying; they don't prevent it.** A caller can still page through `search_claims`, or try every two-letter name in `find_customers`, and in time read everything its token allows. What stops that being quick or quiet: at most 20 pages of 50 per search (decision 14), the per-minute and daily limits (decision 7), and the audit log, which records every call. It's honest to say so: a reader can read what it's allowed to read. The limits make bulk copying slow and visible.
+**Row limits slow copying; they don't prevent it.** A caller can still page through `search_claims`, or try every two-letter name in `find_customers`, and in time read everything its token allows. What stops that being quick or quiet: at most 20 pages of 50 per search (decision 14), the per-minute limit (decision 7), and the audit log, which records every call. It's honest to say so: a reader can read what it's allowed to read. The limits make bulk copying slow and visible.
 
 **Policies and claims are looked up by number only.** People say the number out loud ("policy AUT-104233"), and every result that mentions a policy or claim includes its number, so the model always has one to pass on. Accepting the number or the id in one tool would mean two optional arguments where exactly one is required, which a schema can't express cleanly. Separate `_by_id` tools would double these lookups for no new answer.
 
@@ -282,7 +314,7 @@ MCP lets the server send instructions when a client connects, and good clients a
 
 **But read-only isn't the same as harmless.** If the same AI assistant also has a tool that can send data out (web fetch, email, a GitHub or Slack MCP server), a planted note could tell the model to collect customer details and send them somewhere. Security people call this the **lethal trifecta**: private data, untrusted text and a way to send data out, all in one assistant. Our server supplies the first two, so the third must come from somewhere else. A local model doesn't fix this on its own: the risk comes from the tools connected to the assistant, not from where the model runs. What we do:
 
-- **Limit what could leak:** masking, redaction of phone numbers, emails and the customer's street address in notes, row limits and the daily cap.
+- **Limit what could leak:** masking, redaction of phone numbers, emails and the customer's street address in notes, and row limits.
 - **Say so in the guides:** don't connect this server to an assistant that also has tools that can send data out, and keep the assistant asking before it runs a tool. Copilot and Claude Code both ask by default.
 
 What we can't do: control which other tools someone's assistant has.
@@ -317,8 +349,8 @@ pytest, in `tests/server/`. Most use the real database in the test container (sp
 - **Descriptions:** every tool and every argument has a description (decision 9).
 - **The "as of" date** is 31 December 2026, so a change to the data generator can't quietly move it and break every relative-date demo (decision 9).
 - **Tokens:** the server refuses to start with a token shorter than 32 characters.
-- **Daily cap:** the call after `RATE_LIMIT_PER_DAY` gets `429`. Tests set it low.
 - **Failed tokens:** the 11th bad-token request in a minute from one address gets `429`.
+- **Recovery:** a blocked caller or address is let in again once its hits leave the window, and rejected hits don't count. The test uses a fake clock, so it doesn't wait a minute.
 - **Batches:** a JSON-RPC batch is rejected with `400`, and no tool runs.
 - **CORS:** no response, including errors, carries an `Access-Control-Allow-Origin` header.
 - **Logging:** after a tool call, the console log contains neither its arguments nor its results. A rejected argument is logged with the tool and argument name, but not its value, and an unknown one with the caller too (decision 12).

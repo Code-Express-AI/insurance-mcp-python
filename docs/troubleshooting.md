@@ -54,25 +54,13 @@ Find the step you're on, then the message you see.
 
 **"Input and command variables are not supported by the Copilot harness".** The configuration still uses `${input:...}`. Replace it with the token itself, as the README shows, and delete the `inputs` block.
 
-**"Failed to read configuration from .../.copilot/mcp-config.json: mcpServers: Required".** The Copilot CLI's own configuration file is empty or invalid, and Copilot's agent reads it as well as the VS Code configuration. Delete it, then restart VS Code.
-
-Windows (PowerShell):
-
-```powershell
-Remove-Item "$HOME\.copilot\mcp-config.json"
-```
-
-macOS / Linux:
-
-```bash
-rm ~/.copilot/mcp-config.json
-```
+**"Failed to read configuration from .../.copilot/mcp-config.json: mcpServers: Required".** The file is empty or invalid. Run **MCP: Open User Configuration**, choose **Copilot Global**, make sure it matches the JSON in the README, with everything inside `"mcpServers"`, then restart VS Code.
 
 **Copilot lists the tools but never calls them.** It's probably reading them from the code in the repository, and that answer looks right even when nothing is connected. Ask again, starting with "Use the insurance server to...", and check that Copilot shows a tool call. The 13 tools should also be listed and selected in the tools picker.
 
-**It works in MCP Inspector but not in VS Code.** The server is fine, so check the URL and the header in the VS Code configuration.
+**It works in MCP Inspector but not in VS Code.** The server is fine, so check the URL and the header: run **MCP: Open User Configuration** and choose **Copilot Global**.
 
-**`429 Too Many Requests`.** The assistant has made more than 60 calls in a minute, or 1,000 in a day. Wait, or restart the server, which resets the counts.
+**`429 Too Many Requests`.** The assistant has made more than 60 calls in a minute. Wait a minute, or restart the server, which resets the count.
 
 ## Claude Code
 
@@ -147,7 +135,7 @@ If a first try went wrong halfway, clean up before you delete the folder. Three 
 
 1. Stop the MCP server with `Ctrl+C`, if it's running.
 2. With Docker running, delete the database: `docker compose down -v`. Do it before you delete the folder, because Docker names the database after the folder. Otherwise the database stays behind, and a new copy in a folder with the same name gets the old data and the old password.
-3. If you added Claude Code: `claude mcp remove insurance`. If you added Copilot, run **MCP: Open User Configuration** and delete the `insurance` entry.
+3. If you added Claude Code: `claude mcp remove insurance`. If you added Copilot, run **MCP: Open User Configuration**, choose **Copilot Global**, and delete the `insurance` entry.
 
 Then delete the folder, and start the quickstart again from step 1. The `.env` file, the Python environment and the downloaded model are all inside the folder, so they go with it.
 

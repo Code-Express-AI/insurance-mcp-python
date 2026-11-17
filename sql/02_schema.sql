@@ -156,3 +156,8 @@ create index on insurance.claim_payments (claim_id);
 create index on insurance.claim_notes (claim_id);
 
 reset role;
+
+-- What can mcp_reader do at this point?
+-- The same as after 01_roles.sql. The insurance and mcp schemas now exist, but
+-- it has no USAGE on either, so it can't reach the tables. It can still connect
+-- and create temporary tables through PUBLIC's defaults.

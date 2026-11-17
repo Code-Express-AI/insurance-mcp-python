@@ -50,3 +50,10 @@ grant select on insurance.policy_document_chunks to mcp_owner;
 -- not even USAGE: the functions reach the tables with their owner's rights.
 
 grant usage on schema mcp to mcp_reader;
+
+-- What can mcp_reader do at this point?
+-- It can connect, because CONNECT is now granted to it by name rather than
+-- through PUBLIC. It can no longer create temporary tables. It has USAGE on the
+-- mcp schema, but the schema has no functions yet. It has no access to the
+-- insurance schema, so it can't read or change any business data. It can still
+-- see table and column names in the system catalogs, as every role can.

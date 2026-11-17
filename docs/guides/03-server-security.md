@@ -30,7 +30,7 @@ The example token is in a public repository, so everyone knows it. On your own m
 
 1. Make a new token with `uv run python -m insurance_mcp.auth`.
 2. Put it in `MCP_TOKENS` in `.env`, after `local:`, and restart the server. It reads `.env` only when it starts.
-3. Put it in your AI assistant too. In VS Code, run **MCP: Open User Configuration** and replace the token after `Bearer `. In Claude Code, stop the server, run `claude mcp remove insurance`, run the `claude mcp add` line from the README with the new token, and start the server again.
+3. Put it in your AI assistant too. For Copilot, run **MCP: Open User Configuration**, choose **Copilot Global**, and replace the token after `Bearer `. In Claude Code, stop the server, run `claude mcp remove insurance`, run the `claude mcp add` line from the README with the new token, and start the server again.
 
 Replace the example database passwords the same way: [guide 2](02-database-security.md#the-database-settings) shows how.
 
@@ -48,7 +48,6 @@ The other server settings in `.env` have sensible defaults, so you don't need to
 | `MCP_TOKENS` | The named tokens, as `name:token` pairs separated by commas | None: you must set it |
 | `ALLOWED_HOSTS` | The host names the server answers to. A request addressed to any other name is refused. | `localhost,127.0.0.1` |
 | `RATE_LIMIT_PER_MINUTE` | How many requests each caller may make per minute | `60` |
-| `RATE_LIMIT_PER_DAY` | How many requests each caller may make per day | `1000` |
 | `DB_POOL_MAX_SIZE` | The most database connections the server opens at once | `5` |
 | `HOST`, `PORT` | Where the server listens. `127.0.0.1` means only this machine can reach it. | `127.0.0.1`, `8000` |
 
@@ -191,7 +190,7 @@ Keep `local`: it still sees everything, which is handy for checking an answer.
 
 **3. Give each client its token.** Stop the server first (`Ctrl+C`).
 
-- **Copilot:** run **MCP: Open User Configuration** and replace the token after `Bearer ` with the `copilot` token.
+- **Copilot:** run **MCP: Open User Configuration**, choose **Copilot Global**, and replace the token after `Bearer ` with the `copilot` token.
 - **Claude Code:** from the repository folder, remove the server and add it again with the `claude` token:
 
   ```bash

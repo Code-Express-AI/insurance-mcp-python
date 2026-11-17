@@ -54,7 +54,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
     per_minute = RateLimiter(settings.rate_limit_per_minute, window_seconds=60)
-    per_day = RateLimiter(settings.rate_limit_per_day, window_seconds=24 * 60 * 60)
     failed_tokens = RateLimiter(FAILED_TOKENS_PER_MINUTE, window_seconds=60)
 
     @app.middleware("http")
@@ -72,9 +71,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return reject(429, "Too many requests with a bad token.", ip, retry_after=wait)
             return reject(401, "Missing or invalid bearer token.", ip)
 
-        for limiter in (per_minute, per_day):
-            if wait := limiter.hit(caller):
-                return reject(429, "Rate limit reached.", ip, caller, retry_after=wait)
+        if wait := per_minute.hit(caller):
+            return reject(429, "Rate limit reached.", ip, caller, retry_after=wait)
 
         # The tools read the caller's name from here, for the audit log.
         request.state.caller = caller

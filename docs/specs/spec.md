@@ -102,7 +102,7 @@ The docs include a short page on this, as a pointer rather than a build.
 
 **Status:** Agreed. The detail is in [server-spec.md](server-spec.md), decision 7.
 
-**Proposal:** a simple per-caller limiter written in the project rather than a library, with a per-minute limit and a daily cap. It's about 30 lines and easy to read.
+**Proposal:** a simple per-caller limiter written in the project rather than a library, with a per-minute limit. It's about 30 lines and easy to read. There's no daily cap: see decision 7 in server-spec.md for why.
 
 ## 6. Data generator
 
