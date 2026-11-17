@@ -1,7 +1,7 @@
 """Build the database from scratch: run the files in sql/ in order, set the
 reader password, then load the data.
 
-Run it with:  uv run python -m insurance_mcp.setup_db [--size small]
+Run it with:  uv run python -m insurance_database.setup_db [--size small]
 
 It connects as the admin role, using ADMIN_DATABASE_URL from .env. It drops and
 recreates everything it owns, so it's safe to run again to start over.
@@ -16,10 +16,11 @@ from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from insurance_mcp.generate import load_data
-from insurance_mcp.generate.config import SIZES
+from insurance_database.generate import load_data
+from insurance_database.generate.config import SIZES
 
-SQL_DIR = Path(__file__).parent.parent.parent / "sql"
+# The sql/ folder at the root of the repo.
+SQL_DIR = Path(__file__).parents[3] / "sql"
 MIN_READER_PASSWORD_LENGTH = 24
 
 

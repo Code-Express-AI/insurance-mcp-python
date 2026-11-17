@@ -1,4 +1,4 @@
-"""The planted demo facts (src/insurance_mcp/generate/planted.py) hold.
+"""The planted demo facts (database/src/insurance_database/generate/planted.py) hold.
 
 Each one asks the demo question through the mcp functions, as mcp_reader, the
 way the model does. The RAG facts (the parking lot claims and the
@@ -17,8 +17,8 @@ import pytest
 from psycopg import sql
 from psycopg.rows import dict_row
 
-from insurance_mcp.generate import planted
-from insurance_mcp.generate.config import AS_OF_DATE
+from insurance_database.generate import planted
+from insurance_database.generate.config import AS_OF_DATE
 
 
 def rows(reader, query: str, *args) -> list[dict]:

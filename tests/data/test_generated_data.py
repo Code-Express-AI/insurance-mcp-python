@@ -6,7 +6,7 @@ These run on the small data the test database is built with.
 import psycopg
 from psycopg import sql
 
-from insurance_mcp.generate import load_data
+from insurance_database.generate import load_data
 
 
 def count(admin, query: str) -> int:

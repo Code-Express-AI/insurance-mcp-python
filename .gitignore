@@ -23,3 +23,6 @@ __pycache__/
 
 # Personal editor settings
 .vscode/settings.json
+
+# macOS Finder files
+.DS_Store

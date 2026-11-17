@@ -28,7 +28,7 @@ All data is fake. Nothing describes a real person, vehicle or company.
 
 **Status:** Agreed
 
-- A Python module in the project, run with one command (for example `uv run python -m insurance_mcp.generate`). It works the same on Windows, macOS and Linux.
+- A Python module in the project, run with one command (for example `uv run python -m insurance_database.generate`). It works the same on Windows, macOS and Linux.
 - **The setup command loads the data by default**, so getting started is one step: build the database, then fill it. The generator is also its own command, for anyone who only wants to reload the data. Tests call both.
 - It connects as the admin role, using the connection string in `.env`.
 - It empties the business tables and loads everything again, so it's safe to run twice. It never touches the audit log, which can't be emptied anyway.

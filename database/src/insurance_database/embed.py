@@ -1,7 +1,7 @@
 """Embed the text the RAG tools search: the policy booklets, the accident
 descriptions and the claim notes.
 
-Run it with:  uv run python -m insurance_mcp.embed [--booklets-only]
+Run it with:  uv run python -m insurance_database.embed [--booklets-only]
 
 --booklets-only loads just the policy booklets, in seconds: enough for
 "am I covered?" questions. Run it again without the flag to embed the claims.
@@ -24,8 +24,8 @@ from fastembed import TextEmbedding
 from psycopg import sql
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from insurance_database.setup_db import SetupError, connect
 from insurance_mcp.embeddings import load_model
-from insurance_mcp.setup_db import SetupError, connect
 
 BOOKLETS_DIR = Path(__file__).parent / "booklets"
 

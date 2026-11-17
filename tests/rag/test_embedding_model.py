@@ -8,9 +8,9 @@ import psycopg
 import pytest
 from psycopg.rows import dict_row
 
-from insurance_mcp.embed import BOOKLETS_DIR, embed_everything, split_booklet
+from insurance_database.embed import BOOKLETS_DIR, embed_everything, split_booklet
+from insurance_database.generate.planted import PARKING_LOT_DESCRIPTIONS
 from insurance_mcp.embeddings import embed_query, load_model
-from insurance_mcp.generate.planted import PARKING_LOT_DESCRIPTIONS
 
 pytestmark = pytest.mark.embedding_model
 

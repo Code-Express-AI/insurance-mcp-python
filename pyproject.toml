@@ -1,36 +1,40 @@
+# The workspace: two packages in one repository, with one lock file.
+#
+#   server/    insurance-mcp       the MCP server, the only part that's ever deployed
+#   database/  insurance-database  builds the database, loads the data, embeds the text
+#
+# The database tools connect as the admin role, so they stay off any server. To
+# install the server alone:  uv sync --package insurance-mcp --no-dev
+# Locally, uv run installs both, through the dev group below.
 [project]
-name = "insurance-mcp"
+name = "insurance-mcp-python"
 version = "0.1.0"
-description = "A secure, read-only MCP server for a fictitious auto insurance claims system, built with FastAPI and PostgreSQL."
-authors = [
-    { name = "Liam Grossmann" },
-]
-license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.14"
-dependencies = [
-    "fastapi>=0.162.0",
-    "fastembed>=0.9.1",
-    "mcp>=2.3.0",
-    "psycopg-pool>=3.3.3",
-    "psycopg[binary]>=3.3.8",
-    "pydantic-settings>=2.16.2",
-    "uvicorn>=0.54.0",
-]
 
 [dependency-groups]
 dev = [
+    "insurance-database",
+    "insurance-mcp",
     "pytest>=9.2.0",
     "ruff>=0.17.4",
     "testcontainers>=4.15.0",
 ]
 
-[build-system]
-requires = ["uv_build>=0.13.6,<0.14.0"]
-build-backend = "uv_build"
+[tool.uv]
+# The root holds settings and tests, not code to install.
+package = false
+
+[tool.uv.workspace]
+members = ["server", "database"]
+
+[tool.uv.sources]
+insurance-database = { workspace = true }
+insurance-mcp = { workspace = true }
 
 [tool.ruff]
 line-length = 100
+# Where our own packages live, so ruff sorts their imports after the libraries.
+src = ["server/src", "database/src"]
 # Ruff also formats Python examples in Markdown. The examples in docs/ are kept
 # short on purpose, so ruff only checks the code.
 extend-exclude = ["docs"]
@@ -42,8 +46,8 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 # One city per line, and hand-written sentences, read better than wrapped ones.
-"src/insurance_mcp/generate/reference.py" = ["E501"]
-"src/insurance_mcp/generate/planted.py" = ["E501"]
+"database/src/insurance_database/generate/reference.py" = ["E501"]
+"database/src/insurance_database/generate/planted.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

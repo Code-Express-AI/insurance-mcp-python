@@ -8,7 +8,7 @@ know (a policy's policy_number, for example), before loading its children.
 import psycopg
 from psycopg import sql
 
-from insurance_mcp.generate.records import Dataset
+from insurance_database.generate.records import Dataset
 
 # Every business table. Never the audit log, which can't be emptied anyway.
 BUSINESS_TABLES = (

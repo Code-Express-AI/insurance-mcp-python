@@ -8,9 +8,9 @@ import datetime
 import random
 from decimal import Decimal
 
-from insurance_mcp.generate import reference, text
-from insurance_mcp.generate.config import AS_OF_DATE, START_DATE
-from insurance_mcp.generate.records import (
+from insurance_database.generate import reference, text
+from insurance_database.generate.config import AS_OF_DATE, START_DATE
+from insurance_database.generate.records import (
     Adjuster,
     Claim,
     ClaimPayment,

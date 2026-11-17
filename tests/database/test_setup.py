@@ -3,7 +3,7 @@
 import psycopg
 import pytest
 
-from insurance_mcp.setup_db import SetupError, setup_database
+from insurance_database.setup_db import SetupError, setup_database
 
 # Never reached: the setup checks the reader settings before it connects.
 UNUSED_ADMIN_URL = "postgresql://postgres:unused@127.0.0.1:1/unused"

@@ -2,6 +2,13 @@ version = 1
 revision = 5
 requires-python = ">=3.14"
 
+[manifest]
+members = [
+    "insurance-database",
+    "insurance-mcp",
+    "insurance-mcp-python",
+]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.5"
@@ -501,9 +508,28 @@ wheels = [
 ]
 
 [[package]]
+name = "insurance-database"
+version = "0.1.0"
+source = { editable = "database" }
+dependencies = [
+    { name = "fastembed" },
+    { name = "insurance-mcp" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic-settings" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastembed", specifier = ">=0.9.1" },
+    { name = "insurance-mcp", editable = "server" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.8" },
+    { name = "pydantic-settings", specifier = ">=2.16.2" },
+]
+
+[[package]]
 name = "insurance-mcp"
 version = "0.1.0"
-source = { editable = "." }
+source = { editable = "server" }
 dependencies = [
     { name = "fastapi" },
     { name = "fastembed" },
@@ -512,13 +538,6 @@ dependencies = [
     { name = "psycopg-pool" },
     { name = "pydantic-settings" },
     { name = "uvicorn" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "testcontainers" },
 ]
 
 [package.metadata]
@@ -532,8 +551,26 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.54.0" },
 ]
 
+[[package]]
+name = "insurance-mcp-python"
+version = "0.1.0"
+source = { virtual = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "insurance-database" },
+    { name = "insurance-mcp" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "testcontainers" },
+]
+
+[package.metadata]
+
 [package.metadata.requires-dev]
 dev = [
+    { name = "insurance-database", editable = "database" },
+    { name = "insurance-mcp", editable = "server" },
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "ruff", specifier = ">=0.17.4" },
     { name = "testcontainers", specifier = ">=4.15.0" },

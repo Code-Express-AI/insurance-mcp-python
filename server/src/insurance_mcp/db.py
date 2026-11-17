@@ -1,6 +1,6 @@
 """The connection pool, and the one helper that calls a database function."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -11,7 +11,7 @@ from psycopg_pool import AsyncConnectionPool
 
 
 @asynccontextmanager
-async def connection_pool(database_url: str, max_size: int) -> AsyncIterator[AsyncConnectionPool]:
+async def connection_pool(database_url: str, max_size: int) -> AsyncGenerator[AsyncConnectionPool]:
     """Open a pool of connections as mcp_reader, and close it at the end.
 
     autocommit: nothing stays open between calls. Each call opens its own short

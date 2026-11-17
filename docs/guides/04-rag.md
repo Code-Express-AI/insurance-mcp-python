@@ -16,8 +16,8 @@ The embedding model isn't the chat model. It only finds the text. Copilot or Cla
 ## What the embed command did
 
 ```bash
-uv run python -m insurance_mcp.embed --booklets-only    # the booklets, in seconds
-uv run python -m insurance_mcp.embed                    # everything, in minutes
+uv run python -m insurance_database.embed --booklets-only    # the booklets, in seconds
+uv run python -m insurance_database.embed                    # everything, in minutes
 ```
 
 The first time, it downloads the model (90 MB) into a `.cache` folder in the repository. Hugging Face, where the model comes from, may print a warning about `HF_TOKEN`. Ignore it: no account is needed. The download can be slow, and if it stalls, stop it and run the command again.

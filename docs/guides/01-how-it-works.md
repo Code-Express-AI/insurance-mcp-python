@@ -35,18 +35,26 @@ The whole request path is in a handful of short files:
 
 | File | What it does |
 |---|---|
-| [`main.py`](../../src/insurance_mcp/main.py) | The FastAPI app: checks the token and the rate limit, then hands the request to the MCP SDK |
-| [`tools.py`](../../src/insurance_mcp/tools.py) | The 13 tools. Each is a Python function whose description and argument types the model reads |
-| [`audit.py`](../../src/insurance_mcp/audit.py) | Runs the tool's database function and writes its audit row |
-| [`db.py`](../../src/insurance_mcp/db.py) | The connection pool, and the one function that calls the database |
-| [`auth.py`](../../src/insurance_mcp/auth.py), [`rate_limit.py`](../../src/insurance_mcp/rate_limit.py), [`settings.py`](../../src/insurance_mcp/settings.py) | Tokens, rate limits and the settings from `.env` |
+| [`main.py`](../../server/src/insurance_mcp/main.py) | The FastAPI app: checks the token and the rate limit, then hands the request to the MCP SDK |
+| [`tools.py`](../../server/src/insurance_mcp/tools.py) | The 13 tools. Each is a Python function whose description and argument types the model reads |
+| [`audit.py`](../../server/src/insurance_mcp/audit.py) | Runs the tool's database function and writes its audit row |
+| [`db.py`](../../server/src/insurance_mcp/db.py) | The connection pool, and the one function that calls the database |
+| [`auth.py`](../../server/src/insurance_mcp/auth.py), [`rate_limit.py`](../../server/src/insurance_mcp/rate_limit.py), [`settings.py`](../../server/src/insurance_mcp/settings.py) | Tokens, rate limits and the settings from `.env` |
 | [`sql/`](../../sql/) | The database: roles, tables, permissions, the `mcp` functions, the audit log and row-level security, run in order by `setup_db` |
 
-The other commands you ran are next to them: [`setup_db.py`](../../src/insurance_mcp/setup_db.py) built the database, [`generate/`](../../src/insurance_mcp/generate/) made the fake data, and [`embed.py`](../../src/insurance_mcp/embed.py) made the embeddings for search by meaning.
+The server is in [`server/`](../../server/). The other commands you ran are in a separate package, [`database/`](../../database/): [`setup_db.py`](../../database/src/insurance_database/setup_db.py) built the database, [`generate/`](../../database/src/insurance_database/generate/) made the fake data, and [`embed.py`](../../database/src/insurance_database/embed.py) made the embeddings for search by meaning.
+
+They're separate because they connect as the admin role, which can drop and rebuild the whole database. A server should carry only the code it runs, so installing the server leaves them out:
+
+```bash
+uv sync --package insurance-mcp --no-dev
+```
+
+Both packages are in one repository, as a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/), and `uv run` installs both on your own machine. They share one module, [`embeddings.py`](../../server/src/insurance_mcp/embeddings.py), because the claims and the questions must be embedded by the same model. It lives in the server, and the database package uses it from there. A test checks that the server never imports the database package. The tests are in [`tests/`](../../tests/), outside both packages, as usual in Python: they're never installed.
 
 ### One tool, top to bottom
 
-This is the whole of `find_customers` in [`tools.py`](../../src/insurance_mcp/tools.py):
+This is the whole of `find_customers` in [`tools.py`](../../server/src/insurance_mcp/tools.py):
 
 ```python
 async def find_customers(

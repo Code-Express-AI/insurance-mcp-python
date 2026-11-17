@@ -33,7 +33,7 @@ On Windows (Command Prompt), use `copy .env.example .env`. The settings work as 
 
 ```bash
 docker compose up -d --wait
-uv run python -m insurance_mcp.setup_db
+uv run python -m insurance_database.setup_db
 ```
 
 `--wait` waits until PostgreSQL is ready. The first time, Docker downloads the PostgreSQL image, which takes a minute or two. The setup command takes a few seconds, and ends with:
@@ -110,7 +110,7 @@ Now let the assistant answer "am I covered?" questions from the policy booklets,
 Leave the server running, and in a second terminal run:
 
 ```bash
-uv run python -m insurance_mcp.embed --booklets-only
+uv run python -m insurance_database.embed --booklets-only
 ```
 
 The first time, it downloads the model. It's a 90 MB file, so this may take a moment, depending on your connection. Then it reads the booklets' 37 sections in a few seconds.
@@ -133,7 +133,7 @@ These need the MCP tools to look up the customer's policies (MCP using exact loo
 The same command without `--booklets-only` also reads every accident description and adjuster's note, so you can search the claims by meaning:
 
 ```bash
-uv run python -m insurance_mcp.embed
+uv run python -m insurance_database.embed
 ```
 
 The descriptions take about a minute. The 76,630 notes take a few minutes on a fast laptop and 15 or more on an older one, and the fans on your machine may get loud. You can ask these as soon as the descriptions are done:

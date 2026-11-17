@@ -6,7 +6,7 @@ Everything here runs against your local Docker database, so you need the quickst
 
 ## What the setup command did
 
-When you ran `uv run python -m insurance_mcp.setup_db`, it printed:
+When you ran `uv run python -m insurance_database.setup_db`, it printed:
 
 ```text
 Running 01_roles.sql
@@ -311,7 +311,7 @@ All of it is fake. Nothing describes a real person, vehicle or company.
 - **The same for everyone.** The generator uses a fixed random seed, so you get exactly the same customers, policies and claims as everyone else, and as these guides. Only the `public_id` UUIDs differ, and nothing relies on them.
 - **"Today" is 31 December 2026.** The data covers 2024 to 2026, and never moves with the calendar. The MCP server tells the AI assistant to treat that date as today, so "last month" means November 2026.
 - **Real places, fake people.** Cities, ZIP codes and area codes are real, in Texas, Oklahoma, Colorado, New Mexico and Arizona. Names, street addresses, license plates and driver's license numbers are made up. Every email is at `example.com`, and every phone number is in the `555-0100` to `555-0199` range, which is reserved for fiction.
-- **Planted records.** A few records are added on purpose, so the demo questions have good answers: one customer called Rutherford with two policies, Maria Garcia with three claims, one repair shop that's clearly the most expensive. They're all listed at the top of [`planted.py`](../../src/insurance_mcp/generate/planted.py).
+- **Planted records.** A few records are added on purpose, so the demo questions have good answers: one customer called Rutherford with two policies, Maria Garcia with three claims, one repair shop that's clearly the most expensive. They're all listed at the top of [`planted.py`](../../database/src/insurance_database/generate/planted.py).
 
 It's an insurance claims system kept deliberately small:
 
@@ -337,7 +337,7 @@ A few simplifications, so the data stays easy to follow:
 The setup command loads the data, so you only need this to reload it:
 
 ```bash
-uv run python -m insurance_mcp.generate
+uv run python -m insurance_database.generate
 ```
 
 It empties the tables and loads everything again, in one transaction. It never touches the audit log.

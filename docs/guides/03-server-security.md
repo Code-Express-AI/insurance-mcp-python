@@ -137,13 +137,13 @@ Every request to `/mcp` passes these checks in order, and each one holds even if
 
 | # | Check | Done by | If it fails |
 |---|---|---|---|
-| 1 | **Token:** does it carry one of the named tokens? | Our code ([`main.py`](../../src/insurance_mcp/main.py), [`auth.py`](../../src/insurance_mcp/auth.py)) | `401` |
-| 2 | **Rate limit:** has this caller made too many requests? | Our code ([`rate_limit.py`](../../src/insurance_mcp/rate_limit.py)) | `429`, with a `Retry-After` header saying how many seconds to wait |
+| 1 | **Token:** does it carry one of the named tokens? | Our code ([`main.py`](../../server/src/insurance_mcp/main.py), [`auth.py`](../../server/src/insurance_mcp/auth.py)) | `401` |
+| 2 | **Rate limit:** has this caller made too many requests? | Our code ([`rate_limit.py`](../../server/src/insurance_mcp/rate_limit.py)) | `429`, with a `Retry-After` header saying how many seconds to wait |
 | 3 | **Host:** is it addressed to a name in `ALLOWED_HOSTS`, and not sent by a web page? | The MCP SDK | `421` for the host, `403` for a web page |
 | 4 | **Size:** is the body under 64 KB? | The MCP SDK | `413` |
-| 5 | **Tool and arguments:** is it one of our tools, with valid arguments and nothing else? | The MCP SDK, and our check for unknown arguments ([`tools.py`](../../src/insurance_mcp/tools.py)) | A tool error, with a message the model can act on |
-| 6 | **Database:** the tool runs exactly one `mcp` function as `mcp_reader` | [`db.py`](../../src/insurance_mcp/db.py) and the database ([guide 2](02-database-security.md)) | A tool error: the function's own message, or a generic one |
-| 7 | **Audit:** the call is recorded | [`audit.py`](../../src/insurance_mcp/audit.py) and the [audit log](02-database-security.md#the-audit-log) | A generic tool error, and no result |
+| 5 | **Tool and arguments:** is it one of our tools, with valid arguments and nothing else? | The MCP SDK, and our check for unknown arguments ([`tools.py`](../../server/src/insurance_mcp/tools.py)) | A tool error, with a message the model can act on |
+| 6 | **Database:** the tool runs exactly one `mcp` function as `mcp_reader` | [`db.py`](../../server/src/insurance_mcp/db.py) and the database ([guide 2](02-database-security.md)) | A tool error: the function's own message, or a generic one |
+| 7 | **Audit:** the call is recorded | [`audit.py`](../../server/src/insurance_mcp/audit.py) and the [audit log](02-database-security.md#the-audit-log) | A generic tool error, and no result |
 
 **Why the host check?** It blocks **DNS rebinding**, a trick where a web page you visit makes your own browser send requests to a server on your machine. A page like that doesn't have your token, so step 1 stops it anyway, but the MCP spec asks local servers to check the host too, and the SDK does it for us.
 

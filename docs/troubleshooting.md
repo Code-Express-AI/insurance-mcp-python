@@ -30,7 +30,7 @@ Find the step you're on, then the message you see.
 
 **The server stops with `Connection refused` and `Application startup failed`.** It checks the database when it starts, and stops if it can't connect. Start Docker, then run `docker compose up -d --wait`.
 
-**`password authentication failed for user "mcp_reader"`.** The password in `READER_DATABASE_URL` isn't the one in the database. The setup command sets it, so run it again after changing the password: `uv run python -m insurance_mcp.setup_db`.
+**`password authentication failed for user "mcp_reader"`.** The password in `READER_DATABASE_URL` isn't the one in the database. The setup command sets it, so run it again after changing the password: `uv run python -m insurance_database.setup_db`.
 
 **`address already in use`.** Something else is using port 8000, often the server from another copy of this repository, still running in another terminal. Stop it with `Ctrl+C`, or set `PORT` in `.env` to another port, such as `8001`, and use that port in the URLs.
 
@@ -121,7 +121,7 @@ claude mcp remove insurance
 
 ## Search by meaning (RAG)
 
-**The assistant says "Run the embed command first."** Either the embed command hasn't been run, or the setup command has been run since. Run `uv run python -m insurance_mcp.embed`. If you ran it with `--booklets-only`, the policy questions work but the claim searches don't: run it again without the flag.
+**The assistant says "Run the embed command first."** Either the embed command hasn't been run, or the setup command has been run since. Run `uv run python -m insurance_database.embed`. If you ran it with `--booklets-only`, the policy questions work but the claim searches don't: run it again without the flag.
 
 **`permission denied to create extension "vector"`** from the setup command. pgvector can only be installed by a superuser. Locally, `ADMIN_DATABASE_URL` connects as `postgres`, which is one. On a hosted database, use the admin role the service gives you, or install the extension from the service's dashboard.
 

@@ -25,8 +25,8 @@ import dataclasses
 import datetime
 import random
 
-from insurance_mcp.generate.config import AS_OF_DATE
-from insurance_mcp.generate.random_data import (
+from insurance_database.generate.config import AS_OF_DATE
+from insurance_database.generate.random_data import (
     make_claim,
     make_license_number,
     make_license_plate,
@@ -35,7 +35,7 @@ from insurance_mcp.generate.random_data import (
     random_active_policy,
     random_date,
 )
-from insurance_mcp.generate.records import (
+from insurance_database.generate.records import (
     Adjuster,
     Claim,
     Customer,

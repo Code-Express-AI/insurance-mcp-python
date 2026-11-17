@@ -3,8 +3,8 @@
 import shutil
 from pathlib import Path
 
+from insurance_database.setup_db import SetupSettings, reader_password
 from insurance_mcp.settings import Settings
-from insurance_mcp.setup_db import SetupSettings, reader_password
 
 ROOT = Path(__file__).parent.parent
 

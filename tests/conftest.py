@@ -10,8 +10,8 @@ import psycopg
 import pytest
 from testcontainers.community.postgres import PostgresContainer
 
-from insurance_mcp.generate import load_data
-from insurance_mcp.setup_db import setup_database
+from insurance_database.generate import load_data
+from insurance_database.setup_db import setup_database
 
 ROOT = Path(__file__).parent.parent
 

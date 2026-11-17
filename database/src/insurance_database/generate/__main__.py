@@ -1,11 +1,11 @@
-"""uv run python -m insurance_mcp.generate [--size small]"""
+"""uv run python -m insurance_database.generate [--size small]"""
 
 import argparse
 import sys
 
-from insurance_mcp.generate import load_data
-from insurance_mcp.generate.config import SIZES
-from insurance_mcp.setup_db import SetupError, SetupSettings, connect
+from insurance_database.generate import load_data
+from insurance_database.generate.config import SIZES
+from insurance_database.setup_db import SetupError, SetupSettings, connect
 
 
 def main() -> None:

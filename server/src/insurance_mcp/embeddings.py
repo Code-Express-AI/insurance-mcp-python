@@ -18,7 +18,7 @@ MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 # A fixed, git-ignored folder at the root of the repo. fastembed's default is
 # the system's temp folder, which macOS clears from time to time, and then the
 # server would download the model again in the middle of a search.
-CACHE_DIR = Path(__file__).parent.parent.parent / ".cache" / "fastembed"
+CACHE_DIR = Path(__file__).parents[3] / ".cache" / "fastembed"
 
 
 class ModelNotDownloaded(Exception):

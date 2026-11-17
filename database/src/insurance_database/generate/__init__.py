@@ -1,6 +1,6 @@
 """The data generator: fake customers, policies and claims, the same for everyone.
 
-Run it with:  uv run python -m insurance_mcp.generate [--size small]
+Run it with:  uv run python -m insurance_database.generate [--size small]
 
 The setup command runs it too, so you only need it to reload the data. It
 empties the business tables and loads everything again, in one transaction.
@@ -12,10 +12,10 @@ import random
 
 import psycopg
 
-from insurance_mcp.generate import planted, random_data
-from insurance_mcp.generate.config import ADJUSTER_COUNT, REPAIR_SHOP_COUNT, SEED, SIZES
-from insurance_mcp.generate.database import load_dataset
-from insurance_mcp.generate.records import Dataset
+from insurance_database.generate import planted, random_data
+from insurance_database.generate.config import ADJUSTER_COUNT, REPAIR_SHOP_COUNT, SEED, SIZES
+from insurance_database.generate.database import load_dataset
+from insurance_database.generate.records import Dataset
 
 
 def build_dataset(size: str) -> Dataset:

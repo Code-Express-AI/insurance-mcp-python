@@ -13,9 +13,9 @@ import json
 import random
 from pathlib import Path
 
-from insurance_mcp.generate import reference
-from insurance_mcp.generate.config import AS_OF_DATE
-from insurance_mcp.generate.records import Claim, ClaimNote
+from insurance_database.generate import reference
+from insurance_database.generate.config import AS_OF_DATE
+from insurance_database.generate.records import Claim, ClaimNote
 
 TEXT_DIR = Path(__file__).parent / "text"
 DESCRIPTIONS = json.loads((TEXT_DIR / "descriptions.json").read_text(encoding="utf-8"))

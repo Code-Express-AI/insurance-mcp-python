@@ -1,0 +1,23 @@
+[project]
+name = "insurance-database"
+version = "0.1.0"
+description = "Builds the insurance-mcp database, loads its synthetic data and embeds the text. Connects as the admin role, so it's never deployed."
+authors = [
+    { name = "Liam Grossmann" },
+]
+license = "Apache-2.0"
+requires-python = ">=3.14"
+dependencies = [
+    # For the embedding model in insurance_mcp.embeddings, the one module both share.
+    "insurance-mcp",
+    "fastembed>=0.9.1",
+    "psycopg[binary]>=3.3.8",
+    "pydantic-settings>=2.16.2",
+]
+
+[tool.uv.sources]
+insurance-mcp = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"

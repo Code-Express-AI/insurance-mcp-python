@@ -11,7 +11,7 @@ The detail behind decisions 2, 4, 5, 7 and 9 in [spec.md](spec.md): the MCP serv
 | # | Decision | Status |
 |---|----------|--------|
 | 1 | Stack and libraries | Agreed |
-| 2 | Project layout | Proposed (2026-11-17): two packages |
+| 2 | Project layout | Agreed |
 | 3 | Transport and endpoints | Agreed |
 | 4 | Configuration | Agreed |
 | 5 | Authentication | Agreed |
@@ -62,9 +62,9 @@ Exact versions are pinned in `uv.lock`. The design was checked against `mcp` 2.3
 
 ## 2. Project layout
 
-**Status:** Proposed (2026-11-17), replacing the single package. Awaiting sign-off.
+**Status:** Agreed (2026-11-17), replacing the single package. Liam's call: the generator and setup code don't belong on a server. The second package was first called `insurance_admin`; renamed `insurance_database` on 2026-11-18, after the job it does. It still connects as the admin role.
 
-Two packages in one repository, as a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/): the server, and the admin tools that build and load the database. Each has its own `pyproject.toml` and a standard `src` layout with flat, plainly named modules. No layers or folders for their own sake.
+Two packages in one repository, as a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/): the server, and the database tools that build and load the database. Each has its own `pyproject.toml` and a standard `src` layout with flat, plainly named modules. No layers or folders for their own sake.
 
 ```
 pyproject.toml          the workspace: dev tools (pytest, ruff, testcontainers), ruff and pytest settings, no code
@@ -83,10 +83,10 @@ server/
     db.py               connection pool, calling a database function
     audit.py            writes the audit row, fail closed
     tools.py            the tools
-    embeddings.py       loads the embedding model (shared with admin)
-admin/
-  pyproject.toml        insurance-admin, depends on insurance-mcp
-  src/insurance_admin/
+    embeddings.py       loads the embedding model (shared with database)
+database/
+  pyproject.toml        insurance-database, depends on insurance-mcp
+  src/insurance_database/
     setup_db.py         the setup command (runs sql/, then the generator)
     embed.py            the embed command
     generate/           the data generator and its seed text files
@@ -104,24 +104,26 @@ tests/
 uv sync --package insurance-mcp --no-dev
 ```
 
-That installs `insurance-mcp` and its libraries only. The admin package, `sql/` and `tests/` aren't part of it. A future server container copies `server/` and runs this.
+That installs `insurance-mcp` and its libraries only. The database package, `sql/` and `tests/` aren't part of it. A future server container copies `server/` and runs this.
 
-**The one shared module.** The server embeds each search query, and the embed command embeds the claims and booklets. Both must load the same model the same way, or searches quietly get worse, so `embeddings.py` lives once, in the server package, and admin imports it. The dependency runs one way: admin depends on the server, never the reverse, so the server can't import admin code even by mistake. No third "shared" package, and no copy that could drift.
+**The one shared module.** The server embeds each search query, and the embed command embeds the claims and booklets. Both must load the same model the same way, or searches quietly get worse, so `embeddings.py` lives once, in the server package, and the database package imports it. The dependency runs one way: the database package depends on the server, never the reverse, so the server can't import database-tool code even by mistake. No third "shared" package, and no copy that could drift.
 
-**Locally nothing changes.** The workspace's dev group lists both packages, so `uv run` in the repository installs everything, as before. The admin commands move to the new package:
+**Locally nothing changes.** The workspace's dev group lists both packages, so `uv run` in the repository installs everything, as before. The database commands move to the new package:
 
 ```bash
-uv run python -m insurance_admin.setup_db
-uv run python -m insurance_admin.embed
-uv run python -m insurance_admin.generate
+uv run python -m insurance_database.setup_db
+uv run python -m insurance_database.embed
+uv run python -m insurance_database.generate
 uv run python -m insurance_mcp.main          # unchanged
 ```
 
-**Checked 2026-11-17** with uv 0.13.6 in a throwaway workspace: a plain `uv run` at the root runs both packages' commands, admin imports `insurance_mcp.embeddings`, `uv sync --package insurance-mcp --no-dev` leaves `insurance_admin` out (`ModuleNotFoundError`), and the built server wheel holds only server files.
+**Checked 2026-11-17** with uv 0.13.6 in a throwaway workspace: a plain `uv run` at the root runs both packages' commands, the database package imports `insurance_mcp.embeddings`, `uv sync --package insurance-mcp --no-dev` leaves `insurance_database` out (`ModuleNotFoundError`), and the built server wheel holds only server files.
 
-**A test guards the boundary:** importing every server module pulls in no `insurance_admin` module.
+**A test guards the boundary:** importing every server module pulls in no `insurance_database` module.
 
-**The cost:** three `pyproject.toml` files instead of one, and new names for the admin commands everywhere they appear (README, guides, troubleshooting, specs, CI).
+**The cost:** three `pyproject.toml` files instead of one, and new names for the database commands everywhere they appear (README, guides, troubleshooting, specs). Ruff needs `src = ["server/src", "database/src"]` to know which imports are ours.
+
+**Honest limits for a future hosted server.** The packages don't list `LICENSE` and `NOTICE` as license files, because the files sit at the repository root, outside each package, and a package can't reach outside its own folder. They're never published, so that's fine for now; a published package would need its own copies. And `embeddings.py` finds the model's `.cache/` folder from its own location, which is the repository root only because uv installs workspace packages in editable mode. A container that installs the server any other way must set the folder itself.
 
 ## 3. Transport and endpoints
 

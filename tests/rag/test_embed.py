@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from insurance_mcp.embed import (
+from insurance_database.embed import (
     BOOKLETS_DIR,
     DESCRIPTIONS,
     NOTES,
