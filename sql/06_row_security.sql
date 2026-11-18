@@ -27,7 +27,7 @@ create table insurance.caller_states (
 insert into insurance.caller_states (caller_key, state) values
     -- The one token you start with (the quickstart): every state.
     ('local', 'TX'), ('local', 'OK'), ('local', 'CO'), ('local', 'NM'), ('local', 'AZ'),
-    -- One token per client (end of guide 3): TX and CO, where the demo
+    -- One token per client (end of appendix A): TX and CO, where the demo
     -- customers live, plus one state the other two can't see.
     ('claude', 'TX'), ('claude', 'CO'), ('claude', 'OK'),
     ('copilot', 'TX'), ('copilot', 'CO'), ('copilot', 'NM'),

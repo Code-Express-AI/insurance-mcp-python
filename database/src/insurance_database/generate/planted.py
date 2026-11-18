@@ -3,17 +3,17 @@
 Random data doesn't promise an interesting answer to anything, so after the
 random data, these records are added. Everything the demos rely on is here.
 
-| Demo question                                             | Planted fact                          |
-|-----------------------------------------------------------|---------------------------------------|
-| Find the customer called Rutherford and show her policies | One Rutherford, with two policies     |
-| What's covered on policy AUT-104233, and the deductible?  | Full coverage, $500 deductible        |
-| Which open claims are over $20k and more than 90 days old?| Six of them                           |
-| Which repair shops have the highest average repair cost?  | Copper State Collision, by a distance |
-| Windshield claims last month, against the month before?   | 35 extra glass claims last month      |
-| Maria Garcia's claim history: more than two in 3 years?   | Yes, three, and one is still open     |
-| Which adjuster has the most open claims?                  | Dana Whitfield, by a distance         |
-| Claims where the car was hit parked at a supermarket (RAG)| Six, each worded differently          |
-| Row-level security (guides 3 and 4): who can find whom?   | One customer each in OK, NM and AZ    |
+| Demo question                                               | Planted fact                          |
+|-------------------------------------------------------------|---------------------------------------|
+| Find the customer called Rutherford and show her policies   | One Rutherford, with two policies     |
+| What's covered on policy AUT-104233, and the deductible?    | Full coverage, $500 deductible        |
+| Which open claims are over $20k and more than 90 days old?  | Six of them                           |
+| Which repair shops have the highest average repair cost?    | Copper State Collision, by a distance |
+| Windshield claims last month, against the month before?     | 35 extra glass claims last month      |
+| Maria Garcia's claim history: more than two in 3 years?     | Yes, three, and one is still open     |
+| Which adjuster has the most open claims?                    | Dana Whitfield, by a distance         |
+| Claims where the car was hit parked at a supermarket (RAG)  | Six, each worded differently          |
+| Row-level security (appendices A, B): who can find whom?    | One customer each in OK, NM and AZ    |
 
 And for the RAG security tests: three prompt-injection notes. The notes with
 personal data in them come from the text library (text/notes.json).

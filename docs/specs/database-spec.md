@@ -434,7 +434,7 @@ It's owned by `insurance_owner`. `mcp_owner` may read it, and `mcp_reader` gets 
 | Caller key | States | Why |
 |---|---|---|
 | `local` | All five (TX, OK, CO, NM, AZ) | The one token you start with. The quickstart and guides use it for Copilot, Claude Code and MCP Inspector alike. |
-| `claude` | TX, CO, **OK** | Claude Code's own token, from the end of guide 3. |
+| `claude` | TX, CO, **OK** | Claude Code's own token, from the end of appendix A. |
 | `copilot` | TX, CO, **NM** | GitHub Copilot's own token. |
 | `inspector` | TX, CO, **AZ** | MCP Inspector's own token. |
 
@@ -470,7 +470,7 @@ create policy visible_customer on insurance.policies for select to mcp_owner
 
 - **A hidden record is "unknown".** `get_claim` with another state's claim number gets the same "Unknown claim number" message as a number that doesn't exist (checked), so the error doesn't confirm the record is there.
 - **`get_dataset_info` counts only what the caller can see.** `local` sees all 12,000 customers, and each named token fewer.
-- **A token whose name isn't in `caller_states` sees nothing.** Every answer is empty, not an error. The guides say so, and guide 3 shows the `insert` that gives a new token its states.
+- **A token whose name isn't in `caller_states` sees nothing.** Every answer is empty, not an error. The guides say so, and appendix A shows the `insert` that gives a new token its states.
 
 ### What isn't filtered
 
@@ -534,4 +534,4 @@ That's safe because nothing else lives in `mcp`: the tables, the helpers and the
 - The permissions are exactly the same as after `setup_db` (the existing permissions snapshot).
 - A file with an error leaves every function as it was. `update_db` takes the file's path as an argument, defaulting to `07_mcp_functions.sql`, so this test can pass it a broken copy.
 
-**Docs that change:** decision 12's file list, the add-a-tool skill (functions go in `07_mcp_functions.sql`, and step 9 runs `update_db` unless a table was added) and its spec, guide 4's setup output, the `mcp-reader-permissions` guide, guide 1 and the "Using this with your own data" page (file names), and the troubleshooting page if it lists the commands.
+**Docs that change:** decision 12's file list, the add-a-tool skill (functions go in `07_mcp_functions.sql`, and step 9 runs `update_db` unless a table was added) and its spec, appendix B's setup output, the `mcp-reader-permissions` guide, guide 2 and the "Using this with your own data" page (file names), and the troubleshooting page if it lists the commands.

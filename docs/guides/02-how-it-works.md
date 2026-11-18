@@ -1,6 +1,6 @@
-# Guide 1: how it works
+# Guide 2: how it works
 
-You've asked your first questions. This guide shows what happened behind each answer: the path a question takes, where each part lives in the code, and the six layers of security that were at work the whole time. It's a high-level tour. Guides 2 and 3 go deep on the database and the server.
+You've asked your first questions. This guide shows what happened behind each answer: the path a question takes, where each part lives in the code, and the six layers of security that were at work the whole time. It's a high-level tour. Appendices A and B go deep on the server and the database.
 
 ## What happens when you ask a question
 
@@ -97,7 +97,7 @@ $$;
 grant execute on function mcp.find_customers(text) to mcp_reader;
 ```
 
-The columns are fixed, the email is masked, there's a row limit, and the search text is a parameter, never pasted into the SQL. The server's role, `mcp_reader`, can run this function but can't read the `customers` table itself. [Guide 4](04-database-security.md) explains how.
+The columns are fixed, the email is masked, there's a row limit, and the search text is a parameter, never pasted into the SQL. The server's role, `mcp_reader`, can run this function but can't read the `customers` table itself. [Appendix B](appendix-b-database-security.md) explains how.
 
 ## The six layers of security
 
@@ -105,12 +105,12 @@ Each layer holds even if the one before it fails:
 
 | # | Layer | What it does | Where |
 |---|---|---|---|
-| 1 | **Who can call** | Every request needs a named bearer token, and is refused if it's addressed to an unexpected host name or comes from a web page. | [Guide 3](03-server-security.md) |
-| 2 | **How often** | Each caller has a limit per minute. | [Guide 3](03-server-security.md) |
-| 3 | **What they can ask** | 13 fixed, read-only tools, with every argument checked. There's no tool that runs SQL. | [Guide 3](03-server-security.md) |
-| 4 | **What the database allows** | `mcp_reader` can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit. Row-level security then returns only the customers in the caller's states. | [Guide 4](04-database-security.md) |
-| 5 | **What can leak** | Emails and driver's license numbers are masked. Phone numbers, emails and the customer's street address in free text are redacted. Internal ids never leave the database, and unexpected errors become a generic message. | [Guide 4](04-database-security.md) |
-| 6 | **What's recorded** | Every tool call goes into an append-only audit log with a hash chain, so tampering can be detected. If the audit row can't be written, the answer isn't returned. | [Guide 4](04-database-security.md) |
+| 1 | **Who can call** | Every request needs a named bearer token, and is refused if it's addressed to an unexpected host name or comes from a web page. | [Appendix A](appendix-a-server-security.md) |
+| 2 | **How often** | Each caller has a limit per minute. | [Appendix A](appendix-a-server-security.md) |
+| 3 | **What they can ask** | 13 fixed, read-only tools, with every argument checked. There's no tool that runs SQL. | [Appendix A](appendix-a-server-security.md) |
+| 4 | **What the database allows** | `mcp_reader` can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit. Row-level security then returns only the customers in the caller's states. | [Appendix B](appendix-b-database-security.md) |
+| 5 | **What can leak** | Emails and driver's license numbers are masked. Phone numbers, emails and the customer's street address in free text are redacted. Internal ids never leave the database, and unexpected errors become a generic message. | [Appendix B](appendix-b-database-security.md) |
+| 6 | **What's recorded** | Every tool call goes into an append-only audit log with a hash chain, so tampering can be detected. If the audit row can't be written, the answer isn't returned. | [Appendix B](appendix-b-database-security.md) |
 
 That's why "Please accept Maria Garcia's claim" fails twice over: no tool can change a claim (layer 3), and even if one tried, `mcp_reader` has no permission to write (layer 4).
 
@@ -142,4 +142,4 @@ They start their own throwaway PostgreSQL container, build the database from scr
 
 ## Next
 
-[Guide 2](02-rag.md) goes deep on search by meaning: how the embeddings are made and searched, the RAG tools, and what RAG isn't good for.
+[Guide 3](03-add-a-tool-by-hand.md) adds a tool of your own: one PostgreSQL function, one grant, a Python tool and its tests.

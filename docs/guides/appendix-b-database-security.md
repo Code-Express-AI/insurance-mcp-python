@@ -1,4 +1,4 @@
-# Guide 4: database security
+# Appendix B: database security
 
 The MCP server connects to PostgreSQL as a role that can't read a single table. It can only run a fixed set of functions, one per tool, each returning fixed columns with a row limit, and row-level security decides which customers each caller sees. This guide shows how, in the database you built in the quickstart.
 
@@ -213,13 +213,13 @@ erDiagram
 - **Masked** columns are never returned in full: the functions show only part of an email (`m***@example.com`) and the last four characters of a driver's license number.
 - **Redacted** text has any phone numbers and email addresses in it replaced with `[phone]` and `[email]` before it's returned. Adjusters sometimes type them into a note. The customer's own street address becomes `[address]`: the database knows whose claim it is, so it can look for that exact address. Names, and any other address, can't be caught this way.
 - **`id` never leaves the database.** The tables join on the `bigint` ids, but the functions return `public_id` UUIDs or business numbers (`AUT-…`, `CLM-…`) instead. A sequential id would give away how many rows there are, and let a caller guess other records by counting.
-- `policy_document_chunks` holds the three policy booklets, split into sections for RAG ([guide 2](02-rag.md)). It's linked to policies by `coverage_level`, not by a foreign key. The `embedding` columns stay empty until you run the embed command.
+- `policy_document_chunks` holds the three policy booklets, split into sections for RAG ([guide 4](04-rag.md)). It's linked to policies by `coverage_level`, not by a foreign key. The `embedding` columns stay empty until you run the embed command.
 - `caller_states` lists which states each caller may see, for row-level security: see [Row-level security, step by step](#row-level-security-step-by-step) below. It's linked to customers by `state`, not by a foreign key.
 - `audit_log` isn't linked to the other tables, because it records the tool calls, not the insurance data. Rows can be added but never changed or deleted, and a hash chain makes tampering detectable. [database-spec.md](../specs/database-spec.md) explains how.
 
 ## Row-level security, step by step
 
-Each caller sees only the customers in its own states, along with their policies, claims and notes. The quickstart uses one token, `local`, which sees every state. In [guide 3](03-server-security.md#give-each-client-its-own-token) you give each client its own token, and each of those sees part of the data:
+Each caller sees only the customers in its own states, along with their policies, claims and notes. The quickstart uses one token, `local`, which sees every state. In [appendix A](appendix-a-server-security.md#give-each-client-its-own-token) you give each client its own token, and each of those sees part of the data:
 
 | Caller | States | Sees, but the other two don't |
 |---|---|---|
@@ -303,7 +303,7 @@ select insurance.verify_audit_log();        -- null: the whole chain is intact
 
 **The honest limit:** the admin can switch the trigger off, change rows and recompute the whole chain. No database can fully protect a log from its own admin. Deleting the newest rows can't be detected either, without a copy of the latest hash kept somewhere else. [database-spec.md](../specs/database-spec.md) has the details.
 
-Requests that never reach a tool, such as ones with a bad token, aren't in the audit log. They're in the server's own log ([guide 3](03-server-security.md)), because anyone can send a bad token, and the audit log can never be cleaned up.
+Requests that never reach a tool, such as ones with a bad token, aren't in the audit log. They're in the server's own log ([appendix A](appendix-a-server-security.md)), because anyone can send a bad token, and the audit log can never be cleaned up.
 
 ## The data
 
@@ -365,4 +365,4 @@ uv run pytest -m full_data
 
 ## Next
 
-[Using this with your own data](../using-your-own-data.md) explains how to point the same design at a real company's data, and lists the honest limits in one place.
+[Using this with your own data](06-using-your-own-data.md) explains how to point the same design at a real company's data, and lists the honest limits in one place.

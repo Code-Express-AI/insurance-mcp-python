@@ -2,7 +2,7 @@
 
 This guide follows the SQL setup scripts in order. It shows how the MCP server reads business data through a few approved functions, while its database role, `mcp_reader`, can't touch the tables at all.
 
-For the hands-on version, see [guide 4: database security](./04-database-security.md).
+For the hands-on version, see [appendix B: database security](./appendix-b-database-security.md).
 
 ## 1. Create separate roles
 
@@ -75,7 +75,7 @@ Triggers block any update, delete or truncate of the log. `mcp_reader` gets noth
 
 [`06_row_security.sql`](../../sql/06_row_security.sql) turns on row-level security for the tables that hold customer data, with policies for `mcp_owner`. The functions run as `mcp_owner`, so the policies filter what they return.
 
-Before each call, the server sets a session value that says who's calling. Each caller sees only the customers in its own states. With no value set, the functions return no rows, which is why [guide 4](./04-database-security.md) gets counts of 0 at first.
+Before each call, the server sets a session value that says who's calling. Each caller sees only the customers in its own states. With no value set, the functions return no rows, which is why [appendix B](./appendix-b-database-security.md) gets counts of 0 at first.
 
 The database trusts the server to set that value. Anyone with the `mcp_reader` password can set it themselves, so row-level security filters rows, but it doesn't prove who the caller is.
 

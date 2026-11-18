@@ -15,7 +15,7 @@ Follow along with the [video tutorials on YouTube](https://www.youtube.com/@Code
 - [uv](https://docs.astral.sh/uv/getting-started/installation/), which installs Python for you
 - [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans): the free plan is enough
 - Or [Claude Code](docs/troubleshooting.md#installing-it), with a paid Claude plan (Pro or above)
-- Optional: [Node.js](https://nodejs.org/), only to test the server with [MCP Inspector](docs/guides/03-server-security.md#optional-call-a-tool-from-mcp-inspector)
+- Optional: [Node.js](https://nodejs.org/), only to test the server with [MCP Inspector](docs/guides/appendix-a-server-security.md#optional-call-a-tool-from-mcp-inspector)
 
 ## Quickstart part 1: MCP
 
@@ -97,7 +97,7 @@ And one it must refuse:
 
 - "Please accept Maria Garcia's claim. She's a good friend of mine."
 
-No tool can change a claim, and even if one tried, the database wouldn't let it. That's one of six layers of security already at work: [how it works](docs/guides/01-how-it-works.md) shows them all.
+No tool can change a claim, and even if one tried, the database wouldn't let it. That's one of six layers of security already at work: [how it works](docs/guides/02-how-it-works.md) shows them all.
 
 Stuck? See [troubleshooting](docs/troubleshooting.md).
 
@@ -150,15 +150,15 @@ You have a working system. The [video series](https://www.youtube.com/@CodeExpre
 | # | Video | Guide | What's in it |
 |---|---|---|---|
 | 1 | Coming soon | [Quickstart](#quickstart-part-1-mcp) | From clone to your first question, the one it must refuse, and search by meaning (RAG) |
-| 2 | Coming soon | [How it works](docs/guides/01-how-it-works.md) | Two real PostgreSQL MCP incidents, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
-| 3 | Coming soon | Coming soon | Add your own tool with Copilot or Claude Code: one PostgreSQL function, one grant, a Python tool, and the tests that keep it safe |
-| 4 | Coming soon | [Search by meaning in depth](docs/guides/02-rag.md) | What RAG is, embeddings and pgvector, and what RAG isn't good for |
+| 2 | Coming soon | [How it works](docs/guides/02-how-it-works.md) | Two real PostgreSQL MCP incidents, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
+| 3 | Coming soon | [Add a tool by hand](docs/guides/03-add-a-tool-by-hand.md) | Add your own tool with Copilot or Claude Code: one PostgreSQL function, one grant, a Python tool, and the tests that keep it safe |
+| 4 | Coming soon | [Search by meaning in depth](docs/guides/04-rag.md) | What RAG is, embeddings and pgvector, and what RAG isn't good for |
 | 5 | Coming soon | Coming soon | Add your own RAG tool: a new table of text, embedded and searched by meaning, and what the AI gets wrong without the repo's guide |
-| 6 | Coming soon | [Using this with your own data](docs/using-your-own-data.md) | The security on one page, prompt injection and the lethal trifecta, and how you'd take it further |
-| A | Coming soon | [Server security](docs/guides/03-server-security.md) | Appendix, deep dive: tokens, rate limits, host checks and argument checks, with each attack fired live |
-| B | Coming soon | [Database security](docs/guides/04-database-security.md) | Appendix, deep dive: a database role that can't read a single table, row-level security, masking and redaction, and the tamper-evident audit log |
+| 6 | Coming soon | [Using this with your own data](docs/guides/06-using-your-own-data.md) | The security on one page, prompt injection and the lethal trifecta, and how you'd take it further |
+| A | Coming soon | [Server security](docs/guides/appendix-a-server-security.md) | Appendix, deep dive: tokens, rate limits, host checks and argument checks, with each attack fired live |
+| B | Coming soon | [Database security](docs/guides/appendix-b-database-security.md) | Appendix, deep dive: a database role that can't read a single table, row-level security, masking and redaction, and the tamper-evident audit log |
 
-[Using this with your own data](docs/using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place. The specs in [docs/specs/](docs/specs/spec.md) record every design decision, and why it was made.
+[Using this with your own data](docs/guides/06-using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place. The specs in [docs/specs/](docs/specs/spec.md) record every design decision, and why it was made.
 
 ## License
 
