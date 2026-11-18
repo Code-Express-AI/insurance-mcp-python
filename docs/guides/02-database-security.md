@@ -15,7 +15,7 @@ Running 03_permissions.sql
 Running 04_functions.sql
 Running 05_audit.sql
 Running 06_row_security.sql
-Loaded full data: 12,002 customers, 14,922 policies, 15,090 claims, 76,892 claim notes.
+Loaded full data: 12,005 customers, 15,010 policies, 15,090 claims, 76,475 claim notes.
 Database ready.
 ```
 
@@ -93,7 +93,7 @@ select * from mcp.get_dataset_info();   -- works, but every count is 0
 
 ```sql
 select set_config('mcp.caller_key', 'local', false);
-select * from mcp.get_dataset_info();   -- now: 12,002 customers
+select * from mcp.get_dataset_info();   -- now: 12,005 customers
 ```
 
 The MCP server does the same before every call, with the name of the token that made the request. [Row-level security, step by step](#row-level-security-step-by-step) below shows the rest.
@@ -240,27 +240,27 @@ group by caller_key
 order by caller_key;
 ```
 
-**Step 2: as `mcp_reader`, search as each caller.** Wei Kim lives in Oklahoma, so only `claude` (and `local`) can find them. In the `mcp_reader` connection, run these two lines together:
+**Step 2: as `mcp_reader`, search as each caller.** Wendell Pryce lives in Oklahoma, so only `claude` (and `local`) can find them. In the `mcp_reader` connection, run these two lines together:
 
 ```sql
 select set_config('mcp.caller_key', 'claude', false);
-select first_name, last_name, city, state from mcp.find_customers('Wei Kim');   -- found
+select first_name, last_name, city, state from mcp.find_customers('Wendell Pryce');   -- found
 ```
 
 Now be `copilot` and search again:
 
 ```sql
 select set_config('mcp.caller_key', 'copilot', false);
-select first_name, last_name, city, state from mcp.find_customers('Wei Kim');   -- nothing
+select first_name, last_name, city, state from mcp.find_customers('Wendell Pryce');   -- nothing
 ```
 
 Try the others too. This is what you should see:
 
 | Search for | `local` | `claude` | `copilot` | `inspector` |
 |---|---|---|---|---|
-| `Wei Kim` (Oklahoma) | Found | Found | Nothing | Nothing |
-| `Mei Cruz` (New Mexico) | Found | Nothing | Found | Nothing |
-| `Ana Cook` (Arizona) | Found | Nothing | Nothing | Found |
+| `Wendell Pryce` (Oklahoma) | Found | Found | Nothing | Nothing |
+| `Lucia Benavidez` (New Mexico) | Found | Nothing | Found | Nothing |
+| `Trevor Lindqvist` (Arizona) | Found | Nothing | Nothing | Found |
 | `Maria Garcia` (Texas) | Found | Found | Found | Found |
 
 - **"Nothing" is an empty result, not an error.** To a caller, a customer it can't see doesn't exist. Ask for one of their claims by number and you get "Unknown claim number", the same as for a number that doesn't exist.

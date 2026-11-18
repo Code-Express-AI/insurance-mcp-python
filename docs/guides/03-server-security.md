@@ -112,10 +112,10 @@ You should get:
 {
   "as_of_date": "2026-11-18",
   "first_date_reported": "2023-11-19",
-  "customer_count": 12002,
-  "policy_count": 14922,
+  "customer_count": 12005,
+  "policy_count": 15010,
   "claim_count": 15090,
-  "open_claim_count": 770
+  "open_claim_count": 808
 }
 ```
 
@@ -202,11 +202,11 @@ Then start the server again (`uv run python -m insurance_mcp.main`), restart the
 
 **4. Ask both the same questions:**
 
-- "Find the customer called Wei Kim." Claude Code finds them in Oklahoma City. Copilot finds nobody: to Copilot, Wei Kim doesn't exist.
-- "Find the customer called Mei Cruz." The other way round: Copilot finds them in Albuquerque, Claude Code doesn't.
+- "Find the customer called Wendell Pryce." Claude Code finds them in Tulsa. Copilot finds nobody: to Copilot, Wendell Pryce doesn't exist.
+- "Find the customer called Lucia Benavidez." The other way round: Copilot finds them in Albuquerque, Claude Code doesn't.
 - "Show me the claim history for Maria Garcia." Both find her, because both see Texas.
 
-The `inspector` token sees Arizona: try `Ana Cook` in [MCP Inspector](#optional-call-a-tool-from-mcp-inspector) with it.
+The `inspector` token sees Arizona: try `Trevor Lindqvist` in [MCP Inspector](#optional-call-a-tool-from-mcp-inspector) with it.
 
 **5. Check the audit log.** As in [guide 2](02-database-security.md#the-audit-log), the `caller` column now shows `claude` and `copilot` instead of `local`.
 

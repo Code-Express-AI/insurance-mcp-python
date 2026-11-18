@@ -1,6 +1,7 @@
 """The settings behind the data: its dates, its seed and its two sizes.
 
-Change the seed or the sizes and every answer in the docs changes with them.
+Change the seed and the random data changes, but not the planted records
+(planted.py), so the docs' demo answers and the tests still hold.
 """
 
 import datetime
@@ -29,7 +30,7 @@ AS_OF_DATE = datetime.date.today()
 START_DATE = AS_OF_DATE - datetime.timedelta(days=3 * 365)
 
 # The same seed gives everyone the same customers, policies and claims.
-SEED = 2026
+SEED = 4505
 
 # Reference data, the same at both sizes.
 REPAIR_SHOP_COUNT = 60

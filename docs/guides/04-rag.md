@@ -27,7 +27,7 @@ Then it splits the three policy booklets at their headings and embeds the 37 sec
 ```text
 Policy booklets:    37 sections
 Claim descriptions: 15,090 / 15,090 (100%)
-Claim notes:        23,040 / 76,892 (30%), about 2 min left
+Claim notes:        23,040 / 76,475 (30%), about 2 min left
 ```
 
 **It does the quick parts first.** The booklets take seconds, and the 15,090 accident descriptions about a minute, so the policy and accident searches work almost straight away. Until it's finished, the searches simply skip the text that isn't embedded yet.

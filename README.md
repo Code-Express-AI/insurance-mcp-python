@@ -39,7 +39,7 @@ uv run python -m insurance_database.setup_db
 `--wait` waits until PostgreSQL is ready. The first time, Docker downloads the PostgreSQL image, which takes a minute or two. The setup command takes a few seconds, and ends with:
 
 ```text
-Loaded full data: 12,002 customers, 14,922 policies, 15,090 claims, 76,892 claim notes.
+Loaded full data: 12,005 customers, 15,010 policies, 15,090 claims, 76,475 claim notes.
 Database ready.
 ```
 

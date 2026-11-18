@@ -153,12 +153,15 @@ def test_full_data_has_about_the_volumes_in_the_spec(full_data, admin, table, ex
 
 # The row-level security examples in guides 2 and 3: one customer only each
 # named token can find. They aren't planted: the fixed seed puts them there.
-ONLY_FOUND_BY = {"Wei Kim": "claude", "Mei Cruz": "copilot", "Ana Cook": "inspector"}
+ONLY_FOUND_BY = {
+    "Wendell Pryce": "claude",
+    "Lucia Benavidez": "copilot",
+    "Trevor Lindqvist": "inspector",
+}
 
 
-@pytest.mark.full_data
 @pytest.mark.parametrize("name", list(ONLY_FOUND_BY))
-def test_the_guides_row_security_examples_are_found_by_one_named_token(full_data, reader_as, name):
+def test_the_guides_row_security_examples_are_found_by_one_named_token(reader_as, name):
     found_by = [
         caller_key
         for caller_key in ("claude", "copilot", "inspector")

@@ -13,6 +13,7 @@ random data, these records are added. Everything the demos rely on is here.
 | Maria Garcia's claim history: more than two in 3 years?   | Yes, three, and one is still open     |
 | Which adjuster has the most open claims?                  | Dana Whitfield, by a distance         |
 | Claims where the car was hit parked at a supermarket (RAG)| Six, each worded differently          |
+| Row-level security (guides 2 and 3): who can find whom?   | One customer each in OK, NM and AZ    |
 
 And for the RAG security tests: three prompt-injection notes. The notes with
 personal data in them come from the text library (text/notes.json).
@@ -269,6 +270,94 @@ def add_maria_garcia(rng: random.Random, data: Dataset, licenses: set[str]) -> N
         )
 
 
+# The guides' row-level security examples. Each lives in a state only one named
+# token can see: claude sees Oklahoma, copilot New Mexico, inspector Arizona.
+# Their last names aren't in reference.LAST_NAMES, so each one is the only match.
+ROW_SECURITY_EXAMPLES = (
+    # first, last, born, street, city, state, ZIP, phone, policy number, car
+    (
+        "Wendell",
+        "Pryce",
+        datetime.date(1968, 4, 2),
+        "3305 Redbud Lane",
+        "Tulsa",
+        "OK",
+        "74105",
+        "(918) 555-0121",
+        "AUT-101176",
+        ("Chevrolet", "Silverado", 2019, 24_800),
+    ),
+    (
+        "Lucia",
+        "Benavidez",
+        datetime.date(1990, 10, 17),
+        "812 Mesa Verde Drive",
+        "Albuquerque",
+        "NM",
+        "87110",
+        "(505) 555-0138",
+        "AUT-102658",
+        ("Honda", "Civic", 2020, 16_900),
+    ),
+    (
+        "Trevor",
+        "Lindqvist",
+        datetime.date(1979, 1, 25),
+        "4471 Saguaro Way",
+        "Phoenix",
+        "AZ",
+        "85016",
+        "(602) 555-0182",
+        "AUT-103941",
+        ("Toyota", "Camry", 2018, 15_200),
+    ),
+)
+
+
+def add_row_security_examples(rng: random.Random, data: Dataset, licenses: set[str]) -> None:
+    """One customer in each of OK, NM and AZ, with one policy each."""
+    for (
+        first,
+        last,
+        born,
+        street,
+        city,
+        state,
+        zip_code,
+        phone,
+        number,
+        car,
+    ) in ROW_SECURITY_EXAMPLES:
+        make, model, model_year, value = car
+        customer = Customer(
+            first_name=first,
+            last_name=last,
+            date_of_birth=born,
+            street_address=street,
+            city=city,
+            state=state,
+            zip_code=zip_code,
+            email=f"{first[0].lower()}{last.lower()}@example.com",
+            phone=phone,
+            drivers_license_number=make_license_number(rng, licenses),
+        )
+        data.customers.append(customer)
+        data.policies.append(
+            Policy(
+                customer=customer,
+                coverage_level="full",
+                premium=money(1650),
+                deductible=money(500),
+                start_date=days_before_as_of(1500),
+                end_date=None,
+                status="active",
+                vehicle=Vehicle(make_license_plate(rng), make, model, model_year, money(value)),
+                drivers=[Driver(first, last, born, "policyholder")],
+                policy_number=number,
+            )
+        )
+
+
 def add_planted_records(rng: random.Random, data: Dataset) -> None:
     """Everything above, after the random claims. The shop and adjuster are added earlier."""
     old_open = add_old_open_claims(rng, data)
@@ -283,3 +372,4 @@ def add_planted_records(rng: random.Random, data: Dataset) -> None:
     licenses = {customer.drivers_license_number for customer in data.customers}
     add_rutherford(rng, data, licenses)
     add_maria_garcia(rng, data, licenses)
+    add_row_security_examples(rng, data, licenses)
