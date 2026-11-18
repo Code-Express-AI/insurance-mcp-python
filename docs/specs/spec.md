@@ -2,7 +2,7 @@
 
 A secure, read-only MCP server for a fictitious auto insurance claims system, built with Python, FastAPI and PostgreSQL. It shows how to make an MCP server safe to point at a real database, with several independent layers of security. It then extends to RAG with pgvector.
 
-**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** changes to decisions 3, 4 and 8. **Docs by layer signed off by Liam on 2026-11-12:** decision 8. **RAG quickstart with `--booklets-only` signed off by Liam on 2026-11-13:** decisions 8 and 11.
+**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** changes to decisions 3, 4 and 8. **Docs by layer signed off by Liam on 2026-11-12:** decision 8. **RAG quickstart with `--booklets-only` signed off by Liam on 2026-11-13:** decisions 8 and 11. **Adjusters' manual signed off by Liam on 2026-11-18:** decision 11.
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -278,6 +278,7 @@ An **embedding** is a list of numbers that stands for the meaning of a text. Tex
 
 1. **Policy wording documents:** three made-up booklets for our fictional insurer, one per coverage level, saying what is and isn't covered. This is classic RAG. They're markdown files in the repo, a few pages each, with clear headings. Like the text library, they're written once in a Claude Code session and reviewed by hand. Each says it's an illustration, not real insurance.
 2. **Claim text:** the accident descriptions and the adjuster notes.
+3. **The adjusters' manual, for video 5 to build on** (added 2026-11-18): how staff handle a claim, step by step, where the booklets say what the customer is covered for. It never repeats a coverage fact: it says "check the booklet" instead, so the model can tell the two searches apart. One made-up markdown file, `database/src/insurance_database/adjusters_manual.md`, next to the `booklets/` folder rather than in it (the embed command loads every file in that folder as a coverage level). Same shape as the booklets, so the same splitter works: a disclaimer, then about 18 `## ` sections of about 90 words, each well under 256 word pieces. Jargon is explained where it first appears, with no glossary section. **`main` ships the text and nothing else:** no table, no function, no tool, no embed step and no word-piece test. Video 5 builds those, and the finished version is on the `video-5-done` branch.
 
 **Honest limit: the claim text is built from templates** ([data-generator-spec.md](data-generator-spec.md), decision 7), so many claims share the same sentence with a different street or store. A search often returns several copies of one story, and a hand-written planted claim is easily outranked by a few hundred copies of a close match. The search still finds the right kind of claim: it's the data that's repetitive, not the search that's wrong. Real claim text is far more varied.
 
