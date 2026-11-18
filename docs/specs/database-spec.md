@@ -366,6 +366,7 @@ Tests connect as `mcp_reader` unless a test says otherwise. Each one shows a sec
 - `mcp_owner` has no `INSERT`, `UPDATE`, `DELETE` or `TRUNCATE` on any business table, and owns nothing in `insurance`. The test checks the system catalogs.
 - A `STABLE` function that tries to write fails. The test creates one as `mcp_owner` to prove the guard holds.
 - Every `mcp` function is `SECURITY DEFINER`, has `search_path` set, and is owned by `mcp_owner`. The test checks the system catalogs, so a function added later can't skip these rules.
+- Every `mcp` function that takes a `real[]` query embedding passes it through `insurance.to_vector` (the 384-number check), and every `vector` column in `insurance` is `vector(384)`. Both read the system catalogs, so a search added later, by hand or by an AI without the skill, is checked without anyone adding it to a list (added 2026-11-18).
 - **A snapshot of everything `mcp_reader` can do**, however it got the right: granted to it, to `PUBLIC` or to a role it belongs to. Any right the SQL files don't mean to give fails it, including one nobody thought to test for. Adding a function means adding it to the list.
 - A search made of invisible characters (the byte-order mark, zero-width characters, the soft hyphen) matches nothing. Some databases ignore these when comparing text. PostgreSQL doesn't, so the server needn't filter them out.
 

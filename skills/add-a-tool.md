@@ -68,7 +68,7 @@ For the data generator: add a record class in `records.py`, make the rows in `ra
 
 - **The column:** `embedding public.vector(384)`. The model, `all-MiniLM-L6-v2`, makes 384 numbers. No index on it: every search is exact, which is fast enough at this size.
 - **The text:** a markdown file in `database/src/insurance_database/`. If the human names a file that's already there, use it as it is. Never put it in `booklets/`: the embed command loads every file there as a coverage level. Split it into sections at its `## ` headings with `split_booklet` in `embed.py`. Each section is about one topic and is one row.
-- **Short sections:** the model reads at most 256 word pieces and silently ignores the rest, which is roughly 150 words. Add the new file to `test_every_text_fits_in_what_the_model_reads` in `tests/rag/test_embedding_model.py`.
+- **Short sections:** the model reads at most 256 word pieces and silently ignores the rest, which is roughly 150 words. `test_every_text_fits_in_what_the_model_reads` checks every markdown file in the package by itself (step 8).
 - **Loading:** add a function to `embed.py`, copying how the booklets are loaded: skip if the table already has rows, embed `heading + "\n" + content` with `model.passage_embed`, insert, commit. Call it from `embed_everything` straight after the booklets, so `--booklets-only` loads it too. In `tests/rag/test_embedding_model.py`, delete its rows wherever the booklets' rows are deleted: the `embedded` fixture's clean-up and the `--booklets-only` test.
 - **The search function** (step 4) takes `p_embedding real[]` and turns it into a vector with `insurance.to_vector(p_embedding)`, which raises an error unless it's exactly 384 numbers. If the table is empty, it raises `'Run the embed command first.'`. It orders by `embedding operator(public.<=>) v_query` and returns a `similarity` of `round((1 - distance)::numeric, 3)`. Copy an existing search function in `sql/080_mcp_functions.sql`.
 
@@ -125,10 +125,10 @@ Then add tests in `tests/database/test_mcp_functions.py` (or `test_rag_functions
 - It returns at most its row limit.
 - An unknown id or number raises the "Unknown ..." message, if it looks one up.
 - An unknown period raises an error, if it takes one.
-- A search by meaning: add its name to `function` in `test_anything_but_384_numbers_is_rejected`, and add a "Run the embed command first" test next to the others at the top of the file (before any test that uses `fake_embeddings`).
+- A search by meaning: a "Run the embed command first" test next to the others at the top of the file (before any test that uses `fake_embeddings`).
 - Its result goes into `everything_about_maria_garcia`, if it returns anything about a customer. Then the existing test checks it returns none of her personal data.
 
-`test_function_rules.py` and the table permission tests already check every function and table. Leave them as they are.
+`test_function_rules.py` and the table permission tests already check every function and table, including the 384-number check and the `vector(384)` column. Leave them as they are.
 
 ## Step 8: check
 
@@ -138,6 +138,12 @@ Run each of these, and fix anything that fails:
 uv run ruff check
 uv run ruff format --check
 uv run pytest
+```
+
+If the tool searches by meaning, also run the tests that use the real model. The first run downloads it (90 MB):
+
+```bash
+uv run pytest -m embedding_model
 ```
 
 The tests start their own database in Docker, so Docker must be running. They don't touch the human's database. Don't run the setup, update or embed commands yourself: they change the human's database (step 9).

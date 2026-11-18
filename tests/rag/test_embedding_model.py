@@ -42,7 +42,8 @@ def test_every_text_fits_in_what_the_model_reads(admin):
     def tokens(text: str) -> int:
         return len(tokenizer.encode(text).ids)
 
-    for path in sorted(BOOKLETS_DIR.glob("*.md")):
+    # Every markdown file the embed command could load, not only the booklets.
+    for path in sorted(BOOKLETS_DIR.parent.rglob("*.md")):
         for heading, content in split_booklet(path.read_text(encoding="utf-8")):
             assert tokens(f"{heading}\n{content}") <= 256, f"{path.name}: {heading}"
     for column, table in [("description", "claims"), ("note", "claim_notes")]:
