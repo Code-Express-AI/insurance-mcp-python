@@ -137,9 +137,9 @@ The docs include a short page on this, as a pointer rather than a build.
   1. **README, quickstart:** the prerequisites in their own section first, then: clone the repo and copy `.env.example` to `.env`; start the database with `docker compose up -d --wait` (it waits until the database is ready) and run `setup_db`; start the server with `main` and check `/health` in a browser; connect GitHub Copilot (paste the JSON shown in the README) or Claude Code (one `claude mcp add` line). Copilot comes first because its free plan keeps the whole path free. Then a few questions to ask, and the one it must refuse. Only one line of explanation per step, plus a line saying that six layers of security are already at work, with a link to guide 1.
   2. **README, quickstart part 2: search by meaning (RAG), optional:** `uv run python -m insurance_database.embed --booklets-only`, which downloads the model (90 MB: the README says the download may take a moment, depending on your connection) and embeds only the 37 policy booklet sections, in about 30 seconds in all. Then a booklet question ("Am I covered for flood damage with liability + collision?") and two that combine MCP and RAG, both built on planted customers, so everyone gets the same answer: Eleanor Rutherford's hail damage (her full-coverage Subaru is covered, her liability + collision F-150 isn't) and Maria Garcia's windshield chip (full coverage: a chip repair costs her nothing). Then an optional step to search the claims too: the same command without `--booklets-only`, with the honest warning that the notes take a few minutes on a fast laptop and 15 or more on an older one. Added 2026-11-13.
   3. **Guide 1, how it works:** the request path and a map of the code at a high level, and the six layers of security at a glance.
-  4. **Guide 2, database security:** the lockdown, the tables, row-level security step by step, the data, the database settings in `.env`, and the tests.
+  4. **Guide 2, RAG in depth:** how the embeddings are made and searched, the RAG tools, and what RAG isn't good for (decision 11).
   5. **Guide 3, server security:** tokens and the server settings, the `curl` checks, MCP Inspector (optional), the audit log, keeping the assistant safe, and **"Give each client its own token"**: add `claude`, `copilot` and `inspector` to `MCP_TOKENS`, give each client its own, and see that each one sees part of the data (row-level security), while the audit log now shows which client made each call. Until then, everything uses one token, `local`, which sees everything.
-  6. **Guide 4, RAG in depth:** how the embeddings are made and searched, the RAG tools, and what RAG isn't good for (decision 11).
+  6. **Guide 4, database security:** the lockdown, the tables, row-level security step by step, the data, the database settings in `.env`, and the tests.
   7. **Troubleshooting,** for every step, on one page (`docs/troubleshooting.md`). It includes installing Claude Code and fixing its PATH.
   8. **Optional:** a hosted database (decision 4).
 - **`.env.example` works as it is** (changed on 2026-11-12 from an `init` command that wrote random secrets): the quickstart copies it to `.env`, and nobody has to edit anything to get started.
@@ -204,12 +204,12 @@ These are structured questions with exact answers. The model calls several tools
 - "Find the customer called Rutherford and show their policies."
 - "What's covered on policy AUT-104233, and what's the deductible?"
 - "Which open claims are over $20k and more than 90 days old?"
-- "Which repair shops have the highest average repair cost this year?"
+- "Which repair shops have the highest average repair cost in the last 12 months?"
 - "How many windshield claims did we have last month, compared with the month before?"
 - "Show me the claim history for Maria Garcia. Has she claimed more than twice in three years?"
 - "Does Maria Garcia have any open claims?" (Yes, one: her latest claim.)
 - "Which adjuster has the most open claims?"
-- "How many at-fault claims involved a teenage driver this year?"
+- "How many at-fault claims involved a teenage driver in the last 12 months?"
 
 And one it must refuse:
 

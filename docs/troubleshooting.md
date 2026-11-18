@@ -34,7 +34,7 @@ Find the step you're on, then the message you see.
 
 **`address already in use`.** Something else is using port 8000, often the server from another copy of this repository, still running in another terminal. Stop it with `Ctrl+C`, or set `PORT` in `.env` to another port, such as `8001`, and use that port in the URLs.
 
-**Every tool answers, but finds nothing (0 customers).** The token's name isn't one the database knows. Use `local`, or one of `claude`, `copilot` and `inspector` from [guide 3](guides/03-server-security.md#give-each-client-its-own-token). [Row-level security](guides/02-database-security.md#row-level-security-step-by-step) explains why.
+**Every tool answers, but finds nothing (0 customers).** The token's name isn't one the database knows. Use `local`, or one of `claude`, `copilot` and `inspector` from [guide 3](guides/03-server-security.md#give-each-client-its-own-token). [Row-level security](guides/04-database-security.md#row-level-security-step-by-step) explains why.
 
 **`401 Unauthorized` with a token.** The header must be `Authorization: Bearer <token>`, with the word `Bearer` and one space. Check the token matches one in `MCP_TOKENS` exactly, and restart the server after changing `.env`: it reads the file only when it starts.
 

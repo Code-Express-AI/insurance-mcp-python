@@ -143,18 +143,20 @@ The descriptions take about a minute. The 76,000 or so notes take a few minutes 
 
 Stopping it with `Ctrl+C` is fine: run it again and it carries on where it stopped.
 
-## Go deeper
+## See it all on YouTube
 
-You have a working system. Each video and guide peels back one more layer of what's already running:
+You have a working system. The [video series](https://www.youtube.com/@CodeExpressAI) builds on it: how it's kept safe, two tools of your own added with an AI assistant, then two deep dives for anyone who wants the detail.
 
 | # | Video | Guide | What's in it |
 |---|---|---|---|
-| 1 | Coming soon | [Quickstart part 1: MCP](#quickstart-part-1-mcp) | From clone to your first question, and the one it must refuse |
-| 2 | Coming soon | [Quickstart part 2: RAG](#quickstart-part-2-search-by-meaning-rag) | "Am I covered?" from the policy booklets, combined with the MCP tools |
-| 3 | Coming soon | [How it works](docs/guides/01-how-it-works.md) | What happens when you ask a question, a map of the code, and the six layers of security at a glance |
-| 4 | Coming soon | [Database security](docs/guides/02-database-security.md) | A database role that can't read a single table, row-level security, masking, and the tamper-evident audit log |
-| 5 | Coming soon | [Server security](docs/guides/03-server-security.md) | Tokens, rate limits, host checks, MCP Inspector, and a token for each AI assistant |
-| 6 | Coming soon | [Search by meaning in depth](docs/guides/04-rag.md) | Embeddings and pgvector, the RAG tools, and what RAG isn't good for |
+| 1 | Coming soon | [Quickstart](#quickstart-part-1-mcp) | From clone to your first question, the one it must refuse, and search by meaning (RAG) |
+| 2 | Coming soon | [How it works](docs/guides/01-how-it-works.md) | Two real PostgreSQL MCP incidents, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
+| 3 | Coming soon | Coming soon | Add your own tool with Copilot or Claude Code: one PostgreSQL function, one grant, a Python tool, and the tests that keep it safe |
+| 4 | Coming soon | [Search by meaning in depth](docs/guides/02-rag.md) | What RAG is, embeddings and pgvector, and what RAG isn't good for |
+| 5 | Coming soon | Coming soon | Add your own RAG tool: a new table of text, embedded and searched by meaning, and what the AI gets wrong without the repo's guide |
+| 6 | Coming soon | [Using this with your own data](docs/using-your-own-data.md) | The security on one page, prompt injection and the lethal trifecta, and how you'd take it further |
+| A | Coming soon | [Server security](docs/guides/03-server-security.md) | Appendix, deep dive: tokens, rate limits, host checks and argument checks, with each attack fired live |
+| B | Coming soon | [Database security](docs/guides/04-database-security.md) | Appendix, deep dive: a database role that can't read a single table, row-level security, masking and redaction, and the tamper-evident audit log |
 
 [Using this with your own data](docs/using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place. The specs in [docs/specs/](docs/specs/spec.md) record every design decision, and why it was made.
 

@@ -13,7 +13,7 @@ random data, these records are added. Everything the demos rely on is here.
 | Maria Garcia's claim history: more than two in 3 years?   | Yes, three, and one is still open     |
 | Which adjuster has the most open claims?                  | Dana Whitfield, by a distance         |
 | Claims where the car was hit parked at a supermarket (RAG)| Six, each worded differently          |
-| Row-level security (guides 2 and 3): who can find whom?   | One customer each in OK, NM and AZ    |
+| Row-level security (guides 3 and 4): who can find whom?   | One customer each in OK, NM and AZ    |
 
 And for the RAG security tests: three prompt-injection notes. The notes with
 personal data in them come from the text library (text/notes.json).

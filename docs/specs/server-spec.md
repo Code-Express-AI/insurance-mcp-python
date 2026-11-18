@@ -278,7 +278,7 @@ This is the SDK's syntax as checked in stage 0.
 | `search_claims` | Optional `customer_id`, `policy_id`, `status`, `claim_type`, `min_reserve`, `min_days_open`, `period`, `page` | Up to 50 claims per page, each with its `claim_number` | "Open claims over $20k and more than 90 days old", "Maria Garcia's claim history" |
 | `get_claim` | `claim_number` | The claim, its payments and its notes (latest 20) | Drilling into one claim |
 | `count_claims_by_month` | `claim_type` (optional), `period` | Claims per month in the period | "Windshield claims last month vs the month before" |
-| `get_repair_shop_costs` | `period`, `limit` | Shops ranked by average repair cost | "Most expensive repair shops this year" |
+| `get_repair_shop_costs` | `period`, `limit` | Shops ranked by average repair cost | "Most expensive repair shops in the last 12 months" |
 | `get_adjuster_workload` | None | Open claims per adjuster | "Which adjuster has the most open claims?" |
 | `count_claims_by_driver_age` | `fault` (optional), `period` | Claims per driver age band (16–19, 20–24, 25–64, 65+) | "At-fault claims involving a teenage driver" |
 

@@ -1,4 +1,4 @@
-# Guide 4: search by meaning in depth
+# Guide 2: search by meaning in depth
 
 In quickstart part 2, the embed command let your assistant answer "am I covered?" questions by quoting the policy booklets, and, if you embedded the claims too, find claims by what they mean, not just by exact fields: "claims where the car was hit while parked at a supermarket" finds them even when none of those words appear. This guide shows how.
 
@@ -91,4 +91,4 @@ They embed the small test data, check that the demo questions find the right thi
 
 ## Next
 
-[Using this with your own data](../using-your-own-data.md) explains how to point the same design at a real company's data, and lists the honest limits in one place.
+[Guide 3](03-server-security.md) goes deep on the server: tokens, rate limits, host checks, MCP Inspector, and a token for each AI assistant.

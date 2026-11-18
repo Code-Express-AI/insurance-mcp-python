@@ -12,7 +12,7 @@ AI clients prove who they are with a **bearer token**: a long random secret sent
 MCP_TOKENS=local:local-only-token-replace-with-your-own
 ```
 
-The name is who the server thinks is calling. It goes in the audit log next to every tool call, the rate limits count calls per name, and it decides which customers the caller sees: `local` sees them all (see [row-level security](02-database-security.md#row-level-security-step-by-step) in guide 2). At the end of this guide you give each client its own token, so the audit log shows which client did what.
+The name is who the server thinks is calling. It goes in the audit log next to every tool call, the rate limits count calls per name, and it decides which customers the caller sees: `local` sees them all (see [row-level security](04-database-security.md#row-level-security-step-by-step) in guide 2). At the end of this guide you give each client its own token, so the audit log shows which client did what.
 
 This command prints a new random token:
 
@@ -32,7 +32,7 @@ The example token is in a public repository, so everyone knows it. On your own m
 2. Put it in `MCP_TOKENS` in `.env`, after `local:`, and restart the server. It reads `.env` only when it starts.
 3. Put it in your AI assistant too. For Copilot, run **MCP: Open User Configuration**, choose **Copilot Global**, and replace the token after `Bearer `. In Claude Code, stop the server, run `claude mcp remove insurance`, run the `claude mcp add` line from the README with the new token, and start the server again.
 
-Replace the example database passwords the same way: [guide 2](02-database-security.md#the-database-settings) shows how.
+Replace the example database passwords the same way: [guide 4](04-database-security.md#the-database-settings) shows how.
 
 ### Where your AI assistant keeps the token
 
@@ -142,8 +142,8 @@ Every request to `/mcp` passes these checks in order, and each one holds even if
 | 3 | **Host:** is it addressed to a name in `ALLOWED_HOSTS`, and not sent by a web page? | The MCP SDK | `421` for the host, `403` for a web page |
 | 4 | **Size:** is the body under 64 KB? | The MCP SDK | `413` |
 | 5 | **Tool and arguments:** is it one of our tools, with valid arguments and nothing else? | The MCP SDK, and our check for unknown arguments ([`tools.py`](../../server/src/insurance_mcp/tools.py)) | A tool error, with a message the model can act on |
-| 6 | **Database:** the tool runs exactly one `mcp` function as `mcp_reader` | [`db.py`](../../server/src/insurance_mcp/db.py) and the database ([guide 2](02-database-security.md)) | A tool error: the function's own message, or a generic one |
-| 7 | **Audit:** the call is recorded | [`audit.py`](../../server/src/insurance_mcp/audit.py) and the [audit log](02-database-security.md#the-audit-log) | A generic tool error, and no result |
+| 6 | **Database:** the tool runs exactly one `mcp` function as `mcp_reader` | [`db.py`](../../server/src/insurance_mcp/db.py) and the database ([guide 4](04-database-security.md)) | A tool error: the function's own message, or a generic one |
+| 7 | **Audit:** the call is recorded | [`audit.py`](../../server/src/insurance_mcp/audit.py) and the [audit log](04-database-security.md#the-audit-log) | A generic tool error, and no result |
 
 **Why the host check?** It blocks **DNS rebinding**, a trick where a web page you visit makes your own browser send requests to a server on your machine. A page like that doesn't have your token, so step 1 stops it anyway, but the MCP spec asks local servers to check the host too, and the SDK does it for us.
 
@@ -172,7 +172,7 @@ So far every client has used `local`, so the audit log can't tell Copilot's call
 | `copilot` | TX, CO, NM | New Mexico |
 | `inspector` | TX, CO, AZ | Arizona |
 
-This is row-level security, which [guide 2](02-database-security.md#row-level-security-step-by-step) shows in SQL. Here you see it through the clients you already use.
+This is row-level security, which [guide 4](04-database-security.md#row-level-security-step-by-step) shows in SQL. Here you see it through the clients you already use.
 
 **1. Make three more tokens.** Run this three times:
 
@@ -208,7 +208,7 @@ Then start the server again (`uv run python -m insurance_mcp.main`), restart the
 
 The `inspector` token sees Arizona: try `Trevor Lindqvist` in [MCP Inspector](#optional-call-a-tool-from-mcp-inspector) with it.
 
-**5. Check the audit log.** As in [guide 2](02-database-security.md#the-audit-log), the `caller` column now shows `claude` and `copilot` instead of `local`.
+**5. Check the audit log,** with the query in [guide 4](04-database-security.md#the-audit-log). The `caller` column now shows `claude` and `copilot` instead of `local`.
 
 **Your own token names.** A name the database doesn't know sees no customers at all: every answer comes back empty. To give a new name its states, connect as the admin (`docker compose exec db psql -U postgres -d insurance`) and add a row per state:
 
@@ -234,6 +234,6 @@ The tests start the server inside the test process, with no network port, and ta
 
 ## Next
 
-[Guide 4](04-rag.md) goes deep on search by meaning: how the embeddings are made and searched, the RAG tools, and what RAG isn't good for.
+[Guide 4](04-database-security.md) goes deep on the database: the role that can't read a table, the tables themselves, row-level security, and the audit log.
 
 [Using this with your own data](../using-your-own-data.md) explains how to point the same design at a real company's data, and lists the honest limits in one place.

@@ -134,7 +134,7 @@ Random data doesn't guarantee an interesting answer to each demo question. So, a
 | "Find the customer called Rutherford and show their policies." | A Rutherford with two policies. |
 | "What's covered on policy AUT-104233, and what's the deductible?" | That policy exists, with full coverage and a $500 deductible. |
 | "Which open claims are over $20k and more than 90 days old?" | A handful of them, not zero and not hundreds. |
-| "Which repair shops have the highest average repair cost this year?" | One shop is clearly the most expensive. |
+| "Which repair shops have the highest average repair cost in the last 12 months?" | One shop is clearly the most expensive. |
 | "How many windshield claims did we have last month, compared with the month before?" | A visible jump between the two months. |
 | "Show me the claim history for Maria Garcia. Has she claimed more than twice in three years?" | Yes: three claims. |
 | "Which adjuster has the most open claims?" | One adjuster clearly leads. |
