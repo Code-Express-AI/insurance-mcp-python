@@ -232,7 +232,7 @@ Each tool is a plain `async` Python function registered with the SDK. They all f
 5. **Results are plain JSON lists or objects**, with the same field names as the database function (`claim_id`, `policy_number`). Never internal ids.
 6. **Every tool is marked read-only** with MCP's tool annotations (`readOnlyHint: true`). It's only a hint: it tells AI clients the tool doesn't change anything, and each client decides what to do with that (for example, whether it still asks the user before calling it). The real guarantee is the database.
 7. **Relative dates are worked out in the database.** Tools that need a period take one of a fixed list: `"last_month"`, `"last_3_months"`, `"last_12_months"`, `"this_year"`, `"last_year"`. The database function works out the dates from the dataset's "as of" date, so the model never does date arithmetic.
-8. **The "as of" date is the latest date in the data:** `select max(date_reported) from insurance.claims`, in one small helper function that the other functions call. No extra table. With about 14 claims reported a day, that's 31 December 2026 in practice, and a test checks it.
+8. **The "as of" date is the latest date in the data:** `select max(date_reported) from insurance.claims`, in one small helper function that the other functions call. No extra table. With about 14 claims reported a day, that's the day the data was set up, and a test checks it.
 
 ### Writing for the model
 
@@ -303,7 +303,7 @@ The RAG part adds three more, `search_claim_text`, `find_similar_claims` and `se
 MCP lets the server send instructions when a client connects, and good clients add them to the model's context. Ours are short:
 
 - This is a demo dataset for a fictional US auto insurer. All data is synthetic.
-- The data ends on 2026-12-31. Treat that date as today for every relative date.
+- The data runs up to the day it was loaded. Call get_dataset_info for its date range.
 - Use the ids returned by one tool as the arguments of the next. Don't invent ids or numbers.
 - Some fields are masked on purpose. Don't try to work around it.
 - No tool can change data. If asked to change something, say so.
@@ -348,9 +348,9 @@ pytest, in `tests/server/`. Most use the real database in the test container (sp
 - **Errors:** a database error reaches the caller as the generic message only, with no SQL, function names or context line.
 - **Audit:** every tool call writes one audit row with the right caller. If the audit write fails, the result isn't returned.
 - **Every tool** works end to end against the generated data, and is marked read-only.
-- **Server instructions** are sent to the client, and their date matches the database's "as of" date.
+- **Server instructions** are sent to the client, and point the model to `get_dataset_info` for the date range.
 - **Descriptions:** every tool and every argument has a description (decision 9).
-- **The "as of" date** is 31 December 2026, so a change to the data generator can't quietly move it and break every relative-date demo (decision 9).
+- **The "as of" date** is the day the data was set up, and `last_month` returns claims from last month on the calendar, so relative-date questions work whenever someone installs it (decision 9).
 - **Tokens:** the server refuses to start with a token shorter than 32 characters.
 - **Failed tokens:** the 11th bad-token request in a minute from one address gets `429`.
 - **Recovery:** a blocked caller or address is let in again once its hits leave the window, and rejected hits don't count. The test uses a fake clock, so it doesn't wait a minute.

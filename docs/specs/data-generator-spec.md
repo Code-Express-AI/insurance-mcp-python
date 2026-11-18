@@ -47,22 +47,18 @@ Everyone must get exactly the same customers, policies and claims. Otherwise "fi
 
 ## 3. Dates and the "as of" date
 
-**Status:** Agreed
+**Status:** Agreed. Changed by Liam on 2026-11-18: the data used to end on a fixed date, 31 December 2026.
 
-- **The data covers three full calendar years: 1 January 2024 to 31 December 2026.** Three years is the minimum for "has she claimed more than twice in three years?", and full calendar years give clean answers: "this year" is all of 2026, "last year" all of 2025.
-- **The data never expires.** The model is told where "today" is in the data (see below), so data ending in 2026 works just as well in 2028. A later end date would only make the data look more current.
-- **A fixed date, not relative to today.** If the data moved with the calendar, every run would differ and the demo numbers would change. Someone running it in 2028 gets the same data as the docs.
-- **Not in the future.** The end date is already in the past when the project is published, so no demo answer mentions a month that hasn't happened yet.
-- **One setting drives every date.** All dates, planted facts included ("a jump in windshield claims last month", "open claims more than 90 days old"), are calculated from one `AS_OF_DATE` constant. Changing it regenerates the same stories and planted facts with new dates, and the tests still pass.
-- **Fixed for the life of the project.** Once the docs are published, everyone's data must match the answers they show. Changing `AS_OF_DATE` changes every date in the answers, so don't.
+- **The data runs up to the day it's set up.** `AS_OF_DATE` is the day the setup command runs, so "last month" on the calendar is last month in the data, whenever someone installs it. The data covers the three years up to that day: three years is the minimum for "has she claimed more than twice in three years?".
+- **Why not a fixed date:** AI assistants put the real current date into the model's context. With data that ended in 2026, someone asking "how many claims last month?" in 2027 got the wrong month or nothing, with nothing saying why. The videos and docs stay up for years, so a fixed date would have failed most people's first question of their own.
+- **The same data, with moving dates.** The fixed seed still gives everyone the same customers, policies and claims, and every planted fact holds ("a jump in windshield claims last month", "open claims more than 90 days old"). Only the dates move. Every random date is drawn from a range counted in days, never calendar months or years: a range one leap day longer uses up the random numbers differently, and from then on everyone's data would differ. The one exception is the planted claims that must fall in last month on the calendar: which policies are active then changes from month to month, so a few dozen of them differ, and the open-claim and note totals move by a handful. The generator starts a fresh random object after the planted records, so the difference stops there.
+- **One setting drives every date.** Every date, planted facts included, is worked out from `AS_OF_DATE`. The planted people's birthdays and cars' model years stay fixed, as real ones would.
+- **Rerun the setup to bring it up to date.** Data set up in March is still "as of" March in June. The server instructions point the model to `get_dataset_info`, which gives the data's date range.
 
-**The catch: the model already has its own "today".** AI assistants put the real current date into the model's context. In March 2027 the model believes it's March 2027, so "how many windshield claims last month?" would query February 2027 and find nothing. Three measures, strongest first:
+**The model and the data agree on "today"** on the day it's set up, so relative dates need no special handling. Two measures cover the gap after that:
 
-1. **Tools take relative periods where it matters.** For demo questions with relative dates, the tool accepts the period itself (for example `period: "last_month"`) and the server works out the dates from `AS_OF_DATE`. The model does no date arithmetic, so it can't get it wrong. Which tools need this is decided with the tools (spec decision 9).
-2. **Server instructions.** MCP lets a server send instructions when a client connects, and good clients add them to the model's context: "This is a demo dataset that ends on 2026-12-31. Treat that date as today for every relative date."
-3. **A date-range tool** that returns the data's dates and says `as_of_date` is "today" for this data. Its description tells the model to call it first whenever a question mentions a relative date.
-
-**Honest limit:** measures 2 and 3 only guide the model, so it can still occasionally get a relative date wrong. Only measure 1 removes the problem, and only for the tools that use it.
+1. **Tools take relative periods where it matters** (for example `period: "last_month"`), and the database works out the dates from the as-of date (spec decision 9).
+2. **Server instructions and a date-range tool:** the instructions tell the model the data runs up to the day it was loaded, and to call `get_dataset_info` for its date range.
 
 ## 4. Volumes
 

@@ -5,6 +5,7 @@ import logging
 
 import pytest
 
+from insurance_database.generate.config import AS_OF_DATE
 from insurance_mcp.audit import GENERIC_ERROR
 from insurance_mcp.tools import INSTRUCTIONS, TOOL_ARGUMENTS
 
@@ -35,7 +36,7 @@ async def test_get_dataset_info_works_with_both_protocol_versions(settings, admi
         result = await client.call_tool("get_dataset_info", {})
 
     assert not result.is_error
-    assert '"as_of_date": "2026-12-31"' in text_of(result)
+    assert f'"as_of_date": "{AS_OF_DATE.isoformat()}"' in text_of(result)
     customers = admin.execute("select count(*) from insurance.customers").fetchone()[0]
     assert f'"customer_count": {customers}' in text_of(result)
 
@@ -74,13 +75,14 @@ async def test_every_tool_and_argument_has_a_description(settings):
             assert schema.get("description"), f"{tool.name}({name}) has no description"
 
 
-async def test_the_server_instructions_are_sent_and_their_date_matches_the_data(settings, reader):
+async def test_the_server_instructions_are_sent_and_the_data_runs_up_to_today(settings, reader):
     async with connect(settings) as client:
         assert client.instructions == INSTRUCTIONS
 
     as_of = reader.execute("select as_of_date from mcp.get_dataset_info()").fetchone()[0]
-    assert as_of == datetime.date(2026, 12, 31)
-    assert f"The data ends on {as_of.isoformat()}." in INSTRUCTIONS
+    # The data's "today" is the day it was generated, so "last month" has data in it.
+    assert as_of == AS_OF_DATE == datetime.date.today()
+    assert "Call get_dataset_info for its date range." in INSTRUCTIONS
 
 
 async def test_an_unknown_tool_is_a_tool_error(settings):
@@ -166,7 +168,7 @@ async def test_the_log_has_no_tool_arguments_or_results(settings, caplog):
         if not record.name.startswith(("mcp.client", "httpx2"))
     )
     assert "as_of_date" not in server_log
-    assert "2026-12-31" not in server_log
+    assert AS_OF_DATE.isoformat() not in server_log
     assert "Rutherford" not in server_log
     assert "Eleanor" not in server_log
     # The rejected argument is logged with the caller, tool and argument name.

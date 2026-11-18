@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 # description also says to call it first for relative dates.
 INSTRUCTIONS = """\
 This is a demo dataset for a fictional US auto insurer. All data is synthetic.
-The data ends on 2026-12-31. Treat that date as today for every relative date.
+The data runs up to the day it was loaded. Call get_dataset_info for its date range.
 Use the ids returned by one tool as the arguments of the next. Don't invent ids or numbers.
 Some fields are masked on purpose. Don't try to work around it.
 No tool can change data. If asked to change something, say so.
@@ -79,7 +79,7 @@ ClaimType = Literal["collision", "theft", "glass", "fire", "vandalism", "weather
 Fault = Literal["at_fault", "not_at_fault", "shared"]
 CoverageLevel = Literal["liability", "liability_collision", "full"]
 
-PERIOD = "Worked out from the as-of date, 2026-12-31, in whole calendar months."
+PERIOD = "Worked out from the as-of date (see get_dataset_info), in whole calendar months."
 
 
 async def run(

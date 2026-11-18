@@ -12,6 +12,8 @@ import pytest
 from psycopg import errors
 from psycopg.rows import dict_row
 
+from insurance_database.generate.config import AS_OF_DATE, years_before
+
 PHONE = re.compile(r"\(?\b[0-9]{3}\)?[-. ]?[0-9]{3}[-. ][0-9]{4}\b")
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
@@ -137,7 +139,7 @@ def test_search_claim_text_applies_every_filter(fake_embeddings, reader, unit_ve
     for row in found:
         assert (row["claim_type"], row["status"]) == ("collision", "open")
         assert row["reserve"] >= 5000
-        assert str(row["date_reported"]) >= "2026-01-01"
+        assert row["date_reported"] > years_before(AS_OF_DATE, 1)
 
 
 def test_search_claim_text_rejects_an_unknown_period(fake_embeddings, reader, unit_vector):

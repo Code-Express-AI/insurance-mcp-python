@@ -24,7 +24,7 @@
 
 set role insurance_owner;
 
--- The dataset's "today": the latest date a claim was reported (31 December 2026).
+-- The dataset's "today": the latest date a claim was reported (the day the data was set up).
 create function insurance.as_of_date()
 returns date
 language sql

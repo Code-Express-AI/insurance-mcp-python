@@ -126,7 +126,7 @@ Each of these has an exact answer in the data, and most need several tools in a 
 - "Which adjuster has the most open claims?"
 - "How many at-fault claims involved a teenage driver this year?"
 
-**"This year" and "last month" mean 2026.** The data ends on 2026-12-31, and the server tells the assistant to treat that date as today, so "last month" is November 2026, whatever today's date is.
+**"Last month" means last month.** The data runs up to the day you ran the setup command, so relative dates work as you'd expect. If you set it up a while ago, run `uv run python -m insurance_database.setup_db` again to bring it up to today.
 
 A few insurance words: the **deductible** is the part of a claim the customer pays themselves, the **reserve** is what the insurer expects a claim to cost in total, and an **adjuster** is the insurer's employee who handles the claim.
 

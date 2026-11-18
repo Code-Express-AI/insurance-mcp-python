@@ -110,12 +110,12 @@ You should get:
 
 ```json
 {
-  "as_of_date": "2026-12-31",
-  "first_date_reported": "2024-01-01",
+  "as_of_date": "2026-11-18",
+  "first_date_reported": "2023-11-19",
   "customer_count": 12002,
-  "policy_count": 14930,
+  "policy_count": 14922,
   "claim_count": 15090,
-  "open_claim_count": 781
+  "open_claim_count": 770
 }
 ```
 

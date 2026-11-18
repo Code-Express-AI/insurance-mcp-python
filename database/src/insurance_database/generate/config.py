@@ -1,18 +1,32 @@
-"""The fixed settings behind the data: its dates, its seed and its two sizes.
+"""The settings behind the data: its dates, its seed and its two sizes.
 
-Change none of these once the docs are published: every answer in the docs
-depends on them.
+Change the seed or the sizes and every answer in the docs changes with them.
 """
 
 import datetime
 from dataclasses import dataclass
 
-# The data covers three full calendar years.
-START_DATE = datetime.date(2024, 1, 1)
 
-# The dataset's "today". Every date, planted facts included, is worked out from
-# it. It's in the past and fixed, so the data never changes with the calendar.
-AS_OF_DATE = datetime.date(2026, 12, 31)
+def years_before(day: datetime.date, years: int) -> datetime.date:
+    """The same day, `years` earlier. February 29 becomes February 28."""
+    try:
+        return day.replace(year=day.year - years)
+    except ValueError:
+        return day.replace(year=day.year - years, day=28)
+
+
+# The dataset's "today" is the day the data is generated, so "last month" always
+# has data in it, whenever someone installs this. Every date, planted facts
+# included, is worked out from it. The seed keeps the customers, policies and
+# claims the same for everyone: only their dates move with the calendar.
+# Run setup_db again to bring the data up to date.
+AS_OF_DATE = datetime.date.today()
+
+# The data covers the three years up to the as-of date. Counted in days, not
+# calendar years: a date range that's a day longer (a leap day) uses up the
+# random numbers differently, and from then on everyone's data would differ.
+# The same goes for every random date in the generator.
+START_DATE = AS_OF_DATE - datetime.timedelta(days=3 * 365)
 
 # The same seed gives everyone the same customers, policies and claims.
 SEED = 2026

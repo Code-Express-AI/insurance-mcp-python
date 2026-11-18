@@ -15,7 +15,7 @@ Running 03_permissions.sql
 Running 04_functions.sql
 Running 05_audit.sql
 Running 06_row_security.sql
-Loaded full data: 12,002 customers, 14,930 policies, 15,090 claims, 76,630 claim notes.
+Loaded full data: 12,002 customers, 14,922 policies, 15,090 claims, 76,892 claim notes.
 Database ready.
 ```
 
@@ -309,7 +309,7 @@ Requests that never reach a tool, such as ones with a bad token, aren't in the a
 All of it is fake. Nothing describes a real person, vehicle or company.
 
 - **The same for everyone.** The generator uses a fixed random seed, so you get exactly the same customers, policies and claims as everyone else, and as these guides. Only the `public_id` UUIDs differ, and nothing relies on them.
-- **"Today" is 31 December 2026.** The data covers 2024 to 2026, and never moves with the calendar. The MCP server tells the AI assistant to treat that date as today, so "last month" means November 2026.
+- **"Today" is the day you set it up.** The data covers the three years up to the day you ran the setup command, so "last month" means last month. The customers, policies and claims are the same for everyone; only their dates move with the calendar. Run the setup command again to bring the data up to today.
 - **Real places, fake people.** Cities, ZIP codes and area codes are real, in Texas, Oklahoma, Colorado, New Mexico and Arizona. Names, street addresses, license plates and driver's license numbers are made up. Every email is at `example.com`, and every phone number is in the `555-0100` to `555-0199` range, which is reserved for fiction.
 - **Planted records.** A few records are added on purpose, so the demo questions have good answers: one customer called Rutherford with two policies, Maria Garcia with three claims, one repair shop that's clearly the most expensive. They're all listed at the top of [`planted.py`](../../database/src/insurance_database/generate/planted.py).
 

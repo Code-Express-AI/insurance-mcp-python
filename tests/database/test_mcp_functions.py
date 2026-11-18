@@ -82,7 +82,8 @@ def test_get_claim_returns_the_latest_20_notes_and_counts_them_all(admin, reader
         """
         insert into insurance.claim_notes (claim_id, adjuster_id, created_at, note)
         select %s, (select min(id) from insurance.adjusters),
-               '2026-12-31 23:00+00'::timestamptz - n * interval '1 minute', 'Extra note ' || n
+               insurance.as_of_date() + interval '23 hours' - n * interval '1 minute',
+               'Extra note ' || n
         from generate_series(1, 25) as n
         """,
         [claim_id],

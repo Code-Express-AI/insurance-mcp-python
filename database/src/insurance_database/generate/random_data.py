@@ -9,7 +9,7 @@ import random
 from decimal import Decimal
 
 from insurance_database.generate import reference, text
-from insurance_database.generate.config import AS_OF_DATE, START_DATE
+from insurance_database.generate.config import AS_OF_DATE, START_DATE, years_before
 from insurance_database.generate.records import (
     Adjuster,
     Claim,
@@ -75,7 +75,7 @@ def age_on(date_of_birth: datetime.date, day: datetime.date) -> int:
 
 def birth_date(rng: random.Random, age: int) -> datetime.date:
     """A date of birth that makes someone `age` on the as-of date."""
-    latest = AS_OF_DATE.replace(year=AS_OF_DATE.year - age)
+    latest = years_before(AS_OF_DATE, age)
     return latest - datetime.timedelta(days=rng.randint(0, 364))
 
 
@@ -187,7 +187,7 @@ def make_vehicle(rng: random.Random) -> Vehicle:
     model = rng.choices(
         reference.VEHICLE_MODELS, weights=[m.weight for m in reference.VEHICLE_MODELS]
     )[0]
-    model_year = rng.randint(2010, AS_OF_DATE.year)
+    model_year = rng.randint(AS_OF_DATE.year - 16, AS_OF_DATE.year)
     # Cars lose about 15% of their value a year.
     value = max(2_000, model.new_value * 0.85 ** (AS_OF_DATE.year - model_year))
     return Vehicle(
@@ -228,7 +228,7 @@ def make_family_member(
 def make_policy(rng: random.Random, customer: Customer, drivers: list[Driver]) -> Policy:
     vehicle = make_vehicle(rng)
     # Older cars are more often insured for liability only.
-    if vehicle.model_year < 2015:
+    if vehicle.model_year < AS_OF_DATE.year - 11:
         level_weights = (50, 25, 25)
     else:
         level_weights = (15, 25, 60)
@@ -246,7 +246,11 @@ def make_policy(rng: random.Random, customer: Customer, drivers: list[Driver]) -
     premium = base_premium * rng.uniform(0.8, 1.25) * (1.45 if young_driver else 1.0)
     premium -= deductible * 0.15  # a higher deductible means a lower premium
 
-    start_date = random_date(rng, datetime.date(2014, 1, 1), datetime.date(2026, 11, 30))
+    start_date = random_date(
+        rng,
+        AS_OF_DATE - datetime.timedelta(days=13 * 365),
+        AS_OF_DATE - datetime.timedelta(days=31),
+    )
     end_date, status = None, "active"
     earliest_end = max(start_date + datetime.timedelta(days=60), START_DATE)
     if rng.random() < 0.10 and earliest_end < AS_OF_DATE:

@@ -27,12 +27,12 @@ Then it splits the three policy booklets at their headings and embeds the 37 sec
 ```text
 Policy booklets:    37 sections
 Claim descriptions: 15,090 / 15,090 (100%)
-Claim notes:        23,040 / 76,630 (30%), about 2 min left
+Claim notes:        23,040 / 76,892 (30%), about 2 min left
 ```
 
 **It does the quick parts first.** The booklets take seconds, and the 15,090 accident descriptions about a minute, so the policy and accident searches work almost straight away. Until it's finished, the searches simply skip the text that isn't embedded yet.
 
-**The 76,630 adjusters' notes take the rest of the time, and your fans will run loud.** The notes are about three times as long as the descriptions, and there are five times as many. The model uses every CPU core, and that's normal. On a fast laptop the whole run takes about 3.5 minutes. An older one can take 15 minutes or more.
+**The 76,000 or so adjusters' notes take the rest of the time, and your fans will run loud.** The notes are about three times as long as the descriptions, and there are five times as many. The model uses every CPU core, and that's normal. On a fast laptop the whole run takes about 3.5 minutes. An older one can take 15 minutes or more.
 
 **Stopping it is fine.** Press Ctrl+C at any time. Every finished batch is already saved, so run the command again and it carries on where it stopped.
 

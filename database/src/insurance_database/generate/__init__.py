@@ -34,6 +34,11 @@ def build_dataset(size: str) -> Dataset:
     random_data.add_claims(rng, data, counts.claims)
     planted.add_planted_records(rng, data)
 
+    # A fresh random object for the rest. Some planted claims depend on the
+    # calendar ("last month"), so they can use up the random numbers differently
+    # from one month to the next. Starting again here keeps everyone's claim
+    # numbers, payments and notes the same, whenever the data is set up.
+    rng = random.Random(SEED + 1)
     random_data.give_out_numbers(rng, data)
     random_data.add_payments_and_notes(rng, data)
     return data

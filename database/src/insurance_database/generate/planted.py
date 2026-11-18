@@ -119,7 +119,11 @@ def add_busiest_adjuster_claims(rng: random.Random, data: Dataset) -> list[Claim
 def add_windshield_jump(rng: random.Random, data: Dataset) -> None:
     """35 extra glass claims last month, after road work on I-25 in Colorado threw up gravel."""
     for _ in range(35):
-        date_of_loss = random_date(rng, LAST_MONTH_START, LAST_MONTH_END)
+        # Within the first 28 days, which every month has: the same range in any
+        # month keeps the random numbers, and so everyone's data, the same.
+        date_of_loss = random_date(
+            rng, LAST_MONTH_START, LAST_MONTH_START + datetime.timedelta(days=27)
+        )
         policy = random_active_policy(rng, data, date_of_loss, "glass", state="CO")
         # Reported the same day, so every one counts in last month.
         data.claims.append(make_claim(rng, data, policy, date_of_loss, "glass", date_of_loss))

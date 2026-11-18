@@ -18,7 +18,7 @@ from psycopg import sql
 from psycopg.rows import dict_row
 
 from insurance_database.generate import planted
-from insurance_database.generate.config import AS_OF_DATE
+from insurance_database.generate.config import AS_OF_DATE, years_before
 
 
 def rows(reader, query: str, *args) -> list[dict]:
@@ -31,6 +31,18 @@ def rows(reader, query: str, *args) -> list[dict]:
 
 def test_the_as_of_date_is_the_one_in_the_generator(reader):
     assert rows(reader, "select * from mcp.get_dataset_info()")[0]["as_of_date"] == AS_OF_DATE
+
+
+def test_last_month_has_claims_whenever_the_data_is_set_up(reader):
+    # "How many claims did we have last month?" The data runs up to the day it's
+    # set up, so last month on the calendar is last month in the data.
+    first_of_this_month = datetime.date.today().replace(day=1)
+    last_month_end = first_of_this_month - datetime.timedelta(days=1)
+    last_month_start = last_month_end.replace(day=1)
+
+    claims = rows(reader, "select * from mcp.search_claims(p_period => 'last_month')")
+    assert claims
+    assert all(last_month_start <= c["date_reported"] <= last_month_end for c in claims)
 
 
 def test_there_is_one_rutherford_with_two_policies(reader):
@@ -63,7 +75,7 @@ def test_maria_garcia_has_claimed_three_times_in_three_years(reader):
     )
     # Newest first. The latest is still open, for "please accept Maria Garcia's claim".
     assert [c["status"] for c in claims] == ["open", "settled", "settled"]
-    assert all(c["date_reported"] > AS_OF_DATE.replace(year=AS_OF_DATE.year - 3) for c in claims)
+    assert all(c["date_reported"] > years_before(AS_OF_DATE, 3) for c in claims)
 
 
 def test_six_open_claims_are_over_20k_and_more_than_90_days_old(reader):

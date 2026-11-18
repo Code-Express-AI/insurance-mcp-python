@@ -182,13 +182,13 @@ In schema `insurance`, so `mcp_reader` can't call them (no `USAGE`, no `EXECUTE`
 | `insurance.escape_like(text)` | Escapes `\`, `%` and `_` for `ILIKE` (above). |
 | `insurance.mask_email(text)`, `insurance.mask_last4(text)`, `insurance.redact_text(text)` | Masking (decision 9). |
 
-**Periods**, worked out from the as-of date (31 December 2026), in whole calendar months:
+**Periods**, worked out from the as-of date (the day the data was set up), in whole calendar months. The examples are for an as-of date of 18 November 2026:
 
 | Period | Dates | Example |
 |---|---|---|
-| `last_month` | The calendar month before the as-of month | November 2026 |
-| `last_3_months` | The as-of month and the 2 before it | October to December 2026 |
-| `last_12_months` | The as-of month and the 11 before it | January to December 2026 |
+| `last_month` | The calendar month before the as-of month | October 2026 |
+| `last_3_months` | The as-of month and the 2 before it | September to November 2026 |
+| `last_12_months` | The as-of month and the 11 before it | December 2025 to November 2026 |
 | `this_year` | 1 January of the as-of year to the as-of date | 2026 |
 | `last_year` | The calendar year before | 2025 |
 

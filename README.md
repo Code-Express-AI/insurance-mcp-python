@@ -39,7 +39,7 @@ uv run python -m insurance_database.setup_db
 `--wait` waits until PostgreSQL is ready. The first time, Docker downloads the PostgreSQL image, which takes a minute or two. The setup command takes a few seconds, and ends with:
 
 ```text
-Loaded full data: 12,002 customers, 14,930 policies, 15,090 claims, 76,630 claim notes.
+Loaded full data: 12,002 customers, 14,922 policies, 15,090 claims, 76,892 claim notes.
 Database ready.
 ```
 
@@ -136,7 +136,7 @@ The same command without `--booklets-only` also reads every accident description
 uv run python -m insurance_database.embed
 ```
 
-The descriptions take about a minute. The 76,630 notes take a few minutes on a fast laptop and 15 or more on an older one, and the fans on your machine may get loud. You can ask these as soon as the descriptions are done:
+The descriptions take about a minute. The 76,000 or so notes take a few minutes on a fast laptop and 15 or more on an older one, and the fans on your machine may get loud. You can ask these as soon as the descriptions are done:
 
 - "Find claims where the car was hit while parked at a supermarket."
 - "Which claims have notes about a neck injury?" (it finds more once it says `Embeddings ready.`)
