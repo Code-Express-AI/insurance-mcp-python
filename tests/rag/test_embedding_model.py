@@ -80,11 +80,13 @@ def test_the_embed_command_embeds_every_text(embedded, admin):
     assert missing == (0, 0, 37)
 
 
-def test_running_the_embed_command_again_embeds_nothing_new(embedded, admin_url, capsys):
+def test_running_the_embed_command_again_embeds_nothing_new(embedded, admin, admin_url, capsys):
+    # The number of notes depends on the day the data was made, so ask the database.
+    notes = admin.execute("select count(*) from insurance.claim_notes").fetchone()[0]
     embed_everything(admin_url)
     output = capsys.readouterr().out
     assert "Policy booklets:    already loaded" in output
-    assert "Claim notes:        4,177 / 4,177 (100%)\n" in output
+    assert f"Claim notes:        {notes:,} / {notes:,} (100%)\n" in output
 
 
 def test_the_embed_command_carries_on_where_it_stopped(embedded, admin, admin_url):
