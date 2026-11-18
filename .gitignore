@@ -1,8 +1,9 @@
 # Secrets: connection strings, passwords, tokens
 .env
 
-# Private: Claude's project instructions and the security review
+# Private: Claude's project instructions, notes and the security review
 CLAUDE.md
+notes-for-claude.md
 security-review.md
 
 # Throwaway prototype: never checked in
