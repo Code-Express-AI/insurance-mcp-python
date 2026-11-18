@@ -1,8 +1,8 @@
--- 05_audit.sql: the audit log, one row per tool call.
+-- 050_audit.sql: the audit log, one row per tool call.
 --
 -- PostgreSQL has no built-in append-only tables, so the log is built from three parts:
 --   1. Only mcp_owner can insert, and only through mcp.write_audit
---      (in 07_mcp_functions.sql, with the other mcp functions).
+--      (in 080_mcp_functions.sql, with the other mcp functions).
 --      Nobody gets UPDATE or DELETE.
 --   2. A trigger blocks UPDATE, DELETE and TRUNCATE for everyone.
 --   3. A hash chain: each row stores a hash of its own data plus the previous
@@ -124,4 +124,4 @@ reset role;
 -- What can mcp_reader do at this point?
 -- The same as before: nothing in the insurance schema. It writes to the log
 -- through mcp.write_audit, created with the other mcp functions in
--- 07_mcp_functions.sql.
+-- 080_mcp_functions.sql.

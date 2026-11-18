@@ -39,12 +39,12 @@ Everything from the request to a working tool:
 - **Its data:** a short fixed list in the SQL file, many generated rows in the data generator, or text to search by meaning, loaded and embedded by the embed command. It also covers what the data may contain (made up, US, the fictional phone range, `example.com`).
 - **Embeddings:** the column, the section length the model reads, the loader, and the search function's checks.
 - **The function, the grant, the Python tool and the tests.**
-- **What the human runs** to see it working: `update_db` for a new function (or the setup and embed commands after a new table), a server restart, and reconnecting the assistant.
+- **What the human runs** to see it working: `update_db` for a new function or table (the setup command only for a table filled by the data generator), the embed command for text searched by meaning, a server restart, and reconnecting the assistant.
 - **What it refuses:** writes, raw SQL, table grants to `mcp_reader`, changes to what exists, real data, and weakening a test.
 
 ## 3. Generic, not tied to the existing tools (Agreed)
 
-Liam, 2026-11-18: the skill names no existing tool or function. It names the files, the shared helpers (`insurance.mask_email()`, `insurance.period_dates()`, ...), the argument types and the tests to change. Where a pattern helps, it says "copy the closest function in `sql/07_mcp_functions.sql`", and the assistant picks that function in step 1.
+Liam, 2026-11-18: the skill names no existing tool or function. It names the files, the shared helpers (`insurance.mask_email()`, `insurance.period_dates()`, ...), the argument types and the tests to change. Where a pattern helps, it says "copy the closest function in `sql/080_mcp_functions.sql`", and the assistant picks that function in step 1.
 
 Two reasons. The skill stays true when tools are added or changed. And it doesn't lead the assistant towards a tool that already exists when it builds video 3's tool.
 
@@ -68,5 +68,5 @@ There's no automated test for a skill. It's tested by use:
 
 ## Known limits
 
-- **A new table still rebuilds everything.** A new function only needs `update_db`, which keeps the data, the embeddings and the audit log. A new table needs the setup command: the audit log is emptied and the embeddings are removed.
+- **A table filled by the data generator still rebuilds everything.** A new function, or a new table in `sql/070_added_tables.sql` ([database-spec.md](database-spec.md), decision 17), only needs `update_db`, which keeps the data, the embeddings and the audit log. Rows from the data generator need the setup command: the audit log is emptied and the embeddings are removed.
 - **"Returns a column it shouldn't"** is only partly tested: the test with one customer's personal data catches personal data, not every unneeded column. The review list covers the rest.

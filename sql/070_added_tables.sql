@@ -1,0 +1,37 @@
+-- 070_added_tables.sql: tables added after the first setup.
+--
+-- update_db runs this file and then 080_mcp_functions.sql, in one transaction,
+-- so a new table and the function that reads it load without a rebuild: the
+-- data, the embeddings and the audit log stay as they are. setup_db runs it
+-- too, in order with the other files.
+--
+-- update_db runs it again every time, so everything here must be safe to run
+-- twice:
+--   create table if not exists          never a plain create table
+--   grant select ... to mcp_owner       select only, and never to mcp_reader
+--   insert ... on conflict do nothing   only for a short fixed list of rows
+--   drop policy if exists, then create policy
+--                                       only for a table with customer data
+--
+-- To change a table that's already here, rebuild with setup_db: create table if
+-- not exists leaves an existing table as it is.
+--
+-- An example, for a table of text to search by meaning:
+--
+--   set role insurance_owner;
+--
+--   create table if not exists insurance.<things> (
+--       id        bigint generated always as identity primary key,
+--       heading   text not null unique,
+--       content   text not null,
+--       embedding public.vector(384) not null
+--   );
+--
+--   reset role;
+--
+--   grant select on insurance.<things> to mcp_owner;
+--
+-- No tables have been added yet.
+
+-- What can mcp_reader do at this point?
+-- The same as after 060_row_security.sql: nothing until 080_mcp_functions.sql.

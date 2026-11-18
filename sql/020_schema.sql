@@ -1,4 +1,4 @@
--- 02_schema.sql: the insurance schema and the business tables.
+-- 020_schema.sql: the insurance schema and the business tables.
 --
 -- Every table has two keys:
 --   id         bigint, for joins inside the database. Never leaves it.
@@ -14,7 +14,7 @@
 create extension if not exists vector;
 
 create schema insurance authorization insurance_owner;
--- The mcp schema is created by 07_mcp_functions.sql, with the functions in it.
+-- The mcp schema is created by 080_mcp_functions.sql, with the functions in it.
 
 -- Create the tables as their owner, so insurance_owner owns them.
 set role insurance_owner;
@@ -158,6 +158,6 @@ create index on insurance.claim_notes (claim_id);
 reset role;
 
 -- What can mcp_reader do at this point?
--- The same as after 01_roles.sql. The insurance schema now exists, but it has
+-- The same as after 010_roles.sql. The insurance schema now exists, but it has
 -- no USAGE on it, so it can't reach the tables. It can still connect
 -- and create temporary tables through PUBLIC's defaults.

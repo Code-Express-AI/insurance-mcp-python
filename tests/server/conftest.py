@@ -17,7 +17,7 @@ from insurance_mcp.main import create_app
 from insurance_mcp.settings import Settings
 
 # local sees every state, and is what the tests use unless they say otherwise.
-# The other three see part of the data (sql/06_row_security.sql).
+# The other three see part of the data (sql/060_row_security.sql).
 LOCAL_TOKEN = "local-test-token-0123456789abcdefghijklm"
 CLAUDE_TOKEN = "claude-test-token-0123456789abcdefghijk"
 COPILOT_TOKEN = "copilot-test-token-0123456789abcdefghij"

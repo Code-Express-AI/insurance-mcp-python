@@ -6,7 +6,7 @@ Everything here follows normal PostgreSQL conventions.
 
 **Portable by design:** the same scripts must run unchanged on the local Docker database and on a hosted PostgreSQL service such as Neon (decision 14). So nothing may need a real superuser, the setup can't rely on Docker-only features, and the only difference between the two is the connection string.
 
-**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** a new decision 15, with small changes to decisions 6, 12 and 13.
+**Signed off by Liam on 2026-11-05.** Decisions marked Agreed are signed off. **Row-level security signed off by Liam on 2026-11-12:** a new decision 15, with small changes to decisions 6, 12 and 13. **Adding a table without a rebuild signed off by Liam on 2026-11-18:** a new decision 17, with the files renumbered in tens (decision 12).
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -30,6 +30,7 @@ Everything here follows normal PostgreSQL conventions.
 | 14 | Hosting on Neon (optional) | Agreed |
 | 15 | Row-level security: each caller sees only its own customers | Agreed |
 | 16 | Reloading the functions without a rebuild: `update_db` | Agreed |
+| 17 | Adding a table without a rebuild: `070_added_tables.sql` | Agreed |
 
 ## The lockdown at a glance
 
@@ -137,7 +138,7 @@ Then the grants, which are the whole list of what `mcp_reader` may do:
 
 And for `mcp_owner`: `USAGE` on schema `insurance`, `SELECT` on each table its functions read, `EXECUTE` on the helper functions, and `INSERT` on `insurance.audit_log`, plus `SELECT` on just its `id` and `row_hash` columns (decision 10). No `UPDATE`, `DELETE`, `TRUNCATE` or ownership of anything in `insurance`. This is also a second lock: even if a function in `insurance` somehow had `EXECUTE`, `mcp_reader` couldn't call it without `USAGE` on the schema.
 
-**What we can't lock down:** every role can read the system catalogs, which include table names, column names and the source code of every function. Revoking this breaks normal tools. Every role can also run PostgreSQL's built-in functions, such as `pg_sleep()`, and any extension's functions, such as pgvector's. Our revoke only covers functions our two owners create. Two more of the same kind: `mcp_reader` can connect to the server's other databases (`postgres`, `template1`), because the connect revoke in `03_permissions.sql` only covers our own database, and the setup may not own the others (on a hosted service it doesn't). And advisory lock numbers are shared by every role, so a direct `mcp_reader` session could hold lock 1001, the one `write_audit` waits for (decision 10), and every tool call would fail, because the audit fails closed. That's no worse than using up the 10 connections (decision 11). All of these only matter if someone can send raw SQL, which the MCP server never allows (layer 3). The docs say so plainly.
+**What we can't lock down:** every role can read the system catalogs, which include table names, column names and the source code of every function. Revoking this breaks normal tools. Every role can also run PostgreSQL's built-in functions, such as `pg_sleep()`, and any extension's functions, such as pgvector's. Our revoke only covers functions our two owners create. Two more of the same kind: `mcp_reader` can connect to the server's other databases (`postgres`, `template1`), because the connect revoke in `030_permissions.sql` only covers our own database, and the setup may not own the others (on a hosted service it doesn't). And advisory lock numbers are shared by every role, so a direct `mcp_reader` session could hold lock 1001, the one `write_audit` waits for (decision 10), and every tool call would fail, because the audit fails closed. That's no worse than using up the 10 connections (decision 11). All of these only matter if someone can send raw SQL, which the MCP server never allows (layer 3). The docs say so plainly.
 
 **Which rows each caller sees** is decided by row-level security (decision 15). The grants above decide what `mcp_reader` can do at all. Row-level security then decides which customers' rows the functions return for each caller.
 
@@ -319,13 +320,15 @@ The exact numbers are to be confirmed once the functions exist.
 **Status:** Agreed
 
 - Plain numbered `.sql` files in `sql/`, with no migration tool. This is a demo database that's rebuilt from scratch, not a live system that changes over time:
-  - `01_roles.sql`
-  - `02_schema.sql`
-  - `03_permissions.sql`
-  - `04_helpers.sql`: the helper functions in `insurance`
-  - `05_audit.sql`: the audit log table, its triggers and hash chain
-  - `06_row_security.sql`: the `caller_states` table, its rows and the row-level security policies (decision 15)
-  - `07_mcp_functions.sql`: the `mcp` schema and every `mcp` function, `write_audit` included. `update_db` reruns this file on its own (decision 16)
+  - `010_roles.sql`
+  - `020_schema.sql`
+  - `030_permissions.sql`
+  - `040_helpers.sql`: the helper functions in `insurance`
+  - `050_audit.sql`: the audit log table, its triggers and hash chain
+  - `060_row_security.sql`: the `caller_states` table, its rows and the row-level security policies (decision 15)
+  - `070_added_tables.sql`: tables added after the first setup, written so they can be run again (decision 17)
+  - `080_mcp_functions.sql`: the `mcp` schema and every `mcp` function, `write_audit` included. `update_db` reruns it, after `070` (decisions 16 and 17)
+- **Numbered in tens,** so a file can go between two others without renaming the rest (decision 17).
 - **One small Python setup command runs the files in order**, connecting as the admin role through a connection string in `.env`. It's the same command for Docker and Neon. We don't use Docker's `/docker-entrypoint-initdb.d`, because it only exists in Docker. We don't use `psql` either, because many Windows users won't have it installed, and the project needs Python anyway.
 - The `.sql` files are plain SQL with no `psql` commands, so any tool can run them.
 - **The `mcp_reader` password** comes from `.env`. The setup command sets it after running the files. It hashes the password first (SCRAM-SHA-256, as psql's `\password` does), so only the hash reaches the database: a database that logs its statements, as hosted ones often do, would otherwise write the password to its log. No password is ever written in a committed file. **The setup refuses a password shorter than 24 characters**, so nobody uses `password123`, even locally.
@@ -429,7 +432,7 @@ create table insurance.caller_states (
 );
 ```
 
-It's owned by `insurance_owner`. `mcp_owner` may read it, and `mcp_reader` gets nothing. A new file, `06_row_security.sql`, creates the table, the policies and these rows:
+It's owned by `insurance_owner`. `mcp_owner` may read it, and `mcp_reader` gets nothing. A new file, `060_row_security.sql`, creates the table, the policies and these rows:
 
 | Caller key | States | Why |
 |---|---|---|
@@ -495,7 +498,7 @@ This replaces the `session_user` idea in decision 6: one reader role plus a call
 
 **The command:** `uv run python -m insurance_database.update_db`. It connects as the admin role (`ADMIN_DATABASE_URL`, as `setup_db` does), runs one SQL file in one transaction, and prints what it did. It changes only the `mcp` schema. The data, the embeddings, the audit log, `caller_states`, the roles and the `mcp_reader` password are left as they are. If anything fails, nothing changes. If the database hasn't been set up yet, it says to run `setup_db` first.
 
-**The file it runs: a new `07_mcp_functions.sql`.** It starts with
+**The file it runs: a new `080_mcp_functions.sql`.** It starts with
 
 ```sql
 drop schema if exists mcp cascade;
@@ -515,15 +518,15 @@ That's safe because nothing else lives in `mcp`: the tables, the helpers and the
 
 | File | Before | After |
 |------|--------|-------|
-| `02_schema.sql` | creates both schemas | creates `insurance` only |
-| `03_permissions.sql` | grants `usage on schema mcp` | moves to `07` |
-| `04_functions.sql` | the helpers and the `mcp` functions | renamed `04_helpers.sql`: the helpers only |
-| `05_audit.sql` | the audit log and `mcp.write_audit` | the audit log only. `write_audit` moves to `07`, because dropping the schema drops it |
-| `07_mcp_functions.sql` | (new) | the schema, `write_audit` and every `mcp` function, with their grants |
+| `020_schema.sql` | creates both schemas | creates `insurance` only |
+| `030_permissions.sql` | grants `usage on schema mcp` | moves to `080` |
+| `04_functions.sql` | the helpers and the `mcp` functions | renamed `040_helpers.sql`: the helpers only |
+| `050_audit.sql` | the audit log and `mcp.write_audit` | the audit log only. `write_audit` moves to `080`, because dropping the schema drops it |
+| `080_mcp_functions.sql` | (new) | the schema, `write_audit` and every `mcp` function, with their grants |
 
-`setup_db` still runs every file in order. `01_roles.sql` still drops both schemas first, so a full rebuild is unchanged. The "What can `mcp_reader` do at this point?" notes at the end of each file, and the `mcp-reader-permissions` guide, follow the new order: `mcp_reader` can run nothing until `07`.
+`setup_db` still runs every file in order. `010_roles.sql` still drops both schemas first, so a full rebuild is unchanged. The "What can `mcp_reader` do at this point?" notes at the end of each file, and the `mcp-reader-permissions` guide, follow the new order: `mcp_reader` can run nothing until `080`.
 
-**What it doesn't do:** change tables or helpers. A new table, a new column or a changed helper still needs `setup_db`. Adding a table without a rebuild is a separate decision, for video 5.
+**What it doesn't do:** change tables or helpers. A new table, a new column or a changed helper still needs `setup_db`. Adding a table without a rebuild is decision 17.
 
 **The server can stay running** while it runs. Calls made during the reload wait until it finishes, which takes a moment. Restart the server afterwards to pick up a new or changed Python tool, as the skill already says. *Check during the build:* the server's pooled connections keep working after the functions are recreated, because psycopg prepares a statement after it's been used five times.
 
@@ -532,6 +535,24 @@ That's safe because nothing else lives in `mcp`: the tables, the helpers and the
 - The data, the embeddings and the audit log are the same afterwards, and `verify_audit_log()` still finds no broken row.
 - A function created by hand in `mcp` is gone afterwards.
 - The permissions are exactly the same as after `setup_db` (the existing permissions snapshot).
-- A file with an error leaves every function as it was. `update_db` takes the file's path as an argument, defaulting to `07_mcp_functions.sql`, so this test can pass it a broken copy.
+- A file with an error leaves every function as it was. `update_db` takes the file's path as an argument, defaulting to `080_mcp_functions.sql`, so this test can pass it a broken copy.
 
-**Docs that change:** decision 12's file list, the add-a-tool skill (functions go in `07_mcp_functions.sql`, and step 9 runs `update_db` unless a table was added) and its spec, appendix B's setup output, the `mcp-reader-permissions` guide, guide 2 and the "Using this with your own data" page (file names), and the troubleshooting page if it lists the commands.
+**Docs that change:** decision 12's file list, the add-a-tool skill (functions go in `080_mcp_functions.sql`, and step 9 runs `update_db` unless a table was added) and its spec, appendix B's setup output, the `mcp-reader-permissions` guide, guide 2 and the "Using this with your own data" page (file names), and the troubleshooting page if it lists the commands.
+
+## 17. Adding a table without a rebuild: `070_added_tables.sql`
+
+**Status:** Agreed (Liam, 2026-11-18)
+
+**The problem:** video 5 adds a table (the adjusters' manual, searched by meaning) on camera. Until now a new table went in `020_schema.sql` and needed `setup_db`, which makes the data again, empties the audit log and removes the embeddings. Liam's bar: "create a new table, load some data, add a function: then we're done", not a migration tool.
+
+**The fix: one more file, run by both commands.**
+
+- **New tables go in `sql/070_added_tables.sql`,** never in `020_schema.sql`. On `main` it holds only comments: the rules and an example. Each table brings its own `grant select` to `mcp_owner` and, if it holds customer data, its own row-level security, so the file stands alone.
+- **`update_db` runs `070` and then `080`, in one transaction.** If anything fails, nothing changes, as before. `setup_db` runs it in order with the others, so a fresh setup builds the same database.
+- **Everything in `070` is safe to run twice:** `create table if not exists`, `insert ... on conflict do nothing` for a short fixed list, `drop policy if exists` before `create policy`. Grants are safe to repeat already.
+- **The data:** text searched by meaning is loaded by the embed command, which skips what's already loaded, so `embed --booklets-only` loads a new table's text in seconds. A short fixed list loads with the file. Rows from the data generator still need `setup_db`.
+- **The files are renumbered in tens** (`010_roles.sql` to `080_mcp_functions.sql`), so `070` fits before the functions. The functions must come after the tables they read: `setup_db` runs the files in name order, and PostgreSQL checks a `language sql` function's tables when it's created. Nothing had been recorded yet, so this was the cheapest time to rename.
+
+**What it doesn't do:** change a table that's already there. `create table if not exists` leaves it as it is, so a changed table needs `setup_db`. No `alter table` in `070`: that's where a migration tool starts.
+
+**Tests** (`tests/database/test_update_db.py`): a table added to a copy of `070` loads through `update_db`, keeps its rows when the update runs again, and `mcp_reader` still can't read it. The existing setup tests run the real `070` as part of every setup.

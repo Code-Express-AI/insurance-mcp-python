@@ -1,7 +1,7 @@
 """Row-level security through the server: the token's name decides which customers it sees.
 
 The tokens are in conftest.py. local sees every state, and claude, copilot and
-inspector each see TX and CO plus one state of their own (sql/06_row_security.sql).
+inspector each see TX and CO plus one state of their own (sql/060_row_security.sql).
 """
 
 import pytest

@@ -110,7 +110,7 @@ def test_reader_cannot_log_in_with_a_wrong_password(reader_url):
 #
 # Only our own database is checked. By default PUBLIC may connect to every
 # database on the server and create temporary tables in it, so mcp_reader can
-# open the empty "postgres" database too. 03_permissions.sql can only revoke
+# open the empty "postgres" database too. 030_permissions.sql can only revoke
 # that for our database. It gives no access to any table there.
 EFFECTIVE_RIGHTS = """
 with ours as (

@@ -1,4 +1,4 @@
--- 03_permissions.sql: take away PostgreSQL's defaults, then grant the minimum.
+-- 030_permissions.sql: take away PostgreSQL's defaults, then grant the minimum.
 --
 -- PostgreSQL has no DENY. A role can do what it, or PUBLIC, has been granted.
 -- PUBLIC is a built-in group every role belongs to, and it gets some rights by
@@ -29,7 +29,7 @@ alter default privileges for role mcp_owner revoke execute on functions from pub
 
 -- What mcp_owner may do ----------------------------------------------------------
 -- Read the business tables, and nothing else. No INSERT, UPDATE or DELETE, and
--- it owns nothing in insurance. The audit log grants are in 05_audit.sql.
+-- it owns nothing in insurance. The audit log grants are in 050_audit.sql.
 
 grant usage on schema insurance to mcp_owner;
 
@@ -47,7 +47,7 @@ grant select on insurance.policy_document_chunks to mcp_owner;
 -- What mcp_reader may do ----------------------------------------------------------
 -- Nothing at all on schema insurance, not even USAGE: the mcp functions reach
 -- the tables with their owner's rights. Its rights on the mcp schema and each
--- function are granted in 07_mcp_functions.sql.
+-- function are granted in 080_mcp_functions.sql.
 
 -- What can mcp_reader do at this point?
 -- It can connect, because CONNECT is now granted to it by name rather than

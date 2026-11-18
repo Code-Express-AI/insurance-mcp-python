@@ -1,4 +1,4 @@
--- 06_row_security.sql: each caller sees only the customers in its own states.
+-- 060_row_security.sql: each caller sees only the customers in its own states.
 --
 -- Row-level security (RLS) adds a hidden condition to every query on a table,
 -- so no mcp function can forget the check, and a new one gets it for free.
@@ -81,7 +81,7 @@ create policy visible_claim on insurance.claim_notes for select to mcp_owner
 reset role;
 
 -- What can mcp_reader do at this point?
--- Still nothing: the mcp functions come next, in 07_mcp_functions.sql. From
+-- Still nothing: the mcp functions come next, in 080_mcp_functions.sql. From
 -- then on, each one returns only rows for customers in the states linked to the
 -- caller key the server set. No key means no rows. mcp_reader can set the key
 -- itself with set_config, so the database trusts the server.
