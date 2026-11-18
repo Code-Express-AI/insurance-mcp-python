@@ -1,6 +1,12 @@
--- 04_functions.sql: the helper functions and the mcp functions.
+-- 07_mcp_functions.sql: the mcp schema and every function mcp_reader can call.
 --
--- Rules for every function:
+-- This is the only file update_db runs, so a changed function can be loaded
+-- without rebuilding the data (uv run python -m insurance_database.update_db).
+-- It drops the mcp schema and creates it again, so the schema holds exactly
+-- what's in this file: a function removed here is gone, with its grant.
+-- Nothing else lives in mcp: the tables, helpers and audit log are in insurance.
+--
+-- Rules for every function (the helpers in 04_helpers.sql follow the first two):
 --   SET search_path = ''  and every name written in full (insurance.claims).
 --                         A SECURITY DEFINER function must fix its search_path,
 --                         or a caller could create a look-alike object and
@@ -18,137 +24,78 @@
 --   public keys only     a table's public_id is returned as <thing>_id.
 --   no dynamic SQL       no EXECUTE, no format(): every query is written out.
 
--- Helper functions ---------------------------------------------------------------
--- In schema insurance, owned by insurance_owner. mcp_reader can't call them
--- (no USAGE on the schema, no EXECUTE). The mcp functions call them as mcp_owner.
+drop schema if exists mcp cascade;
+create schema mcp authorization mcp_owner;
 
-set role insurance_owner;
+-- mcp_reader may look in the schema. Which functions it may run is granted one
+-- by one below.
+grant usage on schema mcp to mcp_reader;
 
--- The dataset's "today": the latest date a claim was reported (the day the data was set up).
-create function insurance.as_of_date()
-returns date
-language sql
-stable
-set search_path = ''
-as $$
-    select max(c.date_reported) from insurance.claims as c;
-$$;
+-- The one write function ---------------------------------------------------------
+-- The MCP server calls it after every tool call, including failed ones.
+-- It returns nothing, so mcp_reader can add to the log but never read it.
 
--- Turns a period name into a start and end date, in whole calendar months,
--- counted from the as-of date. Raises an error for an unknown name, so a bug
--- in the server can never turn into "no date filter at all".
-create function insurance.period_dates(p_period text, p_as_of date)
-returns table (start_date date, end_date date)
+set role mcp_owner;
+
+create function mcp.write_audit(
+    p_caller        text,
+    p_tool_name     text,
+    p_arguments     jsonb,
+    p_rows_returned integer,
+    p_duration_ms   integer,
+    p_succeeded     boolean,
+    p_error         text
+)
+returns void
 language plpgsql
-immutable
+volatile
+security definer
 set search_path = ''
 as $$
 declare
-    -- First day of the as-of month.
-    v_month date := date_trunc('month', p_as_of)::date;
-    -- First day of the as-of year.
-    v_year date := date_trunc('year', p_as_of)::date;
+    v_previous_hash text;
+    v_occurred_at timestamptz;
+    v_arguments jsonb := p_arguments;
 begin
-    case p_period
-        when 'last_month' then
-            return query select (v_month - interval '1 month')::date, v_month - 1;
-        when 'last_3_months' then
-            return query select (v_month - interval '2 months')::date, p_as_of;
-        when 'last_12_months' then
-            return query select (v_month - interval '11 months')::date, p_as_of;
-        when 'this_year' then
-            return query select v_year, p_as_of;
-        when 'last_year' then
-            return query select (v_year - interval '1 year')::date, v_year - 1;
-        else
-            raise exception 'Unknown period "%". Use last_month, last_3_months, last_12_months, this_year or last_year.', p_period;
-    end case;
-end;
-$$;
+    -- Without this lock, two calls at the same moment could both chain to the
+    -- same previous row. The number is arbitrary: only this function uses it.
+    -- It's released when the transaction ends.
+    perform pg_advisory_xact_lock(1001);
 
--- Escapes the characters ILIKE treats as wildcards, so a search for "%%"
--- matches only names that really contain "%%", not every row.
--- The backslash goes first, so the backslashes added for % and _ aren't doubled.
-create function insurance.escape_like(p_text text)
-returns text
-language sql
-immutable
-set search_path = ''
-as $$
-    select replace(replace(replace(p_text, '\', '\\'), '%', '\%'), '_', '\_');
-$$;
+    select a.row_hash into v_previous_hash
+    from insurance.audit_log as a
+    order by a.id desc
+    limit 1;
 
--- maria.garcia@example.com -> m***@example.com
-create function insurance.mask_email(p_email text)
-returns text
-language sql
-immutable
-set search_path = ''
-as $$
-    select left(p_email, 1) || '***@' || split_part(p_email, '@', 2);
-$$;
+    -- Set here, after the lock, so times always go up with the id.
+    v_occurred_at := clock_timestamp();
 
--- D1234567 -> *****4567. Always five stars, so the length isn't given away.
-create function insurance.mask_last4(p_value text)
-returns text
-language sql
-immutable
-set search_path = ''
-as $$
-    select '*****' || right(p_value, 4);
-$$;
-
--- Replaces US phone numbers and email addresses in free text (claim
--- descriptions and notes) with [phone] and [email].
--- It can't catch names, street addresses or injuries: patterns are easy to
--- match, meaning isn't. The one address we can catch is the customer's own:
--- the notes branches below replace it exactly, before calling this.
-create function insurance.redact_text(p_text text)
-returns text
-language sql
-immutable
-set search_path = ''
-as $$
-    select regexp_replace(
-        regexp_replace(p_text, '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', '[email]', 'g'),
-        '\(?\m[0-9]{3}\)?[-. ]?[0-9]{3}[-. ][0-9]{4}\M', '[phone]', 'g'
-    );
-$$;
-
--- Checks a query embedding from the server and turns it into a vector.
--- The server sends a plain array of numbers (real[]), so mcp_reader needs
--- nothing from pgvector. pgvector checks the length too, but its message is
--- written for developers, and a null would give rows with no score instead of
--- an error. So we check it ourselves first.
-create function insurance.to_vector(p_embedding real[])
-returns public.vector
-language plpgsql
-immutable
-set search_path = ''
-as $$
-begin
-    if p_embedding is null
-       or array_ndims(p_embedding) <> 1
-       or cardinality(p_embedding) <> 384
-       or array_position(p_embedding, null) is not null then
-        raise exception 'The embedding must be a list of exactly 384 numbers.';
+    -- Caps: the log is append-only, so junk can never be removed. These stop
+    -- one call from adding a huge row.
+    if length(v_arguments::text) > 4000 then
+        v_arguments := jsonb_build_object('truncated', left(v_arguments::text, 4000));
     end if;
-    return p_embedding::public.vector(384);
+
+    insert into insurance.audit_log (
+        occurred_at, caller, tool_name, arguments, rows_returned, duration_ms,
+        succeeded, error, previous_hash, row_hash
+    )
+    values (
+        v_occurred_at, left(p_caller, 100), left(p_tool_name, 100), v_arguments,
+        p_rows_returned, p_duration_ms, p_succeeded, left(p_error, 500), v_previous_hash,
+        insurance.audit_row_hash(
+            v_previous_hash, v_occurred_at, left(p_caller, 100), left(p_tool_name, 100),
+            v_arguments, p_rows_returned, p_duration_ms, p_succeeded, left(p_error, 500))
+    );
 end;
 $$;
-
--- mcp_owner runs the mcp functions, which call these helpers.
-grant execute on function insurance.as_of_date() to mcp_owner;
-grant execute on function insurance.period_dates(text, date) to mcp_owner;
-grant execute on function insurance.escape_like(text) to mcp_owner;
-grant execute on function insurance.mask_email(text) to mcp_owner;
-grant execute on function insurance.mask_last4(text) to mcp_owner;
-grant execute on function insurance.redact_text(text) to mcp_owner;
-grant execute on function insurance.to_vector(real[]) to mcp_owner;
+grant execute on function mcp.write_audit(
+    text, text, jsonb, integer, integer, boolean, text
+) to mcp_reader;
 
 reset role;
 
--- The mcp functions ----------------------------------------------------------------
+-- The read-only functions ---------------------------------------------------------
 -- One per MCP tool, with the same name. Each one is granted to mcp_reader on
 -- the line after it. A function without a grant line can't be called.
 
@@ -908,11 +855,11 @@ grant execute on function mcp.search_policy_wording(real[], text, integer) to mc
 reset role;
 
 -- What can mcp_reader do at this point?
--- It can call get_dataset_info, find_customers, get_customer, get_policy,
--- search_claims, get_claim, count_claims_by_month, get_repair_shop_costs,
+-- It can call write_audit, get_dataset_info, find_customers, get_customer,
+-- get_policy, search_claims, get_claim, count_claims_by_month, get_repair_shop_costs,
 -- get_adjuster_workload, count_claims_by_driver_age, search_claim_text,
--- find_similar_claims and search_policy_wording. These functions return fixed
+-- find_similar_claims and search_policy_wording. The read-only ones return fixed
 -- columns and limited rows, and can't change data. It still can't reach the
 -- insurance tables directly, and it can't call the insurance helper functions,
--- which are granted to mcp_owner only. No row-level security yet: the functions
--- see every customer (06_row_security.sql).
+-- which are granted to mcp_owner only. Row-level security (06_row_security.sql)
+-- limits each caller to its own states' customers.

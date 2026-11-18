@@ -81,6 +81,7 @@ create policy visible_claim on insurance.claim_notes for select to mcp_owner
 reset role;
 
 -- What can mcp_reader do at this point?
--- The same functions, but each one now returns only rows for customers in the
--- states linked to the caller key the server set. No key means no rows. It can
--- set the key itself with set_config, so the database trusts the server.
+-- Still nothing: the mcp functions come next, in 07_mcp_functions.sql. From
+-- then on, each one returns only rows for customers in the states linked to the
+-- caller key the server set. No key means no rows. mcp_reader can set the key
+-- itself with set_config, so the database trusts the server.

@@ -72,7 +72,7 @@ async def find_customers(
 - **`SearchText` is a type with limits:** how long the text can be, and no null bytes. The MCP SDK checks the arguments against the types before the function runs.
 - **`run` calls exactly one database function,** `mcp.find_customers`, with an audit row. There's no SQL in the Python code at all.
 
-The SQL is in [`04_functions.sql`](../../sql/04_functions.sql). Shortened, it's:
+The SQL is in [`07_mcp_functions.sql`](../../sql/07_mcp_functions.sql). Shortened, it's:
 
 ```sql
 create function mcp.find_customers(p_name text)

@@ -1,7 +1,8 @@
 -- 05_audit.sql: the audit log, one row per tool call.
 --
 -- PostgreSQL has no built-in append-only tables, so the log is built from three parts:
---   1. Only mcp_owner can insert, and only through mcp.write_audit.
+--   1. Only mcp_owner can insert, and only through mcp.write_audit
+--      (in 07_mcp_functions.sql, with the other mcp functions).
 --      Nobody gets UPDATE or DELETE.
 --   2. A trigger blocks UPDATE, DELETE and TRUNCATE for everyone.
 --   3. A hash chain: each row stores a hash of its own data plus the previous
@@ -120,72 +121,7 @@ grant execute on function insurance.audit_row_hash(
 
 reset role;
 
--- The one write function ---------------------------------------------------------
--- The MCP server calls it after every tool call, including failed ones.
--- It returns nothing, so mcp_reader can add to the log but never read it.
-
-set role mcp_owner;
-
-create function mcp.write_audit(
-    p_caller        text,
-    p_tool_name     text,
-    p_arguments     jsonb,
-    p_rows_returned integer,
-    p_duration_ms   integer,
-    p_succeeded     boolean,
-    p_error         text
-)
-returns void
-language plpgsql
-volatile
-security definer
-set search_path = ''
-as $$
-declare
-    v_previous_hash text;
-    v_occurred_at timestamptz;
-    v_arguments jsonb := p_arguments;
-begin
-    -- Without this lock, two calls at the same moment could both chain to the
-    -- same previous row. The number is arbitrary: only this function uses it.
-    -- It's released when the transaction ends.
-    perform pg_advisory_xact_lock(1001);
-
-    select a.row_hash into v_previous_hash
-    from insurance.audit_log as a
-    order by a.id desc
-    limit 1;
-
-    -- Set here, after the lock, so times always go up with the id.
-    v_occurred_at := clock_timestamp();
-
-    -- Caps: the log is append-only, so junk can never be removed. These stop
-    -- one call from adding a huge row.
-    if length(v_arguments::text) > 4000 then
-        v_arguments := jsonb_build_object('truncated', left(v_arguments::text, 4000));
-    end if;
-
-    insert into insurance.audit_log (
-        occurred_at, caller, tool_name, arguments, rows_returned, duration_ms,
-        succeeded, error, previous_hash, row_hash
-    )
-    values (
-        v_occurred_at, left(p_caller, 100), left(p_tool_name, 100), v_arguments,
-        p_rows_returned, p_duration_ms, p_succeeded, left(p_error, 500), v_previous_hash,
-        insurance.audit_row_hash(
-            v_previous_hash, v_occurred_at, left(p_caller, 100), left(p_tool_name, 100),
-            v_arguments, p_rows_returned, p_duration_ms, p_succeeded, left(p_error, 500))
-    );
-end;
-$$;
-grant execute on function mcp.write_audit(
-    text, text, jsonb, integer, integer, boolean, text
-) to mcp_reader;
-
-reset role;
-
 -- What can mcp_reader do at this point?
--- It can call the read-only functions from 04_functions.sql, and mcp.write_audit
--- to add entries to the audit log. It can add any entry it likes, but never
--- read, change or delete one. It still can't reach the insurance tables
--- directly or change business data.
+-- The same as before: nothing in the insurance schema. It writes to the log
+-- through mcp.write_audit, created with the other mcp functions in
+-- 07_mcp_functions.sql.

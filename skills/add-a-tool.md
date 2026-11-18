@@ -30,7 +30,7 @@ Before writing any code, tell the human:
 - Its arguments, and the limits on each.
 - The columns it returns, and the most rows it can return.
 - Whether it needs a new table. If so, the table's columns and where its data comes from (step 2).
-- The existing function in `sql/04_functions.sql` closest to it, to copy its shape.
+- The existing function in `sql/07_mcp_functions.sql` closest to it, to copy its shape.
 
 Then wait for the human to agree.
 
@@ -70,11 +70,11 @@ For the data generator: add a record class in `records.py`, make the rows in `ra
 - **The text:** a markdown file in a new folder under `database/src/insurance_database/`, split into sections at its `## ` headings. Reuse `split_booklet` in `embed.py`. Each section is about one topic and is one row.
 - **Short sections:** the model reads at most 256 word pieces and silently ignores the rest, which is roughly 150 words. Add the new file to `test_every_text_fits_in_what_the_model_reads` in `tests/rag/test_embedding_model.py`.
 - **Loading:** add a function to `embed.py`, copying how the booklets are loaded: skip if the table already has rows, embed `heading + "\n" + content` with `model.passage_embed`, insert, commit. Call it from `embed_everything` straight after the booklets, so `--booklets-only` loads it too. Delete its rows in the `embedded` fixture's clean-up in `tests/rag/test_embedding_model.py`.
-- **The search function** (step 4) takes `p_embedding real[]` and turns it into a vector with `insurance.to_vector(p_embedding)`, which raises an error unless it's exactly 384 numbers. If the table is empty, it raises `'Run the embed command first.'`. It orders by `embedding operator(public.<=>) v_query` and returns a `similarity` of `round((1 - distance)::numeric, 3)`. Copy an existing search function in `sql/04_functions.sql`.
+- **The search function** (step 4) takes `p_embedding real[]` and turns it into a vector with `insurance.to_vector(p_embedding)`, which raises an error unless it's exactly 384 numbers. If the table is empty, it raises `'Run the embed command first.'`. It orders by `embedding operator(public.<=>) v_query` and returns a `similarity` of `round((1 - distance)::numeric, 3)`. Copy an existing search function in `sql/07_mcp_functions.sql`.
 
 ## Step 4: the SQL function
 
-Add it to `sql/04_functions.sql`, after the other `mcp` functions, with a one-line comment above it saying what it returns. Copy the shape of the closest one (step 1). Every rule below is already followed by the functions in that file.
+Add it to `sql/07_mcp_functions.sql`, after the other `mcp` functions, with a one-line comment above it saying what it returns. Copy the shape of the closest one (step 1). Every rule below is already followed by the functions in that file.
 
 - `language plpgsql` (or `sql`), `stable`, `security definer`, `set search_path = ''`.
 - Every name written in full: `insurance.claims`, `insurance.mask_email(...)`.
@@ -137,7 +137,7 @@ uv run ruff format --check
 uv run pytest
 ```
 
-The tests start their own database in Docker, so Docker must be running. They don't touch the human's database. Don't run the setup or embed commands yourself: they rebuild the human's database (step 9).
+The tests start their own database in Docker, so Docker must be running. They don't touch the human's database. Don't run the setup, update or embed commands yourself: they change the human's database (step 9).
 
 ## Step 9: hand over to the human
 
@@ -155,12 +155,16 @@ Show the new SQL function and its grant in full, then this list:
 **Run it**, in a terminal in the repository folder:
 
 1. Stop the MCP server (`Ctrl+C`).
-2. Rebuild the database, which runs the SQL files and reloads the data:
+2. Load the new function. If you added only a function, reload the functions, which keeps the data, the embeddings and the audit log:
+   ```bash
+   uv run python -m insurance_database.update_db
+   ```
+   If you added a table, rebuild the database instead, which runs every SQL file and reloads the data:
    ```bash
    uv run python -m insurance_database.setup_db
    ```
-   This starts the database again from scratch: the audit log is emptied, and the embeddings are removed.
-3. Load the embeddings again. Run this if you use the search tools, or if the new tool searches by meaning:
+   That starts the database again from scratch: the audit log is emptied, and the embeddings are removed.
+3. Only after a rebuild: load the embeddings again, if you use the search tools or the new tool searches by meaning:
    ```bash
    uv run python -m insurance_database.embed --booklets-only
    ```

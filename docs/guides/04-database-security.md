@@ -12,9 +12,10 @@ When you ran `uv run python -m insurance_database.setup_db`, it printed:
 Running 01_roles.sql
 Running 02_schema.sql
 Running 03_permissions.sql
-Running 04_functions.sql
+Running 04_helpers.sql
 Running 05_audit.sql
 Running 06_row_security.sql
+Running 07_mcp_functions.sql
 Loaded full data: 12,005 customers, 15,010 policies, 15,090 claims, 76,475 claim notes.
 Database ready.
 ```

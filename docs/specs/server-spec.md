@@ -88,6 +88,7 @@ database/
   pyproject.toml        insurance-database, depends on insurance-mcp
   src/insurance_database/
     setup_db.py         the setup command (runs sql/, then the generator)
+    update_db.py        reloads the mcp functions only (sql/07_mcp_functions.sql)
     embed.py            the embed command
     generate/           the data generator and its seed text files
     booklets/           the policy booklets, loaded by embed
@@ -112,6 +113,7 @@ That installs `insurance-mcp` and its libraries only. The database package, `sql
 
 ```bash
 uv run python -m insurance_database.setup_db
+uv run python -m insurance_database.update_db
 uv run python -m insurance_database.embed
 uv run python -m insurance_database.generate
 uv run python -m insurance_mcp.main          # unchanged

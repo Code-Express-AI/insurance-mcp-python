@@ -33,8 +33,6 @@ set role insurance_owner;
 
 Everything created after `set role insurance_owner` belongs to `insurance_owner`, not to `mcp_owner` or `mcp_reader`.
 
-The script also creates the `mcp` schema for `mcp_owner`. The MCP functions go there later.
-
 ## 3. Take away the defaults, and let mcp_owner read the tables
 
 [`03_permissions.sql`](../../sql/03_permissions.sql) starts by removing `PUBLIC`'s defaults. It revokes `CONNECT` and `TEMPORARY` on the database from `PUBLIC`, then grants `CONNECT` back to `mcp_reader` by name. It also stops `PUBLIC` creating objects in the `public` schema.
@@ -56,21 +54,38 @@ Next, `mcp_owner` gets `USAGE` on `insurance` and `SELECT` on each business tabl
 grant select on insurance.customers to mcp_owner;
 ```
 
-`mcp_owner` gets no `INSERT`, `UPDATE` or `DELETE` on the business tables. The audit log is different, and comes in step 5.
+`mcp_owner` gets no `INSERT`, `UPDATE` or `DELETE` on the business tables. The audit log is different, and comes in step 4.
 
-`mcp_reader` gets `USAGE` on the `mcp` schema, and nothing on `insurance`, not even `USAGE`:
+`mcp_reader` gets nothing on `insurance`, not even `USAGE`. It can connect, but there's nothing it can run yet.
+
+[`04_helpers.sql`](../../sql/04_helpers.sql) adds small helper functions in `insurance`, such as the masking ones. They're granted to `mcp_owner` only, so `mcp_reader` still can't run anything.
+
+## 4. Let mcp_owner add to the audit log, and nothing more
+
+[`05_audit.sql`](../../sql/05_audit.sql) creates the audit log as `insurance_owner`. Unlike the business tables, `mcp_owner` must write to it, to add a row after each tool call. It gets `INSERT` on the table, and `SELECT` on just two columns, `id` and `row_hash`, to find the previous row's hash:
 
 ```sql
-grant usage on schema mcp to mcp_reader;
+grant insert on insurance.audit_log to mcp_owner;
+grant select (id, row_hash) on insurance.audit_log to mcp_owner;
 ```
 
-The `mcp` schema is still empty, so `mcp_reader` can connect, but there's nothing it can run yet.
+Triggers block any update, delete or truncate of the log. `mcp_reader` gets nothing here: it adds rows through a function, `mcp.write_audit`, in step 6.
 
-## 4. Create the read functions as mcp_owner
+## 5. Filter which rows the functions will see
 
-[`04_functions.sql`](../../sql/04_functions.sql) switches to `mcp_owner` before creating the MCP functions, so `mcp_owner` owns them:
+[`06_row_security.sql`](../../sql/06_row_security.sql) turns on row-level security for the tables that hold customer data, with policies for `mcp_owner`. The functions run as `mcp_owner`, so the policies filter what they return.
+
+Before each call, the server sets a session value that says who's calling. Each caller sees only the customers in its own states. With no value set, the functions return no rows, which is why [guide 4](./04-database-security.md) gets counts of 0 at first.
+
+The database trusts the server to set that value. Anyone with the `mcp_reader` password can set it themselves, so row-level security filters rows, but it doesn't prove who the caller is.
+
+## 6. Create the MCP functions as mcp_owner
+
+[`07_mcp_functions.sql`](../../sql/07_mcp_functions.sql) creates the `mcp` schema for `mcp_owner`, and gives `mcp_reader` `USAGE` on it. Then it switches to `mcp_owner` before creating the functions, so `mcp_owner` owns them:
 
 ```sql
+create schema mcp authorization mcp_owner;
+grant usage on schema mcp to mcp_reader;
 set role mcp_owner;
 ```
 
@@ -89,32 +104,15 @@ Each function is granted to `mcp_reader` on its own, on the line after it:
 grant execute on function mcp.get_dataset_info() to mcp_reader;
 ```
 
-`mcp_reader` can only run the functions granted this way. They return fixed columns and a limited number of rows.
+`mcp_reader` can only run the functions granted this way. The read functions return fixed columns and a limited number of rows. The one write function, `mcp.write_audit`, adds a row to the audit log and returns nothing, so `mcp_reader` can add to the log but can't read or change it.
 
 The empty `search_path` matters too. Every function writes each name in full, such as `insurance.claims`, so a caller can't create a look-alike table and trick the function into reading it.
 
-## 5. Let the audit function add to the log, and nothing more
-
-[`05_audit.sql`](../../sql/05_audit.sql) creates the audit log as `insurance_owner`. Unlike the business tables, `mcp_owner` must write to it, to add a row after each tool call. It gets `INSERT` on the table, and `SELECT` on just two columns, `id` and `row_hash`, to find the previous row's hash:
-
-```sql
-grant insert on insurance.audit_log to mcp_owner;
-grant select (id, row_hash) on insurance.audit_log to mcp_owner;
-```
-
-The script then creates `mcp.write_audit` as `mcp_owner`, marks it `SECURITY DEFINER`, and grants it to `mcp_reader`. So `mcp_reader` can add a row by calling the function, but can't read or write the table itself. Triggers block any update, delete or truncate of the log.
-
-## 6. Filter which rows the functions can see
-
-[`06_row_security.sql`](../../sql/06_row_security.sql) turns on row-level security for the tables that hold customer data, with policies for `mcp_owner`. The functions run as `mcp_owner`, so the policies filter what they return.
-
-Before each call, the server sets a session value that says who's calling. Each caller sees only the customers in its own states. With no value set, the functions return no rows, which is why [guide 4](./04-database-security.md) gets counts of 0 at first.
-
-The database trusts the server to set that value. Anyone with the `mcp_reader` password can set it themselves, so row-level security filters rows, but it doesn't prove who the caller is.
+This file comes last, and it starts by dropping the `mcp` schema, so it can run again on its own: `uv run python -m insurance_database.update_db` reloads the functions without touching the data or the audit log.
 
 ## What the permissions don't stop
 
-Permissions don't stop a role from sending SQL. `mcp_reader` can run `select 1`, or set the session value from step 6. What they stop is reading the tables or changing data directly: the data is only reachable through the granted functions.
+Permissions don't stop a role from sending SQL. `mcp_reader` can run `select 1`, or set the session value from step 5. What they stop is reading the tables or changing data directly: the data is only reachable through the granted functions.
 
 The MCP server only offers those functions, as named tools. It has no raw-SQL tool. Someone who connects as `mcp_reader` directly can still send SQL, but PostgreSQL refuses anything it hasn't been granted.
 
