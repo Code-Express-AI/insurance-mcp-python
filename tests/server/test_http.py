@@ -194,6 +194,24 @@ async def test_invalid_json_gets_400(settings):
     assert response.status_code == 400
 
 
+# Event stream -------------------------------------------------------------------
+
+
+async def test_a_get_for_an_event_stream_gets_405_instead_of_a_stream_left_open(settings):
+    async with serve(settings) as http:
+        response = await http.get("/mcp", headers={"Accept": "text/event-stream"})
+
+    assert response.status_code == 405
+    assert response.headers["allow"] == "POST"
+
+
+async def test_a_get_without_a_token_still_gets_401(settings):
+    async with serve(settings, token=None) as http:
+        response = await http.get("/mcp", headers={"Accept": "text/event-stream"})
+
+    assert response.status_code == 401
+
+
 # CORS -----------------------------------------------------------------------------
 
 
