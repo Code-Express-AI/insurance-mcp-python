@@ -200,7 +200,8 @@ RAG_TOOLS = {"search_claim_text", "find_similar_claims", "search_policy_wording"
 
 
 def test_every_tool_has_an_end_to_end_test():
-    assert {name for name, _ in TOOL_CALLS} | {"get_customer"} | RAG_TOOLS == set(TOOL_ARGUMENTS)
+    not_in_tool_calls = {"get_customer", "get_customer_with_policies"}
+    assert {name for name, _ in TOOL_CALLS} | not_in_tool_calls | RAG_TOOLS == set(TOOL_ARGUMENTS)
 
 
 @pytest.mark.parametrize(("tool", "arguments"), TOOL_CALLS, ids=[name for name, _ in TOOL_CALLS])

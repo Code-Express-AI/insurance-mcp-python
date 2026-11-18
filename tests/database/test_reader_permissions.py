@@ -192,6 +192,7 @@ def test_reader_holds_only_the_rights_the_sql_files_give(admin):
         ("function mcp.get_adjuster_workload", "EXECUTE"),
         ("function mcp.get_claim", "EXECUTE"),
         ("function mcp.get_customer", "EXECUTE"),
+        ("function mcp.get_customer_with_policies", "EXECUTE"),
         ("function mcp.get_dataset_info", "EXECUTE"),
         ("function mcp.get_policy", "EXECUTE"),
         ("function mcp.get_repair_shop_costs", "EXECUTE"),

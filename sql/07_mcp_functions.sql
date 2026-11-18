@@ -852,11 +852,75 @@ end;
 $$;
 grant execute on function mcp.search_policy_wording(real[], text, integer) to mcp_reader;
 
+-- One customer with every policy in full: coverage, premium, deductible, vehicle
+-- and drivers. What get_customer and get_policy return, in one call.
+create function mcp.get_customer_with_policies(p_customer_id uuid)
+returns table (
+    customer_id            uuid,
+    first_name             text,
+    last_name              text,
+    city                   text,
+    state                  text,
+    zip_code               text,
+    email                  text,
+    drivers_license_number text,
+    policies               jsonb
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+    return query
+    select
+        cu.public_id,  -- the public key, returned as customer_id
+        cu.first_name,
+        cu.last_name,
+        cu.city,
+        cu.state,
+        cu.zip_code,
+        insurance.mask_email(cu.email),
+        insurance.mask_last4(cu.drivers_license_number),
+        (select coalesce(jsonb_agg(jsonb_build_object(
+                    'policy_number', p.policy_number,
+                    'coverage_level', p.coverage_level,
+                    'premium', p.premium,
+                    'deductible', p.deductible,
+                    'start_date', p.start_date,
+                    'end_date', p.end_date,
+                    'status', p.status,
+                    'license_plate', v.license_plate,
+                    'make', v.make,
+                    'model', v.model,
+                    'model_year', v.model_year,
+                    'vehicle_value', v.value,
+                    'drivers', (select jsonb_agg(jsonb_build_object(
+                                        'name', d.first_name || ' ' || d.last_name,
+                                        'relationship', d.relationship,
+                                        'age', extract(year from age(insurance.as_of_date(), d.date_of_birth))::integer
+                                    ) order by d.id)
+                                from insurance.drivers as d
+                                where d.policy_id = p.id)
+                ) order by p.start_date), '[]')
+         from insurance.policies as p
+         join insurance.vehicles as v on v.policy_id = p.id
+         where p.customer_id = cu.id)
+    from insurance.customers as cu
+    where cu.public_id = p_customer_id;
+
+    if not found then
+        raise exception 'Unknown customer_id. Use find_customers to find it.';
+    end if;
+end;
+$$;
+grant execute on function mcp.get_customer_with_policies(uuid) to mcp_reader;
+
 reset role;
 
 -- What can mcp_reader do at this point?
 -- It can call write_audit, get_dataset_info, find_customers, get_customer,
--- get_policy, search_claims, get_claim, count_claims_by_month, get_repair_shop_costs,
+-- get_policy, get_customer_with_policies, search_claims, get_claim, count_claims_by_month, get_repair_shop_costs,
 -- get_adjuster_workload, count_claims_by_driver_age, search_claim_text,
 -- find_similar_claims and search_policy_wording. The read-only ones return fixed
 -- columns and limited rows, and can't change data. It still can't reach the

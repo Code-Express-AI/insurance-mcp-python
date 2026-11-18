@@ -156,6 +156,22 @@ async def get_policy(
     return rows[0]
 
 
+async def get_customer_with_policies(
+    ctx: Context,
+    customer_id: Annotated[UUID, Field(description="From find_customers.")],
+) -> dict[str, Any]:
+    """Return one customer with every policy in full: coverage level, yearly premium,
+    deductible, dates, status, vehicle and listed drivers.
+
+    Use this instead of get_customer followed by get_policy for each policy.
+    coverage_level: liability (damage to others only), liability_collision (plus the
+    customer's own car in a crash) or full (plus theft, fire, vandalism, weather and glass).
+    deductible: what the customer pays on each claim before the insurer pays.
+    """
+    rows = await run(ctx, "get_customer_with_policies", customer_id=customer_id)
+    return rows[0]
+
+
 async def search_claims(
     ctx: Context,
     customer_id: Annotated[
@@ -366,6 +382,7 @@ TOOLS = [
     find_customers,
     get_customer,
     get_policy,
+    get_customer_with_policies,
     search_claims,
     get_claim,
     count_claims_by_month,
