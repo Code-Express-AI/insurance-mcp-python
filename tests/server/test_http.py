@@ -3,12 +3,14 @@
 import json
 import logging
 
+import anyio
 import pytest
+from mcp import MCPError
 
 from insurance_mcp import main as main_module
 from insurance_mcp.main import reject
 
-from .conftest import COPILOT_TOKEN, LIST_TOOLS, LOCAL_TOKEN, MCP_HEADERS, serve
+from .conftest import COPILOT_TOKEN, LIST_TOOLS, LOCAL_TOKEN, MCP_HEADERS, connect, serve
 
 pytestmark = pytest.mark.anyio
 
@@ -210,6 +212,16 @@ async def test_a_get_without_a_token_still_gets_401(settings):
         response = await http.get("/mcp", headers={"Accept": "text/event-stream"})
 
     assert response.status_code == 401
+
+
+async def test_a_request_to_listen_for_changes_is_refused_instead_of_left_open(settings):
+    # The tools never change, so a listen stream would sit open with nothing to
+    # send, until Ctrl+C cut it off. The fail_after stops the test hanging if so.
+    with anyio.fail_after(5):
+        async with connect(settings) as client:
+            with pytest.raises(MCPError, match="Method not found"):
+                async with client.listen(tools_list_changed=True):
+                    pass
 
 
 # CORS -----------------------------------------------------------------------------

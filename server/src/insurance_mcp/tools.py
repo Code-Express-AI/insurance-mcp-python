@@ -429,6 +429,11 @@ def create_mcp_server(
         instructions=INSTRUCTIONS,
         lifespan=lifespan,
         middleware=[reject_unknown_arguments],
+        # A client may ask to be told when the tools change, and the answer is a
+        # stream left open. Ours never change, so nothing would ever be sent,
+        # and Ctrl+C would have to cut the stream off. Switched off, the client
+        # gets "Method not found" and carries on.
+        subscriptions=False,
     )
     for tool in TOOLS:
         # Only a hint to the AI client: the database is what really stops changes.

@@ -88,7 +88,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """A client may GET /mcp to open a stream for messages the server starts.
         This server never starts any, so it says no, as the MCP spec allows.
         Otherwise the stream sits open and idle until the server stops."""
-        return JSONResponse({"error": "This server has no event stream."}, status_code=405, headers={"Allow": "POST"})
+        return JSONResponse(
+            {"error": "This server has no event stream."},
+            status_code=405,
+            headers={"Allow": "POST"},
+        )
 
     # The SDK checks Host and Origin (DNS rebinding protection). The Host header
     # includes the port, hence localhost:*. No browser origin is allowed: the AI
@@ -133,8 +137,9 @@ def main() -> None:
     # proxy's address as forwarded_allow_ips instead.
     #
     # On Ctrl+C, uvicorn waits for every request in progress to finish. The
-    # 405 for GET /mcp above means no client holds a stream open, so this is
-    # only a safety net: after 5 seconds, uvicorn cancels whatever is left.
+    # server refuses the requests that would hold a stream open (GET /mcp above,
+    # and subscriptions/listen in tools.py), so this is only a safety net: after
+    # 5 seconds, uvicorn cancels whatever is left.
     uvicorn.run(
         create_app(settings),
         host=settings.host,
