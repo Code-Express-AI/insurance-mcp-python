@@ -15,6 +15,8 @@ No new table is needed: the data is already there. Once the tests pass, you load
 
 **Before you start:** you've done the [quickstart](../../README.md#quickstart-part-1-mcp), so the database is set up and the server runs.
 
+**Stuck?** The finished code is on the [`video-3-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-3-done) branch. Compare yours with it, or switch to it: see [stuck on video 3?](../../README.md#see-it-all-on-youtube) in the README.
+
 ## Step 1: the SQL function
 
 Open [`sql/07_mcp_functions.sql`](../../sql/07_mcp_functions.sql). Near the end, find the line `reset role;`, just above the comment "What can mcp_reader do at this point?". Paste this above that line:

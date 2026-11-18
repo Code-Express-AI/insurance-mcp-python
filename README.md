@@ -158,6 +158,16 @@ You have a working system. The [video series](https://www.youtube.com/@CodeExpre
 | A | Coming soon | [Server security](docs/guides/appendix-a-server-security.md) | Appendix, deep dive: tokens, rate limits, host checks and argument checks, with each attack fired live |
 | B | Coming soon | [Database security](docs/guides/appendix-b-database-security.md) | Appendix, deep dive: a database role that can't read a single table, row-level security, masking and redaction, and the tamper-evident audit log |
 
+**Stuck on video 3?** Your code will look a bit different from the video: the AI writes it fresh each time. If you get stuck, compare with the [`video-3-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-3-done) branch, which has the finished tool and passes every test. Or switch to it and carry on from there. `git stash` puts your own changes aside first, so the switch doesn't refuse:
+
+```bash
+git stash
+git switch video-3-done
+uv run python -m insurance_database.update_db
+```
+
+Then restart the server, and reconnect your assistant ([guide 3](docs/guides/03-add-a-tool-by-hand.md#step-5-load-it), step 5).
+
 [Using this with your own data](docs/guides/06-using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place. The specs in [docs/specs/](docs/specs/spec.md) record every design decision, and why it was made.
 
 ## License
