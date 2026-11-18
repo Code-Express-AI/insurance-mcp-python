@@ -19,7 +19,7 @@ No new table is needed: the data is already there. Once the tests pass, you load
 
 ## Step 1: the SQL function
 
-Open [`sql/07_mcp_functions.sql`](../../sql/07_mcp_functions.sql). Near the end, find the line `reset role;`, just above the comment "What can mcp_reader do at this point?". Paste this above that line:
+Open [`sql/080_mcp_functions.sql`](../../sql/080_mcp_functions.sql). Near the end, find the line `reset role;`, just above the comment "What can mcp_reader do at this point?". Paste this above that line:
 
 ```sql
 -- One customer with every policy in full: coverage, premium, deductible, vehicle
@@ -186,7 +186,7 @@ Every test should pass. The security checks need nothing new: `test_function_rul
 In a terminal in the repository folder:
 
 1. Stop the MCP server (`Ctrl+C`).
-2. Reload the functions. This keeps the data, the embeddings and the audit log. It runs the whole file in one transaction, so if your SQL has a mistake, it tells you and nothing changes.
+2. Reload the functions. This keeps the data, the embeddings and the audit log. It runs in one transaction, so if your SQL has a mistake, it tells you and nothing changes.
    ```bash
    uv run python -m insurance_database.update_db
    ```
@@ -230,7 +230,7 @@ Other problems:
 
 | What you see | Why, and the fix |
 |---|---|
-| `update_db` says `07_mcp_functions.sql has an error, so nothing changed` | A typo in the SQL. The message below it names the problem. Your old functions are still there. |
+| `update_db` says `080_mcp_functions.sql has an error, so nothing changed` | A typo in the SQL. The message below it names the problem. Your old functions are still there. |
 | `Unknown tool: get_customer_with_policies` | The Python tool isn't in `TOOLS`, or the server is still running the old code. Restart it. |
 | The assistant doesn't use the new tool | The server wasn't restarted, or the assistant wasn't reconnected (step 5). Start a new chat too. |
 

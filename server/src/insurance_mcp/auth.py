@@ -1,7 +1,7 @@
 """Named bearer tokens: each AI client sends its own token, and its name is the caller.
 
 The name is also the caller key that row-level security uses: it decides which
-states' customers the caller sees (sql/06_row_security.sql). To use a sign-in
+states' customers the caller sees (sql/060_row_security.sql). To use a sign-in
 provider such as Entra ID or Auth0 instead, replace caller_for with a JWT check
 that returns the provider's stable user id. Nothing else needs to change.
 

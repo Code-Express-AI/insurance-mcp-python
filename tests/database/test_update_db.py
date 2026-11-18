@@ -4,7 +4,7 @@ import psycopg
 import pytest
 
 from insurance_database.setup_db import SetupError
-from insurance_database.update_db import MCP_FUNCTIONS_FILE, update_database
+from insurance_database.update_db import ADDED_TABLES_FILE, MCP_FUNCTIONS_FILE, update_database
 
 # What the update must leave alone: the data, an embedding and the audit log.
 KEPT = """
@@ -72,13 +72,44 @@ def test_a_file_with_an_error_changes_nothing(admin, admin_url, tmp_path):
     before = admin.execute(FUNCTIONS).fetchall()
     # The real file with a mistake at the end, after the schema was dropped and
     # every function created again.
-    broken = tmp_path / "07_mcp_functions.sql"
+    broken = tmp_path / "080_mcp_functions.sql"
     broken.write_text(
         MCP_FUNCTIONS_FILE.read_text() + "\nselect no_such_column from insurance.claims;\n"
     )
     with pytest.raises(SetupError, match="has an error, so nothing changed"):
-        update_database(admin_url, broken)
+        update_database(admin_url, (ADDED_TABLES_FILE, broken))
     assert admin.execute(FUNCTIONS).fetchall() == before
+
+
+def test_an_added_table_loads_and_keeps_its_rows_when_the_update_runs_again(
+    admin, admin_url, reader, tmp_path
+):
+    # What video 5 does: a new table in 070_added_tables.sql, loaded without a rebuild.
+    added = tmp_path / "070_added_tables.sql"
+    added.write_text(
+        ADDED_TABLES_FILE.read_text()
+        + """
+set role insurance_owner;
+create table if not exists insurance.added_examples (
+    id      bigint generated always as identity primary key,
+    content text not null
+);
+reset role;
+grant select on insurance.added_examples to mcp_owner;
+"""
+    )
+    try:
+        update_database(admin_url, (added, MCP_FUNCTIONS_FILE))
+        admin.execute("insert into insurance.added_examples (content) values ('kept')")
+        update_database(admin_url, (added, MCP_FUNCTIONS_FILE))
+
+        assert admin.execute("select content from insurance.added_examples").fetchall() == [
+            ("kept",)
+        ]
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            reader.execute("select * from insurance.added_examples")
+    finally:
+        admin.execute("drop table if exists insurance.added_examples")
 
 
 def test_the_update_refuses_a_database_that_was_never_set_up(superuser_url):

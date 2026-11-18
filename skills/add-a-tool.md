@@ -30,13 +30,13 @@ Before writing any code, tell the human:
 - Its arguments, and the limits on each.
 - The columns it returns, and the most rows it can return.
 - Whether it needs a new table. If so, the table's columns and where its data comes from (step 2).
-- The existing function in `sql/07_mcp_functions.sql` closest to it, to copy its shape.
+- The existing function in `sql/080_mcp_functions.sql` closest to it, to copy its shape.
 
 Then wait for the human to agree.
 
 ## Step 2: a new table (skip if the tool reads tables that exist)
 
-**The table.** Add it to `sql/02_schema.sql`, with the other tables. Follow the file's rules:
+**The table.** Add it to `sql/070_added_tables.sql`, never to `sql/020_schema.sql`. `update_db` runs that file again every time, so it loads a new table without a rebuild. Everything in it must be safe to run twice, as the comment at the top of the file says. Inside `set role insurance_owner;` ... `reset role;`, write `create table if not exists`, and follow the rules of the other tables:
 
 - `id bigint generated always as identity primary key` for joins. It never leaves the database.
 - `public_id uuid not null unique default gen_random_uuid()` if a tool will look a row up by key. It's returned as `<thing>_id`.
@@ -44,15 +44,15 @@ Then wait for the human to agree.
 - Lowercase `snake_case` names, a plural table name, `text` codes with a `check` for fixed lists, `numeric(12,2)` for money.
 - `check` constraints for formats, with `[0-9]`, never `\d`.
 
-**Who may read it.** In `sql/03_permissions.sql`, add `grant select on insurance.<table> to mcp_owner;` next to the others. Select only.
+**Who may read it.** In the same file, after `reset role;`: `grant select on insurance.<table> to mcp_owner;`. Select only.
 
-**Customer data?** If the table holds anything about a customer, or hangs off a table that does, add row-level security in `sql/06_row_security.sql`: enable it, and add one `for select to mcp_owner` policy that asks "is my parent row visible?", like the policies already there. Then add the table to `FILTERED_TABLES` in `tests/database/test_row_security.py`. If it holds no customer data, leave it out of both.
+**Customer data?** If the table holds anything about a customer, or hangs off a table that does, add row-level security in the same file: enable it, then `drop policy if exists` and one `for select to mcp_owner` policy that asks "is my parent row visible?", like the policies in `sql/060_row_security.sql`. Then add the table to `FILTERED_TABLES` in `tests/database/test_row_security.py`. If it holds no customer data, leave it out of both.
 
 **Where the data comes from.** Pick one:
 
 | The data is | Load it with | Where |
 |---|---|---|
-| A short fixed list (a few dozen rows at most) | `insert ... values` in the SQL file, straight after `create table` | `sql/02_schema.sql` |
+| A short fixed list (a few dozen rows at most) | `insert ... values ... on conflict do nothing` straight after `create table`, with a `unique` column so a second run adds nothing | `sql/070_added_tables.sql` |
 | Many rows linked to customers, policies or claims | The data generator | `database/src/insurance_database/generate/` |
 | Text to search by meaning (RAG) | A markdown file, loaded and embedded by the embed command | See step 3 |
 
@@ -70,11 +70,11 @@ For the data generator: add a record class in `records.py`, make the rows in `ra
 - **The text:** a markdown file in `database/src/insurance_database/`. If the human names a file that's already there, use it as it is. Never put it in `booklets/`: the embed command loads every file there as a coverage level. Split it into sections at its `## ` headings with `split_booklet` in `embed.py`. Each section is about one topic and is one row.
 - **Short sections:** the model reads at most 256 word pieces and silently ignores the rest, which is roughly 150 words. Add the new file to `test_every_text_fits_in_what_the_model_reads` in `tests/rag/test_embedding_model.py`.
 - **Loading:** add a function to `embed.py`, copying how the booklets are loaded: skip if the table already has rows, embed `heading + "\n" + content` with `model.passage_embed`, insert, commit. Call it from `embed_everything` straight after the booklets, so `--booklets-only` loads it too. In `tests/rag/test_embedding_model.py`, delete its rows wherever the booklets' rows are deleted: the `embedded` fixture's clean-up and the `--booklets-only` test.
-- **The search function** (step 4) takes `p_embedding real[]` and turns it into a vector with `insurance.to_vector(p_embedding)`, which raises an error unless it's exactly 384 numbers. If the table is empty, it raises `'Run the embed command first.'`. It orders by `embedding operator(public.<=>) v_query` and returns a `similarity` of `round((1 - distance)::numeric, 3)`. Copy an existing search function in `sql/07_mcp_functions.sql`.
+- **The search function** (step 4) takes `p_embedding real[]` and turns it into a vector with `insurance.to_vector(p_embedding)`, which raises an error unless it's exactly 384 numbers. If the table is empty, it raises `'Run the embed command first.'`. It orders by `embedding operator(public.<=>) v_query` and returns a `similarity` of `round((1 - distance)::numeric, 3)`. Copy an existing search function in `sql/080_mcp_functions.sql`.
 
 ## Step 4: the SQL function
 
-Add it to `sql/07_mcp_functions.sql`, after the other `mcp` functions, with a one-line comment above it saying what it returns. Copy the shape of the closest one (step 1). Every rule below is already followed by the functions in that file.
+Add it to `sql/080_mcp_functions.sql`, after the other `mcp` functions, with a one-line comment above it saying what it returns. Copy the shape of the closest one (step 1). Every rule below is already followed by the functions in that file.
 
 - `language plpgsql` (or `sql`), `stable`, `security definer`, `set search_path = ''`.
 - Every name written in full: `insurance.claims`, `insurance.mask_email(...)`.
@@ -158,16 +158,16 @@ Show the new SQL function and its grant in full, then this list:
 **Run it**, in a terminal in the repository folder:
 
 1. Stop the MCP server (`Ctrl+C`).
-2. Load the new function. If you added only a function, reload the functions, which keeps the data, the embeddings and the audit log:
+2. Load the new function, and the new table if there is one. This keeps the data, the embeddings and the audit log:
    ```bash
    uv run python -m insurance_database.update_db
    ```
-   If you added a table, rebuild the database instead, which runs every SQL file and reloads the data:
+   Only if the new table's rows come from the data generator, rebuild the database instead, which runs every SQL file and makes the data again:
    ```bash
    uv run python -m insurance_database.setup_db
    ```
    That starts the database again from scratch: the audit log is emptied, and the embeddings are removed.
-3. Only after a rebuild: load the embeddings again, if you use the search tools or the new tool searches by meaning:
+3. If the new tool searches by meaning, or after a rebuild, load the embeddings. This loads the new text and the booklets in seconds, and skips anything already loaded:
    ```bash
    uv run python -m insurance_database.embed --booklets-only
    ```

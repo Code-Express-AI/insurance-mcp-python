@@ -2,7 +2,7 @@
 
 The tests call the mcp functions as mcp_reader, with a caller key set the way the
 server sets it. They check the answers against the admin, whom row-level security
-doesn't filter. The keys and their states are in sql/06_row_security.sql.
+doesn't filter. The keys and their states are in sql/060_row_security.sql.
 """
 
 import pytest

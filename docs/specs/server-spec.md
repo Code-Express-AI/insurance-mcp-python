@@ -88,7 +88,7 @@ database/
   pyproject.toml        insurance-database, depends on insurance-mcp
   src/insurance_database/
     setup_db.py         the setup command (runs sql/, then the generator)
-    update_db.py        reloads the mcp functions only (sql/07_mcp_functions.sql)
+    update_db.py        loads added tables and reloads the mcp functions (sql/070, sql/080)
     embed.py            the embed command
     generate/           the data generator and its seed text files
     booklets/           the policy booklets, loaded by embed

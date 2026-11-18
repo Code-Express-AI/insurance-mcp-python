@@ -9,13 +9,14 @@ Everything here runs against your local Docker database, so you need the quickst
 When you ran `uv run python -m insurance_database.setup_db`, it printed:
 
 ```text
-Running 01_roles.sql
-Running 02_schema.sql
-Running 03_permissions.sql
-Running 04_helpers.sql
-Running 05_audit.sql
-Running 06_row_security.sql
-Running 07_mcp_functions.sql
+Running 010_roles.sql
+Running 020_schema.sql
+Running 030_permissions.sql
+Running 040_helpers.sql
+Running 050_audit.sql
+Running 060_row_security.sql
+Running 070_added_tables.sql
+Running 080_mcp_functions.sql
 Loaded full data: 12,005 customers, 15,010 policies, 15,090 claims, 76,475 claim notes.
 Database ready.
 ```
@@ -266,7 +267,7 @@ Try the others too. This is what you should see:
 
 - **"Nothing" is an empty result, not an error.** To a caller, a customer it can't see doesn't exist. Ask for one of their claims by number and you get "Unknown claim number", the same as for a number that doesn't exist.
 - **A name the database doesn't know sees nothing at all.** Try `select set_config('mcp.caller_key', 'nobody', false);` and `get_dataset_info()` again.
-- **How it works:** a policy on each of the seven tables that hold customer data adds a hidden condition to every query, so no function can forget the check. The rule is in [`06_row_security.sql`](../../sql/06_row_security.sql), and [database-spec.md](../specs/database-spec.md) (decision 15) explains it.
+- **How it works:** a policy on each of the seven tables that hold customer data adds a hidden condition to every query, so no function can forget the check. The rule is in [`060_row_security.sql`](../../sql/060_row_security.sql), and [database-spec.md](../specs/database-spec.md) (decision 15) explains it.
 
 **The honest limit:** you just chose your own caller with one line. Anyone with the `mcp_reader` password can do the same, because PostgreSQL has no setting a session can't change. The MCP server sets the caller from the token, and no tool runs raw SQL, so a model can't change it. Keep the `mcp_reader` password as secret as the tokens.
 
@@ -288,7 +289,7 @@ docker compose exec db psql -U postgres -d insurance -c "select occurred_at, cal
 
 The `caller` is the name of the token that made the call. If the server can't write the audit row, it doesn't return the tool's result either: no audit, no answer.
 
-PostgreSQL has no built-in append-only tables, so [`05_audit.sql`](../../sql/05_audit.sql) builds one from three parts:
+PostgreSQL has no built-in append-only tables, so [`050_audit.sql`](../../sql/050_audit.sql) builds one from three parts:
 
 1. **Only one function can add rows:** `mcp.write_audit`. No role is granted `update` or `delete`.
 2. **A trigger blocks `update`, `delete` and `truncate` for everyone,** the admin included.

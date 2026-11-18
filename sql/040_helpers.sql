@@ -1,6 +1,6 @@
--- 04_helpers.sql: the helper functions the mcp functions call.
+-- 040_helpers.sql: the helper functions the mcp functions call.
 --
--- Rules for every function, here and in 07_mcp_functions.sql:
+-- Rules for every function, here and in 080_mcp_functions.sql:
 --   SET search_path = ''  and every name written in full (insurance.claims).
 --                         A SECURITY DEFINER function must fix its search_path,
 --                         or a caller could create a look-alike object and
@@ -138,5 +138,5 @@ grant execute on function insurance.to_vector(real[]) to mcp_owner;
 reset role;
 
 -- What can mcp_reader do at this point?
--- The same as after 03_permissions.sql. The helpers are granted to mcp_owner
+-- The same as after 030_permissions.sql. The helpers are granted to mcp_owner
 -- only, and mcp_reader has no USAGE on the insurance schema.

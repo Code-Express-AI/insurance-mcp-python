@@ -1,12 +1,13 @@
--- 07_mcp_functions.sql: the mcp schema and every function mcp_reader can call.
+-- 080_mcp_functions.sql: the mcp schema and every function mcp_reader can call.
 --
--- This is the only file update_db runs, so a changed function can be loaded
--- without rebuilding the data (uv run python -m insurance_database.update_db).
+-- update_db runs this file after 070_added_tables.sql, so a changed function
+-- can be loaded without rebuilding the data
+-- (uv run python -m insurance_database.update_db).
 -- It drops the mcp schema and creates it again, so the schema holds exactly
 -- what's in this file: a function removed here is gone, with its grant.
 -- Nothing else lives in mcp: the tables, helpers and audit log are in insurance.
 --
--- Rules for every function (the helpers in 04_helpers.sql follow the first two):
+-- Rules for every function (the helpers in 040_helpers.sql follow the first two):
 --   SET search_path = ''  and every name written in full (insurance.claims).
 --                         A SECURITY DEFINER function must fix its search_path,
 --                         or a caller could create a look-alike object and
@@ -861,5 +862,5 @@ reset role;
 -- find_similar_claims and search_policy_wording. The read-only ones return fixed
 -- columns and limited rows, and can't change data. It still can't reach the
 -- insurance tables directly, and it can't call the insurance helper functions,
--- which are granted to mcp_owner only. Row-level security (06_row_security.sql)
+-- which are granted to mcp_owner only. Row-level security (060_row_security.sql)
 -- limits each caller to its own states' customers.

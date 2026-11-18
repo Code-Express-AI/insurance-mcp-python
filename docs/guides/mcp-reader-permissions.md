@@ -6,7 +6,7 @@ For the hands-on version, see [appendix B: database security](./appendix-b-datab
 
 ## 1. Create separate roles
 
-[`01_roles.sql`](../../sql/01_roles.sql) creates three PostgreSQL roles, one per job:
+[`010_roles.sql`](../../sql/010_roles.sql) creates three PostgreSQL roles, one per job:
 
 ```sql
 create role insurance_owner nologin;
@@ -24,7 +24,7 @@ At this point `mcp_reader` can already connect to the database and create tempor
 
 ## 2. Make insurance_owner own the tables
 
-[`02_schema.sql`](../../sql/02_schema.sql) creates the `insurance` schema for `insurance_owner`, then switches to that role before creating the tables:
+[`020_schema.sql`](../../sql/020_schema.sql) creates the `insurance` schema for `insurance_owner`, then switches to that role before creating the tables:
 
 ```sql
 create schema insurance authorization insurance_owner;
@@ -35,7 +35,7 @@ Everything created after `set role insurance_owner` belongs to `insurance_owner`
 
 ## 3. Take away the defaults, and let mcp_owner read the tables
 
-[`03_permissions.sql`](../../sql/03_permissions.sql) starts by removing `PUBLIC`'s defaults. It revokes `CONNECT` and `TEMPORARY` on the database from `PUBLIC`, then grants `CONNECT` back to `mcp_reader` by name. It also stops `PUBLIC` creating objects in the `public` schema.
+[`030_permissions.sql`](../../sql/030_permissions.sql) starts by removing `PUBLIC`'s defaults. It revokes `CONNECT` and `TEMPORARY` on the database from `PUBLIC`, then grants `CONNECT` back to `mcp_reader` by name. It also stops `PUBLIC` creating objects in the `public` schema.
 
 The big gotcha: by default, `PUBLIC` can run every new function. The script turns that off for functions created by the two owners:
 
@@ -58,11 +58,11 @@ grant select on insurance.customers to mcp_owner;
 
 `mcp_reader` gets nothing on `insurance`, not even `USAGE`. It can connect, but there's nothing it can run yet.
 
-[`04_helpers.sql`](../../sql/04_helpers.sql) adds small helper functions in `insurance`, such as the masking ones. They're granted to `mcp_owner` only, so `mcp_reader` still can't run anything.
+[`040_helpers.sql`](../../sql/040_helpers.sql) adds small helper functions in `insurance`, such as the masking ones. They're granted to `mcp_owner` only, so `mcp_reader` still can't run anything.
 
 ## 4. Let mcp_owner add to the audit log, and nothing more
 
-[`05_audit.sql`](../../sql/05_audit.sql) creates the audit log as `insurance_owner`. Unlike the business tables, `mcp_owner` must write to it, to add a row after each tool call. It gets `INSERT` on the table, and `SELECT` on just two columns, `id` and `row_hash`, to find the previous row's hash:
+[`050_audit.sql`](../../sql/050_audit.sql) creates the audit log as `insurance_owner`. Unlike the business tables, `mcp_owner` must write to it, to add a row after each tool call. It gets `INSERT` on the table, and `SELECT` on just two columns, `id` and `row_hash`, to find the previous row's hash:
 
 ```sql
 grant insert on insurance.audit_log to mcp_owner;
@@ -73,7 +73,7 @@ Triggers block any update, delete or truncate of the log. `mcp_reader` gets noth
 
 ## 5. Filter which rows the functions will see
 
-[`06_row_security.sql`](../../sql/06_row_security.sql) turns on row-level security for the tables that hold customer data, with policies for `mcp_owner`. The functions run as `mcp_owner`, so the policies filter what they return.
+[`060_row_security.sql`](../../sql/060_row_security.sql) turns on row-level security for the tables that hold customer data, with policies for `mcp_owner`. The functions run as `mcp_owner`, so the policies filter what they return.
 
 Before each call, the server sets a session value that says who's calling. Each caller sees only the customers in its own states. With no value set, the functions return no rows, which is why [appendix B](./appendix-b-database-security.md) gets counts of 0 at first.
 
@@ -81,7 +81,9 @@ The database trusts the server to set that value. Anyone with the `mcp_reader` p
 
 ## 6. Create the MCP functions as mcp_owner
 
-[`07_mcp_functions.sql`](../../sql/07_mcp_functions.sql) creates the `mcp` schema for `mcp_owner`, and gives `mcp_reader` `USAGE` on it. Then it switches to `mcp_owner` before creating the functions, so `mcp_owner` owns them:
+[`070_added_tables.sql`](../../sql/070_added_tables.sql) runs just before, and is empty to start with: it's where new tables go, so `update_db` can load them without a rebuild. Each table there brings its own `grant select` to `mcp_owner`, and nothing for `mcp_reader`.
+
+[`080_mcp_functions.sql`](../../sql/080_mcp_functions.sql) creates the `mcp` schema for `mcp_owner`, and gives `mcp_reader` `USAGE` on it. Then it switches to `mcp_owner` before creating the functions, so `mcp_owner` owns them:
 
 ```sql
 create schema mcp authorization mcp_owner;
@@ -108,7 +110,7 @@ grant execute on function mcp.get_dataset_info() to mcp_reader;
 
 The empty `search_path` matters too. Every function writes each name in full, such as `insurance.claims`, so a caller can't create a look-alike table and trick the function into reading it.
 
-This file comes last, and it starts by dropping the `mcp` schema, so it can run again on its own: `uv run python -m insurance_database.update_db` reloads the functions without touching the data or the audit log.
+This file comes last, and it starts by dropping the `mcp` schema, so it can run again: `uv run python -m insurance_database.update_db` runs `070_added_tables.sql` and this file, which loads new tables and reloads the functions without touching the data or the audit log.
 
 ## What the permissions don't stop
 

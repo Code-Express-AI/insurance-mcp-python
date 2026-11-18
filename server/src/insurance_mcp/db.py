@@ -62,7 +62,7 @@ async def call_function(
     parameters, never put into the SQL text.
 
     The first line tells the database who's calling, so row-level security
-    (sql/06_row_security.sql) returns only that caller's rows. true: the setting
+    (sql/060_row_security.sql) returns only that caller's rows. true: the setting
     ends with the transaction, so the next caller to borrow this connection
     starts with no key, and sees nothing until it sets its own.
 

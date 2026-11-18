@@ -1,4 +1,4 @@
--- 01_roles.sql: start again, then create the three roles.
+-- 010_roles.sql: start again, then create the three roles.
 --
 -- Run by the setup command as the admin role: postgres in Docker, or the
 -- owner role a hosted service gives you. Nothing here needs a superuser.
@@ -20,7 +20,7 @@ begin
     end if;
 
     if exists (select from pg_roles where rolname = 'mcp_owner') then
-        -- DROP OWNED also removes the role's default privileges (see 03_permissions.sql).
+        -- DROP OWNED also removes the role's default privileges (see 030_permissions.sql).
         drop owned by mcp_owner;
         drop role mcp_owner;
     end if;
@@ -61,7 +61,7 @@ grant insurance_owner, mcp_owner to current_user;
 
 -- What can mcp_reader do at this point?
 -- It can log in and connect, because PUBLIC still has its default CONNECT and
--- TEMPORARY rights (03_permissions.sql takes those away). It can run plain SQL,
+-- TEMPORARY rights (030_permissions.sql takes those away). It can run plain SQL,
 -- read the system catalogs and create temporary tables, but there's no data
 -- to see: the insurance and mcp schemas don't exist yet.
 -- New sessions get a 5-second statement timeout, and at most 10 connections.
