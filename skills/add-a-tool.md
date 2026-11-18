@@ -67,9 +67,9 @@ For the data generator: add a record class in `records.py`, make the rows in `ra
 ## Step 3: text to search by meaning (skip unless the tool searches by meaning)
 
 - **The column:** `embedding public.vector(384)`. The model, `all-MiniLM-L6-v2`, makes 384 numbers. No index on it: every search is exact, which is fast enough at this size.
-- **The text:** a markdown file in a new folder under `database/src/insurance_database/`, split into sections at its `## ` headings. Reuse `split_booklet` in `embed.py`. Each section is about one topic and is one row.
+- **The text:** a markdown file in `database/src/insurance_database/`. If the human names a file that's already there, use it as it is. Never put it in `booklets/`: the embed command loads every file there as a coverage level. Split it into sections at its `## ` headings with `split_booklet` in `embed.py`. Each section is about one topic and is one row.
 - **Short sections:** the model reads at most 256 word pieces and silently ignores the rest, which is roughly 150 words. Add the new file to `test_every_text_fits_in_what_the_model_reads` in `tests/rag/test_embedding_model.py`.
-- **Loading:** add a function to `embed.py`, copying how the booklets are loaded: skip if the table already has rows, embed `heading + "\n" + content` with `model.passage_embed`, insert, commit. Call it from `embed_everything` straight after the booklets, so `--booklets-only` loads it too. Delete its rows in the `embedded` fixture's clean-up in `tests/rag/test_embedding_model.py`.
+- **Loading:** add a function to `embed.py`, copying how the booklets are loaded: skip if the table already has rows, embed `heading + "\n" + content` with `model.passage_embed`, insert, commit. Call it from `embed_everything` straight after the booklets, so `--booklets-only` loads it too. In `tests/rag/test_embedding_model.py`, delete its rows wherever the booklets' rows are deleted: the `embedded` fixture's clean-up and the `--booklets-only` test.
 - **The search function** (step 4) takes `p_embedding real[]` and turns it into a vector with `insurance.to_vector(p_embedding)`, which raises an error unless it's exactly 384 numbers. If the table is empty, it raises `'Run the embed command first.'`. It orders by `embedding operator(public.<=>) v_query` and returns a `similarity` of `round((1 - distance)::numeric, 3)`. Copy an existing search function in `sql/07_mcp_functions.sql`.
 
 ## Step 4: the SQL function
@@ -118,11 +118,14 @@ Two tests turn red until the tool is added on purpose:
 - `tests/database/test_reader_permissions.py`: add `("function mcp.<name>", "EXECUTE")` to `expected` in `test_reader_holds_only_the_rights_the_sql_files_give`, in alphabetical order.
 - `tests/server/test_tools.py`: add one call to `TOOL_CALLS`, with the arguments a model would send. For a search by meaning, add it to `RAG_TOOLS` there and to `RAG_TOOL_CALLS` in `tests/server/test_rag_tools.py` instead.
 
+For a search by meaning, the database tests use hand-made embeddings, not the model. In the `fake_embeddings` fixture in `tests/conftest.py`, insert a few dozen rows into the new table with `make_unit_vector(3)`, and delete them at the end, like the booklet rows there.
+
 Then add tests in `tests/database/test_mcp_functions.py` (or `test_rag_functions.py` for a search by meaning), next to the ones like them:
 
 - It returns at most its row limit.
 - An unknown id or number raises the "Unknown ..." message, if it looks one up.
 - An unknown period raises an error, if it takes one.
+- A search by meaning: add its name to `function` in `test_anything_but_384_numbers_is_rejected`, and add a "Run the embed command first" test next to the others at the top of the file (before any test that uses `fake_embeddings`).
 - Its result goes into `everything_about_maria_garcia`, if it returns anything about a customer. Then the existing test checks it returns none of her personal data.
 
 `test_function_rules.py` and the table permission tests already check every function and table. Leave them as they are.
