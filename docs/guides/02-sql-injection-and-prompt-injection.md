@@ -1,5 +1,7 @@
 # Guide 2: SQL injection and prompt injection
 
+This is the guide for [video 2 on YouTube](https://www.youtube.com/@CodeExpressAI).
+
 ## Attack 1: SQL injection
 
 In 2025, researchers showed that the MCP project's own reference PostgreSQL server, which promised read-only access, could be made to run `COMMIT; DROP SCHEMA public CASCADE;`. That's **SQL injection**: the model wrote the SQL, and the database ran it.

@@ -1,6 +1,6 @@
-# Add-a-tool skill specification
+# Add-an-insurance-tool skill specification
 
-The skill that tells an AI assistant (GitHub Copilot or Claude Code) how to add a new read-only tool to this server, and a new table for it if it needs one. It follows the rules in [database-spec.md](database-spec.md) and [server-spec.md](server-spec.md) and adds none of its own. The steps themselves are in the skill, [skills/add-a-tool.md](../../skills/add-a-tool.md). This spec records the decisions behind it.
+The skill that tells an AI assistant (GitHub Copilot or Claude Code) how to add a new read-only tool to this server, and a new table for it if it needs one. It follows the rules in [database-spec.md](database-spec.md) and [server-spec.md](server-spec.md) and adds none of its own. The steps themselves are in the skill, [skills/add-an-insurance-tool.md](../../skills/add-an-insurance-tool.md). This spec records the decisions behind it.
 
 **Status key:** Open (not discussed yet) · Proposed (Claude's suggestion, awaiting Liam) · Agreed (signed off by Liam)
 
@@ -20,9 +20,9 @@ The skill that tells an AI assistant (GitHub Copilot or Claude Code) how to add 
 One copy of the skill, and a short stub for each assistant that points to it:
 
 ```
-skills/add-a-tool.md                  the skill itself
-.github/skills/add-a-tool/SKILL.md    stub for GitHub Copilot
-.claude/skills/add-a-tool/SKILL.md    stub for Claude Code
+skills/add-an-insurance-tool.md                the skill itself
+.github/skills/add-an-insurance-tool/SKILL.md  stub for GitHub Copilot
+.claude/skills/add-an-insurance-tool/SKILL.md  stub for Claude Code
 ```
 
 Each assistant reads only its own folder: Copilot reads `.github/skills/`, Claude Code reads `.claude/skills/`. Both read the `name` and `description` at the top of every `SKILL.md`, and load the rest only when a request matches the description. The two stubs are the same. Only their `description` would need changing in two places, and it rarely changes. Both are committed, so nobody following the videos has to create anything.

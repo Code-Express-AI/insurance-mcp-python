@@ -495,7 +495,7 @@ This replaces the `session_user` idea in decision 6: one reader role plus a call
 
 **Status:** Agreed (Liam, 2026-11-18)
 
-**The problem:** adding or changing a tool (video 3, the add-a-tool skill) means changing an `mcp` function. Today the only way to load it is `setup_db`, which rebuilds everything: the data is generated again, the audit log is emptied and the embeddings are removed. That's slow on camera, and it throws away the audit rows the video wants to show.
+**The problem:** adding or changing a tool (video 3, the add-an-insurance-tool skill) means changing an `mcp` function. Today the only way to load it is `setup_db`, which rebuilds everything: the data is generated again, the audit log is emptied and the embeddings are removed. That's slow on camera, and it throws away the audit rows the video wants to show.
 
 **The command:** `uv run python -m insurance_database.update_db`. It connects as the admin role (`ADMIN_DATABASE_URL`, as `setup_db` does), runs one SQL file in one transaction, and prints what it did. It changes only the `mcp` schema. The data, the embeddings, the audit log, `caller_states`, the roles and the `mcp_reader` password are left as they are. If anything fails, nothing changes. If the database hasn't been set up yet, it says to run `setup_db` first.
 
@@ -538,7 +538,7 @@ That's safe because nothing else lives in `mcp`: the tables, the helpers and the
 - The permissions are exactly the same as after `setup_db` (the existing permissions snapshot).
 - A file with an error leaves every function as it was. `update_db` takes the file's path as an argument, defaulting to `080_mcp_functions.sql`, so this test can pass it a broken copy.
 
-**Docs that change:** decision 12's file list, the add-a-tool skill (functions go in `080_mcp_functions.sql`, and step 9 runs `update_db` unless a table was added) and its spec, appendix B's setup output, the `mcp-reader-permissions` guide, guide 2 and the "Using this with your own data" page (file names), and the troubleshooting page if it lists the commands.
+**Docs that change:** decision 12's file list, the add-an-insurance-tool skill (functions go in `080_mcp_functions.sql`, and step 9 runs `update_db` unless a table was added) and its spec, appendix B's setup output, the `mcp-reader-permissions` guide, guide 2 and the "Using this with your own data" page (file names), and the troubleshooting page if it lists the commands.
 
 ## 17. Adding a table without a rebuild: `070_added_tables.sql`
 

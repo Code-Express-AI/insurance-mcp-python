@@ -1,23 +1,64 @@
-# Guide 3: add a tool by hand
+# Guide 3: add a tool
 
-In video 3, an AI assistant adds a new tool to the server. This guide has the same steps for typing the code in yourself. You add `get_customer_with_policies`: one customer, with every policy in full.
+This is the guide for [video 3 on YouTube](https://www.youtube.com/@CodeExpressAI).
 
-Today, "Show me Eleanor Rutherford and all her policies, with the deductibles" takes four tool calls: `find_customers`, `get_customer`, then `get_policy` once for each of her two policies. With the new tool it takes two: `find_customers`, then `get_customer_with_policies`. Each call the model makes is a round trip, and those round trips are where the time goes, not the database.
+## Before you begin: if you get stuck
 
-Every tool has four parts:
+Your code will look a bit different from the video: the AI writes it fresh each time. If you get stuck, compare with the [`video-3-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-3-done) branch, which has the finished tool and passes every test. Or switch to it and carry on from there. `git stash` puts your own changes aside first, so the switch doesn't refuse:
 
-1. **A PostgreSQL function** in the `mcp` schema. It's the only thing that reads the data.
-2. **One grant**, so the server's database login (`mcp_reader`) can call that function and nothing more.
-3. **A Python tool** in the server. It checks the arguments and calls the function.
-4. **Tests** that prove the security still holds.
+```bash
+git stash
+git switch video-3-done
+uv run python -m insurance_database.update_db
+```
 
-No new table is needed: the data is already there. Once the tests pass, you load the tool and try it yourself.
+Then restart the server, and reconnect your assistant (see [load it](#load-it)).
 
-**Before you start:** you've done the [quickstart](../../README.md#quickstart-part-1-mcp), so the database is set up and the server runs.
+## Part 1: with GitHub Copilot
 
-**Stuck?** The finished code is on the [`video-3-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-3-done) branch. Compare yours with it, or switch to it: see [stuck on video 3?](../../README.md#see-it-all-on-youtube) in the README.
+### Install the skill
 
-## Step 1: the SQL function
+There's nothing to install: the skill comes with the repo, and Copilot loads it automatically when you ask Copilot to use it. The skill is in plain English, and you can [read it here](../../skills/add-an-insurance-tool.md).
+
+### Use it
+
+1. Open the repository folder in VS Code. Open the Chat view, and choose **Agent** mode.
+2. Ask:
+   > Use the add-an-insurance-tool skill to add a new tool called get_customer_with_policies. It should return one customer with all their policies, including each policy's vehicle and drivers.
+
+   **Why name the vehicle and drivers?** Policies, vehicles and drivers are in separate tables. Ask only for the policies, and you'll likely get the policy table's columns and nothing more. The more you know about the business and the database underneath, the better the code the assistant writes.
+3. It shows its plan first, and waits. Read it, then tell it to go ahead.
+4. It writes the function, the grant, the Python tool and the tests, then runs the checks. Allow the commands when it asks.
+5. It ends with the new SQL function, its grant, and a list to check. Read them: the AI wrote the function and the tests, so they can share a mistake.
+6. [Load it](#load-it), then [try it yourself](#try-it-yourself).
+
+Tested on Copilot's free plan on November 19, 2026. Copilot chose gpt6-luna as the model, and the code was clean, passed every test and worked first time.
+
+## Part 2: with Claude Code
+
+### Install the skill
+
+There's nothing to install here either: Claude Code loads the same skill automatically when you ask Claude Code to use it. You can [read it here](../../skills/add-an-insurance-tool.md).
+
+### Use it
+
+1. In a terminal in the repository folder, start Claude Code with `claude`.
+2. Ask the same thing:
+   > Use the add-an-insurance-tool skill to add a new tool called get_customer_with_policies. It should return one customer with all their policies, including each policy's vehicle and drivers.
+
+   Or type `/add-an-insurance-tool` followed by the request.
+
+   **Why name the vehicle and drivers?** Policies, vehicles and drivers are in separate tables. Ask only for the policies, and you'll likely get the policy table's columns and nothing more. The more you know about the business and the database underneath, the better the code the assistant writes.
+3. It shows its plan first, and waits. Read it, then tell it to go ahead.
+4. It writes the function, the grant, the Python tool and the tests, then runs the checks. Allow the commands when it asks.
+5. It ends with the new SQL function, its grant, and a list to check. Read them: the AI wrote the function and the tests, so they can share a mistake.
+6. [Load it](#load-it), then [try it yourself](#try-it-yourself).
+
+## Part 3: by hand
+
+The same steps, typed in yourself. Each step says what the code is for, so it's also a good way to check what the assistant wrote in parts 1 and 2.
+
+### Step 1: the SQL function
 
 Open [`sql/080_mcp_functions.sql`](../../sql/080_mcp_functions.sql). Near the end, find the line `reset role;`, just above the comment "What can mcp_reader do at this point?". Paste this above that line:
 
@@ -99,7 +140,7 @@ It's `get_customer` and `get_policy` put together, so most of it will look famil
 
 **Why the prefixes and aliases?** In a plpgsql function that `returns table`, every output column is also a variable. A bare `state` would be ambiguous: the output column or the table's column? So the argument starts with `p_`, every table has an alias, and every column has its table's alias in front (`cu.state`).
 
-## Step 2: the grant
+### Step 2: the grant
 
 Straight after the function, add:
 
@@ -111,7 +152,7 @@ That's the whole permission change. `mcp_reader` can now call this one function.
 
 Optionally, add `get_customer_with_policies` to the list in the "What can mcp_reader do at this point?" comment at the end of the file, so the comment stays true.
 
-## Step 3: the Python tool
+### Step 3: the Python tool
 
 Open [`server/src/insurance_mcp/tools.py`](../../server/src/insurance_mcp/tools.py). Find `get_policy`, and add this after it:
 
@@ -152,7 +193,7 @@ That's all the Python. Being in `TOOLS` registers the tool, marks it read-only a
 - **The argument has a type.** `UUID` means anything that isn't one is rejected before the database is called, with a message the model can act on.
 - **One database call.** `run` calls `mcp.get_customer_with_policies` as `mcp_reader` and writes the audit row. The keyword name is the SQL argument's name without `p_`.
 
-## Step 4: the tests
+### Step 4: the tests
 
 Two tests list every grant and every tool exactly, so nothing can be added without anyone noticing. A new one turns them red until you add it on purpose. Two small changes:
 
@@ -179,9 +220,9 @@ uv run ruff format --check
 uv run pytest
 ```
 
-Every test should pass. The security checks need nothing new: `test_function_rules.py` already checks that every `mcp` function is `security definer` with a fixed `search_path`, and the permission tests check that `mcp_reader` still can't read a single table. You test the tool itself by hand in step 6.
+Every test should pass. The security checks need nothing new: `test_function_rules.py` already checks that every `mcp` function is `security definer` with a fixed `search_path`, and the permission tests check that `mcp_reader` still can't read a single table. You test the tool itself when you [try it yourself](#try-it-yourself).
 
-## Step 5: load it
+## Load it
 
 In a terminal in the repository folder:
 
@@ -196,13 +237,13 @@ In a terminal in the repository folder:
    ```
 4. Make the assistant see the new tool. In Copilot, run **MCP: List Servers**, choose `insurance`, then **Restart Server**. In Claude Code, run `/mcp` and reconnect `insurance`.
 
-## Step 6: try it yourself
+## Try it yourself
 
 **Ask a question.** In a new chat:
 
 > Show me Eleanor Rutherford and all her policies, with the deductibles.
 
-The assistant should call `find_customers`, then `get_customer_with_policies`, with no `get_policy` calls. She has two policies: a 2022 Subaru Outback with full coverage and a $1,000 deductible, and a 2015 Ford F-150 with liability and collision and a $500 deductible. If it calls `get_customer` and `get_policy` instead, it hasn't seen the new tool: go back to step 5, part 4.
+The assistant should call `find_customers`, then `get_customer_with_policies`, with no `get_policy` calls. She has two policies: a 2022 Subaru Outback with full coverage and a $1,000 deductible, and a 2015 Ford F-150 with liability and collision and a $500 deductible. If it calls `get_customer` and `get_policy` instead, it hasn't seen the new tool: go back to [load it](#load-it), part 4.
 
 **Check the audit log.** Every call is recorded. Look at the latest rows:
 
@@ -232,7 +273,7 @@ Other problems:
 |---|---|
 | `update_db` says `080_mcp_functions.sql has an error, so nothing changed` | A typo in the SQL. The message below it names the problem. Your old functions are still there. |
 | `Unknown tool: get_customer_with_policies` | The Python tool isn't in `TOOLS`, or the server is still running the old code. Restart it. |
-| The assistant doesn't use the new tool | The server wasn't restarted, or the assistant wasn't reconnected (step 5). Start a new chat too. |
+| The assistant doesn't use the new tool | The server wasn't restarted, or the assistant wasn't reconnected ([load it](#load-it)). Start a new chat too. |
 
 More problems and their fixes are in [troubleshooting](../troubleshooting.md).
 
