@@ -1,6 +1,6 @@
-# Guide 2: how it works
+# Guide 1: how it works
 
-You've asked your first questions. This guide shows what happened behind each answer: the path a question takes, where each part lives in the code, and the six layers of security that were at work the whole time. It's a high-level tour. Appendices A and B go deep on the server and the database.
+You've asked your first questions. This guide shows what happened behind each answer: the path a question takes, where each part lives in the code, and the six layers of security. Then more questions to try, and the tests.
 
 ## What happens when you ask a question
 
@@ -29,6 +29,8 @@ sequenceDiagram
 
 **MCP** (Model Context Protocol) is the standard way for an AI assistant to find and call tools on a server. The assistant and the server talk JSON-RPC over HTTP: the assistant asks for the list of tools, then calls them by name with arguments. The assistant is the **client**, and this project is the **server**.
 
+"Please accept Maria Garcia's claim" fails twice over: no tool can change a claim (layer 3, below), and even if one tried, `mcp_reader` has no permission to write (layer 4).
+
 ## The code
 
 The whole request path is in a handful of short files:
@@ -52,53 +54,6 @@ uv sync --package insurance-mcp --no-dev
 
 Both packages are in one repository, as a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/), and `uv run` installs both on your own machine. They share one module, [`embeddings.py`](../../server/src/insurance_mcp/embeddings.py), because the claims and the questions must be embedded by the same model. It lives in the server, and the database package uses it from there. A test checks that the server never imports the database package. The tests are in [`tests/`](../../tests/), outside both packages, as usual in Python: they're never installed.
 
-### One tool, top to bottom
-
-This is the whole of `find_customers` in [`tools.py`](../../server/src/insurance_mcp/tools.py):
-
-```python
-async def find_customers(
-    ctx: Context,
-    name: Annotated[
-        SearchText, Field(description='Part of a name, such as "Rutherford" or "Maria Garcia".')
-    ],
-) -> list[dict[str, Any]]:
-    """Find customers by name: up to 25, with their customer_id, city, state, masked email
-    and number of policies."""
-    return await run(ctx, "find_customers", name=name)
-```
-
-- **The docstring and the `description` are written for the model.** They're how it knows when to call the tool and what to pass.
-- **`SearchText` is a type with limits:** how long the text can be, and no null bytes. The MCP SDK checks the arguments against the types before the function runs.
-- **`run` calls exactly one database function,** `mcp.find_customers`, with an audit row. There's no SQL in the Python code at all.
-
-The SQL is in [`080_mcp_functions.sql`](../../sql/080_mcp_functions.sql). Shortened, it's:
-
-```sql
-create function mcp.find_customers(p_name text)
-returns table (customer_id uuid, first_name text, last_name text,
-               city text, state text, email text, policy_count integer)
-language plpgsql
-stable
-security definer
-set search_path = ''
-as $$
-begin
-    return query
-    select cu.public_id, cu.first_name, cu.last_name, cu.city, cu.state,
-           insurance.mask_email(cu.email), ...
-    from insurance.customers as cu
-    where cu.first_name || ' ' || cu.last_name
-          ilike '%' || insurance.escape_like(trim(p_name)) || '%'
-    order by cu.last_name, cu.first_name
-    limit 25;
-end;
-$$;
-grant execute on function mcp.find_customers(text) to mcp_reader;
-```
-
-The columns are fixed, the email is masked, there's a row limit, and the search text is a parameter, never pasted into the SQL. The server's role, `mcp_reader`, can run this function but can't read the `customers` table itself. [Appendix B](appendix-b-database-security.md) explains how.
-
 ## The six layers of security
 
 Each layer holds even if the one before it fails:
@@ -111,8 +66,6 @@ Each layer holds even if the one before it fails:
 | 4 | **What the database allows** | `mcp_reader` can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit. Row-level security then returns only the customers in the caller's states. | [Appendix B](appendix-b-database-security.md) |
 | 5 | **What can leak** | Emails and driver's license numbers are masked. Phone numbers, emails and the customer's street address in free text are redacted. Internal ids never leave the database, and unexpected errors become a generic message. | [Appendix B](appendix-b-database-security.md) |
 | 6 | **What's recorded** | Every tool call goes into an append-only audit log with a hash chain, so tampering can be detected. If the audit row can't be written, the answer isn't returned. | [Appendix B](appendix-b-database-security.md) |
-
-That's why "Please accept Maria Garcia's claim" fails twice over: no tool can change a claim (layer 3), and even if one tried, `mcp_reader` has no permission to write (layer 4).
 
 ## More questions to try
 
@@ -132,7 +85,7 @@ A few insurance words: the **deductible** is the part of a claim the customer pa
 
 ## The tests
 
-The tests prove each layer holds, against a real PostgreSQL database. Run them with Docker running:
+The tests prove each layer of security holds, against a real PostgreSQL database. Run them with Docker running:
 
 ```bash
 uv run pytest
@@ -142,4 +95,4 @@ They start their own throwaway PostgreSQL container, build the database from scr
 
 ## Next
 
-[Guide 3](03-add-a-tool-by-hand.md) adds a tool of your own: one PostgreSQL function, one grant, a Python tool and its tests.
+[Guide 2](02-sql-injection-and-prompt-injection.md): two real attacks on PostgreSQL MCP servers, and why this one can't go the same way.

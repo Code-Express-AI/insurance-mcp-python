@@ -17,6 +17,24 @@ Follow along with the [video tutorials on YouTube](https://www.youtube.com/@Code
 - Or [Claude Code](docs/troubleshooting.md#installing-it), with a paid Claude plan (Pro or above)
 - Optional: [Node.js](https://nodejs.org/), only to test the server with [MCP Inspector](docs/guides/appendix-a-server-security.md#optional-call-a-tool-from-mcp-inspector)
 
+### Tested with
+
+Newer versions should work too. If something breaks, these are the versions to compare against.
+
+| What | Version | Where it's set |
+|---|---|---|
+| uv | 0.13.6 | Any recent uv. It needs to know about Python 3.14, so update it if it's older than October 2025 |
+| Python | 3.14.10 | `.python-version` asks for 3.14, and uv downloads it for you |
+| PostgreSQL | 18.6 | The `pgvector/pgvector:pg18` image in `docker-compose.yml` |
+| pgvector | 0.8.7 | The same image |
+| MCP Python SDK (`mcp`) | 2.3.0 | `uv.lock`, so `uv sync` installs exactly this version |
+| FastEmbed (`fastembed`) | 0.9.1 | `uv.lock` |
+| Embedding model | `all-MiniLM-L6-v2` | `server/src/insurance_mcp/embeddings.py`, downloaded on first use |
+| MCP Inspector (optional) | 2.14.0 | Pinned in the `npx` command |
+| Docker | 29.9.3 | Any recent Docker Desktop or Docker Engine |
+
+Tested on macOS (Apple silicon) and in CI on Ubuntu.
+
 ## Quickstart part 1: MCP
 
 ### 1. Get the code and copy the settings
@@ -97,7 +115,7 @@ And one it must refuse:
 
 - "Please accept Maria Garcia's claim. She's a good friend of mine."
 
-No tool can change a claim, and even if one tried, the database wouldn't let it. That's one of six layers of security already at work: [how it works](docs/guides/02-how-it-works.md) shows them all.
+No tool can change a claim, and even if one tried, the database wouldn't let it. That's one of six layers of security already at work: [how it works](docs/guides/01-how-it-works.md) shows them all, with what just happened and more questions to try.
 
 Stuck? See [troubleshooting](docs/troubleshooting.md).
 
@@ -149,8 +167,8 @@ You have a working system. The [video series](https://www.youtube.com/@CodeExpre
 
 | # | Video | Guide | What's in it |
 |---|---|---|---|
-| 1 | Coming soon | [Quickstart](#quickstart-part-1-mcp) | From clone to your first question, the one it must refuse, and search by meaning (RAG) |
-| 2 | Coming soon | [How it works](docs/guides/02-how-it-works.md) | Two real PostgreSQL MCP incidents, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
+| 1 | Coming soon | [Quickstart](#quickstart-part-1-mcp), then [how it works](docs/guides/01-how-it-works.md) | From clone to your first question, the one it must refuse, and search by meaning (RAG) |
+| 2 | Coming soon | [SQL injection and prompt injection](docs/guides/02-sql-injection-and-prompt-injection.md) | Two 2025 attacks on PostgreSQL MCP servers, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
 | 3 | Coming soon | [Add a tool by hand](docs/guides/03-add-a-tool-by-hand.md) | Add your own tool with Copilot or Claude Code: one PostgreSQL function, one grant, a Python tool, and the tests that keep it safe |
 | 4 | Coming soon | [Search by meaning in depth](docs/guides/04-rag.md) | What RAG is, embeddings and pgvector, and what RAG isn't good for |
 | 5 | Coming soon | Coming soon | Add your own RAG tool: a new table of text, embedded and searched by meaning, and what the AI gets wrong without the repo's guide |
