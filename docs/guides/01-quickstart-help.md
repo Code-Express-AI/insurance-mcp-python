@@ -1,12 +1,44 @@
-# Troubleshooting
+# Guide 1: quickstart help and troubleshooting
 
-Find the step you're on, then the message you see.
+This is the guide for [video 1 on YouTube](https://www.youtube.com/@CodeExpressAI), and the help page for every guide. Something not working? Find the step you're on, then the message you see. The videos explain how it all works.
+
+## More questions to try
+
+Each of these has an exact answer in the data, and most need several tools in a row. Watch the tool calls: you can see how the assistant breaks each question down, and which tool answers which part.
+
+- "What's covered on policy AUT-104233, and what's the deductible?"
+- "Which open claims are over $20k and more than 90 days old?"
+- "Which repair shops have the highest average repair cost in the last 12 months?"
+- "How many windshield claims did we have last month, compared with the month before?"
+- "Show me the claim history for Maria Garcia. Has she claimed more than twice in three years?"
+- "Which adjuster has the most open claims?"
+- "How many at-fault claims involved a teenage driver in the last 12 months?"
+
+**"Last month" means last month.** The data runs up to the day you ran the setup command, so relative dates work as you'd expect. If you set it up a while ago, run `uv run python -m insurance_database.setup_db` again to bring it up to today.
+
+A few insurance words: the **deductible** is the part of a claim the customer pays themselves, the **reserve** is what the insurer expects a claim to cost in total, and an **adjuster** is the insurer's employee who handles the claim.
+
+## Run the tests
+
+The tests prove each layer of security holds, against a real PostgreSQL database. Run them from the repository folder, with Docker running:
+
+```bash
+uv run pytest
+```
+
+They start their own throwaway PostgreSQL container, build the database from scratch, load a small set of data, and delete the container at the end, so they never touch your database. If Docker isn't running, the database tests are skipped, not failed: start Docker and run them again.
+
+The few tests that need the embedding model run only when you ask for them. The first run downloads the model:
+
+```bash
+uv run pytest -m embedding_model
+```
+
+GitHub Actions runs all of them on every push to `main` and every pull request.
 
 ## Setting up
 
 **`Field required` for `admin_database_url` or `reader_database_url`.** There's no `.env` file, or the command isn't running in the repository folder. Run `cd insurance-mcp-python`, then `cp .env.example .env` (on Windows, `copy .env.example .env`).
-
-**`The token for 'local' is shorter than 32 characters.`** A token in `MCP_TOKENS` is too short. Make one with `uv run python -m insurance_mcp.auth` and put it in `MCP_TOKENS`.
 
 ## The database
 
@@ -24,7 +56,7 @@ Find the step you're on, then the message you see.
 
 ## The server
 
-**`The token for 'local' is shorter than 32 characters.`** Make a token with `uv run python -m insurance_mcp.auth` and put it in `MCP_TOKENS`.
+**`The token for 'local' is shorter than 32 characters.`** A token in `MCP_TOKENS` is too short. Make one with `uv run python -m insurance_mcp.auth` and put it in `MCP_TOKENS`.
 
 **`MCP_TOKENS must be name:token pairs, separated by commas.`** Each entry needs a name, a colon and a token, such as `local:abc...`, with a comma between entries.
 
@@ -34,7 +66,9 @@ Find the step you're on, then the message you see.
 
 **`address already in use`.** Something else is using port 8000, often the server from another copy of this repository, still running in another terminal. Stop it with `Ctrl+C`, or set `PORT` in `.env` to another port, such as `8001`, and use that port in the URLs.
 
-**Every tool answers, but finds nothing (0 customers).** The token's name isn't one the database knows. Use `local`, or one of `claude`, `copilot` and `inspector` from [appendix A](guides/appendix-a-server-security.md#give-each-client-its-own-token). [Row-level security](guides/appendix-b-database-security.md#row-level-security-step-by-step) explains why.
+**Is the assistant really using the server?** Each tool call prints one line in the server's terminal, such as `Tool call: caller=local tool=find_customers rows=1 ms=12 succeeded=True`. No line, no tool call.
+
+**Every tool answers, but finds nothing (0 customers).** The token's name isn't one the database knows. Use `local`, or one of `claude`, `copilot` and `inspector` from [appendix A](appendix-a-server-security.md#give-each-client-its-own-token). [Row-level security](appendix-b-database-security.md#row-level-security-step-by-step) explains why.
 
 **`401 Unauthorized` with a token.** The header must be `Authorization: Bearer <token>`, with the word `Bearer` and one space. Check the token matches one in `MCP_TOKENS` exactly, and restart the server after changing `.env`: it reads the file only when it starts.
 
@@ -56,7 +90,7 @@ Find the step you're on, then the message you see.
 
 **"Failed to read configuration from .../.copilot/mcp-config.json: mcpServers: Required".** The file is empty or invalid. Run **MCP: Open User Configuration**, choose **Copilot Global**, make sure it matches the JSON in the README, with everything inside `"mcpServers"`, then restart VS Code.
 
-**Copilot lists the tools but never calls them.** It's probably reading them from the code in the repository, and that answer looks right even when nothing is connected. Ask again, starting with "Use the insurance server to...", and check that Copilot shows a tool call. The 13 tools should also be listed and selected in the tools picker.
+**Copilot lists the tools but never calls them.** It's probably reading them from the code in the repository, and that answer looks right even when nothing is connected. Ask again, starting with "Use the insurance server to...", and check that Copilot shows a tool call, and the server's terminal a `Tool call:` line. The 13 tools should also be listed and selected in the tools picker.
 
 **It works in MCP Inspector but not in VS Code.** The server is fine, so check the URL and the header: run **MCP: Open User Configuration** and choose **Copilot Global**.
 
@@ -108,9 +142,9 @@ In VS Code on Windows, a new terminal isn't enough: quit and reopen VS Code. If 
 
 **`insurance` shows as failed, with a `401`.** The token doesn't match. Stop the server, run `claude mcp remove insurance`, add it again with the right token, then start the server again.
 
-**Answers are empty, or a customer "doesn't exist".** Check which token the client uses. `local` sees everything. `claude`, `copilot` and `inspector` each see part of the data, and any other name sees nothing. See [Give each client its own token](guides/appendix-a-server-security.md#give-each-client-its-own-token).
+**Answers are empty, or a customer "doesn't exist".** Check which token the client uses. `local` sees everything. `claude`, `copilot` and `inspector` each see part of the data, and any other name sees nothing. See [Give each client its own token](appendix-a-server-security.md#give-each-client-its-own-token).
 
-**`/mcp` doesn't list `insurance` at all.** Either the session started before you added the server, so start a new one, or you ran `claude mcp add` from a different folder. Run `claude mcp list` from the repository folder to check, and add it again from there if it's missing.
+**`/mcp` doesn't list `insurance` at all.** Either the session started before you added the server, so run `/clear` (or start a new session) and `/mcp` again, or you ran `claude mcp add` from a different folder. Run `claude mcp list` from the repository folder to check, and add it again from there if it's missing.
 
 To see which servers Claude Code has for this folder and whether each one connects, or to remove `insurance` so you can add it again (for example with a new token), run these from the repository folder. Stop the server before you remove and add `insurance`, and start it again afterwards.
 
@@ -129,14 +163,28 @@ claude mcp remove insurance
 
 **The download stops or fails.** Hugging Face can be slow, or limit requests. Stop the command and run it again.
 
-## Start again from scratch
+## Remove everything
 
-If a first try went wrong halfway, clean up before you delete the folder. Three things live outside it. Run these from the repository folder:
+Use this to start again from scratch, or to remove the project for good. Three things live outside the repository folder: the database, the Docker image and your assistant's entry for the server. Run these from the repository folder, in this order:
 
-1. Stop the MCP server with `Ctrl+C`, if it's running.
-2. With Docker running, delete the database: `docker compose down -v`. Do it before you delete the folder, because Docker names the database after the folder. Otherwise the database stays behind, and a new copy in a folder with the same name gets the old data and the old password.
-3. If you added Claude Code: `claude mcp remove insurance`. If you added Copilot, run **MCP: Open User Configuration**, choose **Copilot Global**, and delete the `insurance` entry.
+1. **Stop the MCP server** with `Ctrl+C`, if it's running.
+2. **Remove the server from your assistant.**
+   - Claude Code: `claude mcp remove insurance`.
+   - Copilot: run **MCP: Open User Configuration**, choose **Copilot Global**, and delete the `insurance` entry.
+3. **Delete the database**, with Docker running: `docker compose down -v`. Do it before you delete the folder, because Docker names the database after the folder. Otherwise the database stays behind, and a new copy in a folder with the same name gets the old data and the old password.
+4. **Delete the Docker images**, if you're removing the project for good. Keep them if you're starting again: they're a large download. `pgvector/pgvector:pg18` is the database, and the tests use `testcontainers/ryuk` to clean up their containers:
 
-Then delete the folder, and start the quickstart again from step 1. The `.env` file, the Python environment and the downloaded model are all inside the folder, so they go with it.
+   ```bash
+   docker image rm pgvector/pgvector:pg18
+   docker image ls testcontainers/ryuk
+   ```
 
-If you missed step 2: run `docker volume ls`, find the volume named after the folder, such as `insurance-mcp-python_pgdata`, and delete it with `docker volume rm` and its name.
+   Delete each `ryuk` image listed with `docker image rm` and its name, such as `testcontainers/ryuk:0.8.1`.
+5. **Delete the folder.** The `.env` file, the Python environment and the downloaded model are all inside it, so they go with it.
+6. **Delete your fork**, if you made one on GitHub: on the fork's page, **Settings**, then **Delete this repository** at the bottom. A plain clone needs nothing more.
+
+To start again, follow the quickstart from step 1.
+
+If you missed step 3: run `docker volume ls`, find the volume named after the folder, such as `insurance-mcp-python_pgdata`, and delete it with `docker volume rm` and its name.
+
+**The tools you installed for it,** such as Docker, uv, VS Code or Claude Code, are yours to keep or remove. If you want to remove them, each one's own docs say how, for example [uninstalling uv](https://docs.astral.sh/uv/getting-started/installation/#uninstallation) and [uninstalling Claude Code](https://code.claude.com/docs/en/setup#uninstall-claude-code). Claude Code's steps also delete your settings for every project, not just this one.

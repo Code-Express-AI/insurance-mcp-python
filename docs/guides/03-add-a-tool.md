@@ -275,7 +275,7 @@ Other problems:
 | `Unknown tool: get_customer_with_policies` | The Python tool isn't in `TOOLS`, or the server is still running the old code. Restart it. |
 | The assistant doesn't use the new tool | The server wasn't restarted, or the assistant wasn't reconnected ([load it](#load-it)). Start a new chat too. |
 
-More problems and their fixes are in [troubleshooting](../troubleshooting.md).
+More problems and their fixes are in [guide 1](01-quickstart-help.md).
 
 ## Next
 
