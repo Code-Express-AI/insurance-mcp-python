@@ -77,6 +77,18 @@ async def audited_call(
         logger.exception("Could not write the audit row for %s, so no result is returned", function)
         raise ToolError(GENERIC_ERROR) from None
 
+    # One line per tool call, so the console shows what ran. Never the arguments,
+    # the results or the error: they can hold personal data, and they're in the
+    # audit row. (One error message repeats the argument it rejected.)
+    logger.info(
+        "Tool call: caller=%s tool=%s rows=%s ms=%s succeeded=%s",
+        caller,
+        function,
+        len(rows) if rows is not None else None,
+        duration_ms,
+        error is None,
+    )
+
     if error is not None:
         raise ToolError(error)
     return rows

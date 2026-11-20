@@ -337,6 +337,19 @@ What we can't do: control which other tools someone's assistant has.
 - **No tool arguments or results in the console log.** Arguments contain customer names and results contain personal data. They're recorded in the audit table, the one controlled place for them. A plain log file gets copied, shared and pasted into bug reports.
 - **uvicorn's request log stays on.** It prints one line per request (method, path, status code) and no headers, so tokens never appear in it.
 
+**Agreed (Liam, 2026-11-21): one line per tool call.** Every MCP call is `POST /mcp 200`, so uvicorn's log can't show which tool ran, and the console stays quiet while the assistant works. So the audit code logs one `INFO` line per tool call, after it writes the audit row, with the same fields as that row apart from the arguments:
+
+```
+INFO: insurance_mcp.audit: Tool call: caller=local tool=find_customers rows=3 ms=12 succeeded=True
+```
+
+- **No personal data in it.** The caller is the token's name, never the token. The tool name is public. The rest are numbers. Arguments and results still stay out (the rule above), and so does the error message: one of them repeats the argument it rejected (`Unknown search_in "..."`). A failed call shows `succeeded=False`, and its error is in the audit table.
+- **One place, every tool.** It's in `audit.py`, which every tool goes through, so a tool added later logs too, with nothing to remember.
+- **Tool calls only.** Not `tools/list` or the other requests a client sends: clients send those often, and they'd bury the tool calls.
+- **Always on, locally and hosted.** It's what you'd want from a hosted server too: what ran, for whom, and how long it took.
+- Rejected: **a setting to switch it on only in development.** The server has no development mode, and the line holds nothing that needs hiding, so a setting would add an `.env` entry, docs and a test for both cases, for no gain. Anyone who wants it off can raise the `insurance_mcp.audit` logger's level with standard `logging`.
+- Rejected: **logging the arguments in development only.** They'd show customer names on screen and in pasted logs; the audit table already has them.
+
 ## 13. Server tests
 
 **Status:** Agreed
@@ -358,7 +371,7 @@ pytest, in `tests/server/`. Most use the real database in the test container (sp
 - **Recovery:** a blocked caller or address is let in again once its hits leave the window, and rejected hits don't count. The test uses a fake clock, so it doesn't wait a minute.
 - **Batches:** a JSON-RPC batch is rejected with `400`, and no tool runs.
 - **CORS:** no response, including errors, carries an `Access-Control-Allow-Origin` header.
-- **Logging:** after a tool call, the console log contains neither its arguments nor its results. A rejected argument is logged with the tool and argument name, but not its value, and an unknown one with the caller too (decision 12).
+- **Logging:** after a tool call, the console log has one line naming the caller and the tool, and contains neither its arguments nor its results. A rejected argument is logged with the tool and argument name, but not its value, and an unknown one with the caller too (decision 12).
 - **Input limits:** a body over 64 KB gets `413`, with and without a `Content-Length` header. Deeply nested JSON is rejected without crashing the server. An over-long string, a null byte, a blank name, a badly formatted policy number and an unknown argument each come back as a tool error, and the database is never called (decision 14).
 - **Error responses:** every row of the error table in decision 14 has a test that checks its status code or tool error and its message.
 - **Health:** `/health` answers without a token and says nothing about the database (decision 3).
