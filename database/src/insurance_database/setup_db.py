@@ -41,7 +41,7 @@ def connect(database_url: str) -> psycopg.Connection:
     """Connect as the admin. If it fails, say so in a few lines, not a traceback.
 
     psycopg's own message is kept, because it says what went wrong, such as
-    "password authentication failed", and the troubleshooting page matches on it.
+    "password authentication failed", and the quickstart help page matches on it.
     """
     try:
         return psycopg.connect(database_url)
@@ -50,7 +50,7 @@ def connect(database_url: str) -> psycopg.Connection:
             # Nothing is listening: Docker or the database isn't running.
             advice = "Is the database running? Start Docker, then: docker compose up -d --wait"
         else:
-            advice = "See docs/troubleshooting.md."
+            advice = "See docs/guides/01-quickstart-help.md."
         raise SetupError(f"Couldn't connect to the database.\n{error}\n{advice}") from None
 
 

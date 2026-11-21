@@ -4,15 +4,17 @@ This is the guide for [video 3 on YouTube](https://www.youtube.com/@CodeExpressA
 
 ## Before you begin: if you get stuck
 
-Your code will look a bit different from the video: the AI writes it fresh each time. If you get stuck, compare with the [`video-3-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-3-done) branch, which has the finished tool and passes every test. Or switch to it and carry on from there. `git stash` puts your own changes aside first, so the switch doesn't refuse:
+Your code will look a bit different from the video: the AI writes it fresh each time. If you get stuck, compare with the [`video-3-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-3-done) branch, which has the finished tool and passes every test. Or switch to it and carry on from there. `git stash -u` puts your own changes aside first, new files included, so the switch doesn't refuse. `git pull` gets the latest copy of the branch:
 
 ```bash
-git stash
+git fetch
+git stash -u
 git switch video-3-done
+git pull
 uv run python -m insurance_database.update_db
 ```
 
-Then restart the server, and reconnect your assistant (see [load it](#load-it)).
+Then restart the server, and reconnect your assistant (see [load it](#load-it)). If the database still seems wrong, rebuild it with `uv run python -m insurance_database.setup_db`. If you forked the repository, your fork may not have the branch: GitHub copies only `main` unless you untick that box when you fork.
 
 ## Part 1: with GitHub Copilot
 
