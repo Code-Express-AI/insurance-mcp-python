@@ -8,6 +8,7 @@ In 2025, researchers showed that the MCP project's own reference PostgreSQL serv
 
 - [Datadog Security Labs' report](https://securitylabs.datadoghq.com/articles/mcp-vulnerability-case-study-SQL-injection-in-the-postgresql-mcp-server/) (August 2025)
 - [The archived server on GitHub](https://github.com/modelcontextprotocol/servers-archived/tree/main/src/postgres)
+- [Its weekly downloads on npm](https://www.npmjs.com/package/@modelcontextprotocol/server-postgres)
 
 ## Attack 2: prompt injection
 
