@@ -171,6 +171,9 @@ async def test_the_log_has_no_tool_arguments_or_results(settings, caplog):
     assert AS_OF_DATE.isoformat() not in server_log
     assert "Rutherford" not in server_log
     assert "Eleanor" not in server_log
+    # Each tool call is logged with the caller and the tool, but nothing it was given.
+    assert "Tool call: caller=local tool=get_dataset_info rows=1 ms=" in server_log
+    assert "Tool call: caller=local tool=find_customers rows=" in server_log
     # The rejected argument is logged with the caller, tool and argument name.
     assert (
         "Rejected argument: caller=local tool=get_dataset_info argument='customer_name'"

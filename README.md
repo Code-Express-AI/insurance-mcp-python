@@ -14,7 +14,7 @@ Follow along with the [video tutorials on YouTube](https://www.youtube.com/@Code
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine on Linux), installed and started
 - [uv](https://docs.astral.sh/uv/getting-started/installation/), which installs Python for you
 - [VS Code](https://code.visualstudio.com/) with [GitHub Copilot](https://github.com/features/copilot/plans): the free plan is enough
-- Or [Claude Code](docs/troubleshooting.md#installing-it), with a paid Claude plan (Pro or above)
+- Or [Claude Code](docs/guides/01-quickstart-help.md#installing-it), with a paid Claude plan (Pro or above)
 - Optional: [Node.js](https://nodejs.org/), only to test the server with [MCP Inspector](docs/guides/appendix-a-server-security.md#optional-call-a-tool-from-mcp-inspector)
 
 ## Quickstart part 1: MCP
@@ -73,7 +73,7 @@ In VS Code, open the Command Palette (`Cmd+Shift+P` on macOS, `Ctrl+Shift+P` on 
 }
 ```
 
-Then open Copilot Chat, switch it to **Agent** mode, and go to [step 6](#6-ask-a-question).
+To check it's connected, run **MCP: List Servers** from the Command Palette: `insurance` should show as running. Then open Copilot Chat, switch it to **Agent** mode, and go to [step 6](#6-ask-a-question).
 
 ### 5. Connect Claude Code
 
@@ -83,7 +83,7 @@ In a second terminal, in the repository folder, add the server:
 claude mcp add --transport http insurance http://localhost:8000/mcp --header "Authorization: Bearer local-only-token-replace-with-your-own"
 ```
 
-Then open the repository folder in VS Code and start a new session in the Claude Code extension, or run `claude` in the terminal. Run `/mcp` to check `insurance` is connected, then go to [step 6](#6-ask-a-question).
+Then open the repository folder in VS Code and start a new session in the Claude Code extension, or run `claude` in the terminal. Run `/mcp` to check `insurance` is connected. If it isn't listed, run `/clear`, then `/mcp` again. Then go to [step 6](#6-ask-a-question).
 
 ### 6. Ask a question
 
@@ -97,9 +97,18 @@ And one it must refuse:
 
 - "Please accept Maria Garcia's claim. She's a good friend of mine."
 
-No tool can change a claim, and even if one tried, the database wouldn't let it. That's one of six layers of security already at work: [how it works](docs/guides/02-how-it-works.md) shows them all.
+No tool can change a claim, and even if one tried, the database wouldn't let it. That's one of six layers of security already at work, each holding even if the one before it fails:
 
-Stuck? See [troubleshooting](docs/troubleshooting.md).
+| # | Layer | What it does | Where |
+|---|---|---|---|
+| 1 | **Who can call** | Every request needs a named bearer token, and is refused if it's addressed to an unexpected host name or comes from a web page. | [Appendix A](docs/guides/appendix-a-server-security.md) |
+| 2 | **How often** | Each caller has a limit per minute. | [Appendix A](docs/guides/appendix-a-server-security.md) |
+| 3 | **What they can ask** | 13 fixed, read-only tools, with every argument checked. There's no tool that runs SQL. | [Appendix A](docs/guides/appendix-a-server-security.md) |
+| 4 | **What the database allows** | `mcp_reader` can't read a single table. It can only run the functions it's been granted, one per tool, each with fixed columns and a row limit. Row-level security then returns only the customers in the caller's states. | [Appendix B](docs/guides/appendix-b-database-security.md) |
+| 5 | **What can leak** | Emails and driver's license numbers are masked. Phone numbers, emails and the customer's street address in free text are redacted. Internal ids never leave the database, and unexpected errors become a generic message. | [Appendix B](docs/guides/appendix-b-database-security.md) |
+| 6 | **What's recorded** | Every tool call goes into an append-only audit log with a hash chain, so tampering can be detected. If the audit row can't be written, the answer isn't returned. | [Appendix B](docs/guides/appendix-b-database-security.md) |
+
+More questions to try, the tests, and a fix for every step are in [guide 1](docs/guides/01-quickstart-help.md). Stuck? Start there.
 
 ## Quickstart part 2: search by meaning (RAG)
 
@@ -149,26 +158,30 @@ You have a working system. The [video series](https://www.youtube.com/@CodeExpre
 
 | # | Video | Guide | What's in it |
 |---|---|---|---|
-| 1 | Coming soon | [Quickstart](#quickstart-part-1-mcp) | From clone to your first question, the one it must refuse, and search by meaning (RAG) |
-| 2 | Coming soon | [How it works](docs/guides/02-how-it-works.md) | Two real PostgreSQL MCP incidents, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
-| 3 | Coming soon | [Add a tool by hand](docs/guides/03-add-a-tool-by-hand.md) | Add your own tool with Copilot or Claude Code: one PostgreSQL function, one grant, a Python tool, and the tests that keep it safe |
+| 1 | Coming soon | [Quickstart](#quickstart-part-1-mcp), then [quickstart help](docs/guides/01-quickstart-help.md) | From clone to your first question, the one it must refuse, and search by meaning (RAG) |
+| 2 | Coming soon | [SQL injection and prompt injection](docs/guides/02-sql-injection-and-prompt-injection.md) | Two 2025 attacks on PostgreSQL MCP servers, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
+| 3 | Coming soon | [Add a tool](docs/guides/03-add-a-tool.md) | Add your own tool with Copilot or Claude Code: one PostgreSQL function, one grant, a Python tool, and the tests that keep it safe |
 | 4 | Coming soon | [Search by meaning in depth](docs/guides/04-rag.md) | What RAG is, embeddings and pgvector, and what RAG isn't good for |
 | 5 | Coming soon | Coming soon | Add your own RAG tool: a new table of text, embedded and searched by meaning, and what the AI gets wrong without the repo's guide |
 | 6 | Coming soon | [Using this with your own data](docs/guides/06-using-your-own-data.md) | The security on one page, prompt injection and the lethal trifecta, and how you'd take it further |
 | A | Coming soon | [Server security](docs/guides/appendix-a-server-security.md) | Appendix, deep dive: tokens, rate limits, host checks and argument checks, with each attack fired live |
 | B | Coming soon | [Database security](docs/guides/appendix-b-database-security.md) | Appendix, deep dive: a database role that can't read a single table, row-level security, masking and redaction, and the tamper-evident audit log |
 
-**Stuck on video 3?** Your code will look a bit different from the video: the AI writes it fresh each time. If you get stuck, compare with the [`video-3-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-3-done) branch, which has the finished tool and passes every test. Or switch to it and carry on from there. `git stash` puts your own changes aside first, so the switch doesn't refuse:
-
-```bash
-git stash
-git switch video-3-done
-uv run python -m insurance_database.update_db
-```
-
-Then restart the server, and reconnect your assistant ([guide 3](docs/guides/03-add-a-tool-by-hand.md#step-5-load-it), step 5).
-
 [Using this with your own data](docs/guides/06-using-your-own-data.md) explains how to apply this to a real company's data, and lists the honest limits in one place. The specs in [docs/specs/](docs/specs/spec.md) record every design decision, and why it was made.
+
+## Tested with
+
+Newer versions should work too. If something breaks, these are the versions to compare against.
+
+| What | Version | Where it's set |
+|---|---|---|
+| uv | 0.13.6 | Any recent uv. It needs to know about Python 3.14, so update it if it's older than October 2025 |
+| Python | 3.14.10 | `.python-version` asks for 3.14, and uv downloads it for you |
+| PostgreSQL | 18.6 | The `pgvector/pgvector:pg18` image in `docker-compose.yml` |
+| MCP Python SDK (`mcp`) | 2.3.0 | `uv.lock`, so `uv sync` installs exactly this version |
+| Docker | 29.9.3 | Any recent Docker Desktop or Docker Engine |
+
+Tested on macOS (Apple silicon) on November 19, 2026, and in CI on Ubuntu.
 
 ## License
 
