@@ -25,15 +25,26 @@ The search can also be narrowed with exact filters, in the same query. This is *
 - **When it was reported:** last month, the last 3 months, the last 12 months, this year or last year.
 - **Minimum reserve:** the expected total cost of the claim, in dollars.
 
-The assistant picks the filters from the question, so "only the collisions" becomes `claim_type: "collision"`. The PostgreSQL function `mcp.search_claim_text` applies them, each one an ordinary `where` condition, skipped when it's null. [See its filters](../../sql/080_mcp_functions.sql#L698-L702):
+The assistant picks the filters from the question, so "only the collisions" becomes `claim_type: "collision"`. The PostgreSQL function `mcp.search_claim_text` applies them, each one an ordinary `where` condition, skipped when it's null. From [sql/080_mcp_functions.sql](../../sql/080_mcp_functions.sql):
 
 ```sql
-where c.embedding is not null
-  and (p_claim_type is null or c.claim_type = p_claim_type)
-  and (p_status is null or c.status = p_status)
-  and (p_min_reserve is null or c.reserve >= p_min_reserve)
-  and (p_period is null or c.date_reported between v_start and v_end)
-order by c.embedding operator(public.<=>) v_query, c.claim_number
+create function mcp.search_claim_text(
+    p_embedding   real[],
+    p_search_in   text    default 'descriptions',
+    p_claim_type  text    default null,
+    p_status      text    default null,
+    p_period      text    default null,
+    p_min_reserve numeric default null,
+    p_limit       integer default 10
+)
+...
+        where c.embedding is not null
+          and (p_claim_type is null or c.claim_type = p_claim_type)
+          and (p_status is null or c.status = p_status)
+          and (p_min_reserve is null or c.reserve >= p_min_reserve)
+          and (p_period is null or c.date_reported between v_start and v_end)
+        order by c.embedding operator(public.<=>) v_query, c.claim_number
+...
 ```
 
 `operator(public.<=>)` is pgvector's `<=>`, how far apart in meaning (more on it below). It's written in full because the function's `search_path` is empty.
@@ -81,11 +92,11 @@ limit 10
 
 The `where` line is the filtered part of filtered vector search: `claim_type = 'collision'` takes out the hail and theft claims that are close in meaning.
 
-The real one is `mcp.search_claim_text` in [sql/080_mcp_functions.sql](../../sql/080_mcp_functions.sql#L646), with the same permissions and the same audit log as every other tool. The model picks the filter, the database applies it, and the model never writes SQL.
+The real one is `mcp.search_claim_text` in [sql/080_mcp_functions.sql](../../sql/080_mcp_functions.sql), with the same permissions and the same audit log as every other tool. The model picks the filter, the database applies it, and the model never writes SQL.
 
 ## What RAG isn't for
 
-Counts, amounts and exact lookups are SQL questions, and the exact tools answer them. The search tool's docstring says so ([server/src/insurance_mcp/tools.py](../../server/src/insurance_mcp/tools.py#L256)):
+Counts, amounts and exact lookups are SQL questions, and the exact tools answer them. The search tool's docstring says so ([server/src/insurance_mcp/tools.py](../../server/src/insurance_mcp/tools.py)):
 
 ```text
 Not for exact questions (counts, amounts, numbers): use search_claims for those.

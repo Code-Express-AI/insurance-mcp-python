@@ -158,11 +158,11 @@ You have a working system. The [video series](https://www.youtube.com/@CodeExpre
 
 | # | Video | Guide | What's in it |
 |---|---|---|---|
-| 1 | Coming soon | [Quickstart](#quickstart-part-1-mcp), then [quickstart help](docs/guides/01-quickstart-help.md) | From clone to your first question, the one it must refuse, and search by meaning (RAG) |
-| 2 | Coming soon | [SQL injection and prompt injection](docs/guides/02-sql-injection-and-prompt-injection.md) | Two 2025 attacks on PostgreSQL MCP servers, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
-| 3 | Coming soon | [Add a tool](docs/guides/03-add-a-tool.md) | Add your own tool with Copilot or Claude Code: one PostgreSQL function, one grant, a Python tool, and the tests that keep it safe |
+| 1 | [Watch](https://www.youtube.com/watch?v=C_sVzfGa9sc) (9:31) | [Quickstart](#quickstart-part-1-mcp), then [quickstart help](docs/guides/01-quickstart-help.md) | From clone to your first question, the one it must refuse, and search by meaning (RAG) |
+| 2 | [Watch](https://www.youtube.com/watch?v=5WyAxgzRp7g) (6:28) | [SQL injection and prompt injection](docs/guides/02-sql-injection-and-prompt-injection.md) | Two 2025 attacks on PostgreSQL MCP servers, and why this server can't go the same way: the AI never writes SQL, and the server's database login can't read a single table |
+| 3 | Coming soon | [Add a tool](docs/guides/03-add-a-tool.md) | Development lab 1: learn how to generate code with AI using 'code generation templates' as skills. Add your own tool with Copilot or Claude Code: one PostgreSQL function, one grant, a Python tool, and the tests that keep it safe |
 | 4 | Coming soon | [Search by meaning in depth](docs/guides/04-rag.md) | What RAG is, embeddings and pgvector, and what RAG isn't good for |
-| 5 | Coming soon | Coming soon | Add your own RAG tool: a new table of text, embedded and searched by meaning, and what the AI gets wrong without the repo's guide |
+| 5 | Coming soon | Coming soon | Development lab 2: add your own RAG tool: a new table of text, embedded and searched by meaning, and what the AI gets wrong without the repo's guide |
 | 6 | Coming soon | [Using this with your own data](docs/guides/06-using-your-own-data.md) | The security on one page, prompt injection and the lethal trifecta, and how you'd take it further |
 | A | Coming soon | [Server security](docs/guides/appendix-a-server-security.md) | Appendix, deep dive: tokens, rate limits, host checks and argument checks, with each attack fired live |
 | B | Coming soon | [Database security](docs/guides/appendix-b-database-security.md) | Appendix, deep dive: a database role that can't read a single table, row-level security, masking and redaction, and the tamper-evident audit log |
