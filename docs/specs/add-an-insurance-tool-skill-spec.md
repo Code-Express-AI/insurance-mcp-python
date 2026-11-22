@@ -11,9 +11,9 @@ The skill that tells an AI assistant (GitHub Copilot or Claude Code) how to add 
 | 1 | Where the files go | Agreed |
 | 2 | What the skill covers | Agreed |
 | 3 | Generic, not tied to the existing tools | Agreed |
-| 4 | The human agrees the plan, runs the commands, and signs it off | Proposed |
-| 5 | Docs it doesn't touch | Proposed |
-| 6 | How we know it works | Proposed |
+| 4 | The human agrees the plan, runs the commands, and signs it off | Agreed |
+| 5 | Docs it doesn't touch | Agreed |
+| 6 | How we know it works | Agreed |
 
 ## 1. Where the files go (Agreed)
 
@@ -48,23 +48,25 @@ Liam, 2026-11-18: the skill names no existing tool or function. It names the fil
 
 Two reasons. The skill stays true when tools are added or changed. And it doesn't lead the assistant towards a tool that already exists when it builds video 3's tool.
 
-## 4. The human agrees the plan, runs the commands, and signs it off (Proposed)
+## 4. The human agrees the plan, runs the commands, and signs it off (Agreed)
 
 - **Step 1 stops for agreement**: the tool's name, its arguments and limits, its columns, its row limit, any new table and its data. Video 3 asks for the SQL first, and a wrong plan is cheapest to fix here.
 - **The assistant never runs the setup, update or embed commands.** They change the human's database, and the setup command empties the audit log and removes the embeddings. It runs only ruff and pytest, which use their own database in Docker.
 - **It ends with a review list**, because the assistant wrote both the function and its tests, so they can share a mistake. The rule tests catch a missing grant or a missing `security definer`. They don't catch a column the question doesn't need.
 
-## 5. Docs it doesn't touch (Proposed)
+## 5. Docs it doesn't touch (Agreed)
 
 The skill doesn't update the tool tables in `server-spec.md`, `database-spec.md` or the guides. They describe the tools the repo ships with. The `video-3-done` and `video-5-done` branches update them by hand.
 
-## 6. How we know it works (Proposed)
+## 6. How we know it works (Agreed)
 
 There's no automated test for a skill. It's tested by use:
 
 - **Rehearse from a fresh clone, more than once, on each assistant**, with video 3's and video 5's requests, including on Copilot's free plan. Check both fit inside the free plan's monthly limit.
 - **Each run must:** stop after the plan, follow the steps in order, finish with `uv run pytest` green, and end on the review list.
 - **Write down what went wrong** in each run, and fix the skill, not the tests.
+
+**Rehearsed so far:** once, on Copilot's free plan, with video 3's request (November 19, 2026). Not yet: Claude Code, a second run, video 5's request, or the free plan's monthly limit.
 
 ## Known limits
 
