@@ -1,96 +1,125 @@
 # Guide 4: search by meaning in depth
 
-In quickstart part 2, the embed command let your assistant answer "am I covered?" questions by quoting the policy booklets, and, if you embedded the claims too, find claims by what they mean, not just by exact fields: "claims where the car was hit while parked at a supermarket" finds them even when none of those words appear. This guide shows how.
+This is the guide for [video 4 on YouTube](https://www.youtube.com/@CodeExpressAI).
 
-This is **RAG**, retrieval-augmented generation: the server finds the most relevant text, and the assistant writes its answer from it. Everything runs on your own machine, for free, with no account or API key. The notes never leave it, apart from the search results your assistant reads.
+## Embed the claims
 
-## How it works
-
-An **embedding** is a list of 384 numbers that stands for the meaning of a text. Texts that mean similar things get similar lists, even with no words in common. A small model, [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2), makes them on your CPU.
-
-1. **Once, in bulk:** the embed command makes an embedding for every accident description, every adjuster's note and every section of the three policy booklets, and stores them in PostgreSQL, next to the text, with the pgvector extension.
-2. **For each search:** the server makes an embedding of the question with the same model, and the database returns the stored texts whose embeddings are closest to it.
-
-The embedding model isn't the chat model. It only finds the text. Copilot or Claude still reads the results and writes the answer.
-
-## What the embed command did
+The quickstart's `--booklets-only` embedded the policy booklets. The claim searches need the full embed:
 
 ```bash
-uv run python -m insurance_database.embed --booklets-only    # the booklets, in seconds
-uv run python -m insurance_database.embed                    # everything, in minutes
+uv run python -m insurance_database.embed
 ```
 
-The first time, it downloads the model (90 MB) into a `.cache` folder in the repository. Hugging Face, where the model comes from, may print a warning about `HF_TOKEN`. Ignore it: no account is needed. The download can be slow, and if it stalls, stop it and run the command again.
+The accident descriptions take about a minute, and that's all the questions in this guide need. The adjusters' notes take a few minutes on a fast laptop, and 15 or more on an older one, with the fans running loud. Stopping it with `Ctrl+C` is fine: run it again and it carries on where it stopped.
 
-Then it splits the three policy booklets at their headings and embeds the 37 sections. With `--booklets-only` it stops there. Without it, it carries on with the claims, showing its progress as it goes:
+## RAG: find the text, then answer from it
+
+**RAG**, retrieval-augmented generation: the server finds the most relevant text, and the AI assistant writes its answer from it. The embedding model only finds the text. Copilot or Claude reads it and writes the answer.
+
+Keyword search fails here, and fails silently. No claim says "supermarket", so a search for the word returns 0 rows and no error. Search by meaning finds the claims at Kroger, Safeway and a grocery store, because those mean supermarket.
+
+The search can also be narrowed with exact filters, in the same query. This is **filtered vector search** (also called metadata filtering): search by meaning, plus ordinary SQL `where` conditions. It's often called **hybrid search**, but in RAG that name usually means search by meaning combined with keyword search, which this isn't. The claim search tool can filter by:
+
+- **Claim type:** collision, theft, glass (windshields and windows), fire, vandalism or weather.
+- **Status:** open, settled, denied or withdrawn.
+- **When it was reported:** last month, the last 3 months, the last 12 months, this year or last year.
+- **Minimum reserve:** the expected total cost of the claim, in dollars.
+
+The assistant picks the filters from the question, so "only the collisions" becomes `claim_type: "collision"`. The PostgreSQL function `mcp.search_claim_text` applies them, each one an ordinary `where` condition, skipped when it's null. [See its filters](../../sql/080_mcp_functions.sql#L698-L702):
+
+```sql
+where c.embedding is not null
+  and (p_claim_type is null or c.claim_type = p_claim_type)
+  and (p_status is null or c.status = p_status)
+  and (p_min_reserve is null or c.reserve >= p_min_reserve)
+  and (p_period is null or c.date_reported between v_start and v_end)
+order by c.embedding operator(public.<=>) v_query, c.claim_number
+```
+
+`operator(public.<=>)` is pgvector's `<=>`, how far apart in meaning (more on it below). It's written in full because the function's `search_path` is empty.
+
+## Embeddings: a text becomes 384 numbers
+
+- **An embedding** is a list of 384 numbers that stands for what a text is about. Texts that mean similar things land close together, with nobody labeling them.
+- **The model** is [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2): 90 MB, it runs on your CPU, and it's free, with no API key. The claims never leave your machine.
+- **Why this model:** we tested four small models on our own data, and it found the right claims most often, and was the fastest ([the spec, section 11](../specs/spec.md#11-rag-extension)).
+- **It reads about 256 word pieces (tokens)** of each text and silently ignores the rest. Notes are under 100 and booklet sections under 256, and a test checks it. For other kinds of text, see [picking an embedding model](#further-reading-picking-an-embedding-model).
+- **The map in the video is squashed** from 384 dimensions to 2. The search uses all 384.
+
+## pgvector: the embedding is just a column
+
+The embedding sits next to the text, in the same table, in the same PostgreSQL ([sql/020_schema.sql](../../sql/020_schema.sql)):
+
+```sql
+embedding public.vector(384)  -- of the description, for RAG
+```
+
+No separate vector database to run, pay for, secure or keep in sync. See the first few numbers of some embeddings, once the embed command has run:
+
+```bash
+docker compose exec db psql -U postgres -d insurance -c "select claim_number, left(description, 60) as description, left(embedding::text, 50) as embedding from insurance.claims where embedding is not null limit 3;"
+```
+
+Pinecone, the best-known separate vector database, now has search that runs inside PostgreSQL too: [pg_pinecone](https://www.pinecone.io/blog/introducing-pg-pinecone/), open source, released in October 2026.
+
+## One search, end to end
+
+1. The question goes through the same model, so its 384 numbers can be compared with the stored ones.
+2. PostgreSQL returns the closest texts first. pgvector's `<=>` is the cosine distance, how far apart two texts are in meaning: 0 is the same meaning, and the similarity score is 1 minus the distance.
+3. Meaning alone lets near misses in, such as hail in a Target parking lot. An ordinary `where` takes them out, in the same query.
+4. The rows go to the assistant, which writes the answer.
+
+Simplified, the query is:
+
+```sql
+select description, similarity
+from claims
+where claim_type = 'collision'
+order by embedding <=> :question
+limit 10
+```
+
+The `where` line is the filtered part of filtered vector search: `claim_type = 'collision'` takes out the hail and theft claims that are close in meaning.
+
+The real one is `mcp.search_claim_text` in [sql/080_mcp_functions.sql](../../sql/080_mcp_functions.sql#L646), with the same permissions and the same audit log as every other tool. The model picks the filter, the database applies it, and the model never writes SQL.
+
+## What RAG isn't for
+
+Counts, amounts and exact lookups are SQL questions, and the exact tools answer them. The search tool's docstring says so ([server/src/insurance_mcp/tools.py](../../server/src/insurance_mcp/tools.py#L256)):
 
 ```text
-Policy booklets:    37 sections
-Claim descriptions: 15,090 / 15,090 (100%)
-Claim notes:        23,040 / 76,475 (30%), about 2 min left
+Not for exact questions (counts, amounts, numbers): use search_claims for those.
 ```
 
-**It does the quick parts first.** The booklets take seconds, and the 15,090 accident descriptions about a minute, so the policy and accident searches work almost straight away. Until it's finished, the searches simply skip the text that isn't embedded yet.
+## Try it
 
-**The 76,000 or so adjusters' notes take the rest of the time, and your fans will run loud.** The notes are about three times as long as the descriptions, and there are five times as many. The model uses every CPU core, and that's normal. On a fast laptop the whole run takes about 3.5 minutes. An older one can take 15 minutes or more.
+Ask your assistant the video's questions:
 
-**Stopping it is fine.** Press Ctrl+C at any time. Every finished batch is already saved, so run the command again and it carries on where it stopped.
+- "Find claims where the car was hit while parked at a supermarket." None of the results says "supermarket".
+- "Find claims where the wind blew something into the car." Look for the neighbor's trampoline.
+- "Only the collisions: cars hit while parked at a supermarket." The tool call has `claim_type: "collision"`, and the hail and theft claims are gone.
+- "How many claims were reported last month?" The assistant uses `count_claims_by_month`, not the search, and gets an exact number.
 
-**After running the setup command again,** run the embed command again too. The setup command rebuilds the database, and the embeddings with it.
+## Further reading: picking an embedding model
 
-You don't need to restart the server. It loads the model the first time a RAG tool is used, so the server never loads it if you only use the other tools.
+all-MiniLM-L6-v2 suits this repo because the text is short, plain English, and must stay on your machine. Your text may need something else. Some questions to ask before you choose:
 
-## The RAG tools
+- **How long is each text?** A model reads a fixed number of tokens and silently drops the rest. Small local models read a few hundred tokens, and hosted ones read thousands. Either way, split long documents into chunks at their headings or paragraphs, as the booklets are, so each embedding stands for one idea.
+- **What kind of text is it?** General models are trained mostly on web pages and question-and-answer pairs. They do well on customer support tickets and claim notes, which are everyday language. Scientific papers are full of terms a general model barely knows, so try one trained on them, such as [SPECTER2](https://huggingface.co/allenai/specter2), which learned from which papers cite which. Posts on X are short, informal, full of slang, hashtags and emoji, and often in several languages, so try a multilingual model and check it on real posts. Legal, financial and code search have their own models too.
+- **Which languages?** An English-only model like ours puts a Spanish claim in the wrong place. Multilingual models embed many languages onto the same map, so a question in English can find a note in Spanish.
+- **Can the text leave your machine?** A hosted embeddings API sees every text you embed, personal data included, and charges for it. A local model costs nothing and sends nothing, but runs on your own hardware.
+- **How many numbers?** More dimensions can capture more, but take more storage and make each search slower. pgvector can index up to 2,000 dimensions with its `vector` type ([pgvector's README](https://github.com/pgvector/pgvector)). Many hosted models let you choose a smaller size.
 
-The server has three tools for this:
+Then **test it on your own data.** Write 20 or so questions with the answers you expect, and check which model finds them most often. That's how this repo picked its model ([the spec, section 11](../specs/spec.md#11-rag-extension)): the smallest of the four we tried did best. A leaderboard shows how a model does on public benchmarks, not on your text.
 
-| Tool | What it does |
-|---|---|
-| `search_claim_text` | Finds claims whose accident descriptions, or whose adjusters' notes, are closest in meaning to the question. Takes the same filters as `search_claims`. |
-| `find_similar_claims` | Finds claims whose descriptions are most like one claim's. It compares the stored embeddings, so it doesn't even need the model. |
-| `search_policy_wording` | Finds the sections of the policy booklets that answer a question, for one coverage level or all three. |
+**Changing model means embedding everything again.** Numbers from two models can't be compared, so the stored embeddings and the question must always come from the same one.
 
-Try these in your assistant:
+Where to look:
 
-- "Find claims where the car was hit while parked at a supermarket."
-- "Which claims have notes about a neck injury?"
-- "Find claims similar to CLM-1037552, and tell me how they were settled."
-- "Am I covered for flood damage with liability + collision?"
-- "What do I pay to fix a chip in my windshield?"
+- **Leaderboards:** the [MTEB leaderboard](https://huggingface.co/spaces/mteb/leaderboard) ranks embedding models on many tasks and languages. Use it to pick a shortlist, then test the shortlist yourself.
+- **Open source, free to run locally:** the [Sentence Transformers model list](https://sbert.net/docs/sentence_transformer/pretrained_models.html), and families such as BAAI's BGE, Snowflake's Arctic Embed, Microsoft's multilingual E5 and Google's [EmbeddingGemma](https://huggingface.co/google/embeddinggemma-300m). Check each model's license and its card's instructions: some need a prefix such as `query: ` on the question.
+- **Commercial, hosted:** [OpenAI](https://developers.openai.com/api/docs/guides/embeddings), [Voyage AI](https://docs.voyageai.com/docs/embeddings) (with models for law, finance and code), [Cohere](https://docs.cohere.com/docs/cohere-embed) and Google. Anthropic doesn't make an embedding model, and [its docs suggest Voyage AI](https://platform.claude.com/docs/en/build-with-claude/embeddings).
 
-For the first one, look at what comes back: "My car was parked at a gas station when a delivery van pulling up to the next pump hit my rear door", "My Toyota Camry was parked on Park Avenue overnight. In the morning the driver's side was caved in". None of them says "supermarket", but every one is a car hit while parked. If the assistant adds the filter `claim_type: collision`, every result is a car hit while parked. That's the main selling point of doing this in PostgreSQL: one query combines search by meaning with exact SQL filters, behind the same permissions and audit log as every other tool.
+## Summary
 
-Each result has a **similarity** score: 1 means the same meaning, and lower is weaker. The assistant can use it to tell a strong match from a weak one.
-
-A few US insurance terms in the booklets: **comprehensive** covers damage to your own car that isn't a crash, such as theft, hail or a deer, and **actual cash value** is what the car was worth just before the loss.
-
-## When it isn't RAG
-
-Now ask: "What's the deductible on policy AUT-104233?"
-
-The assistant should use `get_policy`, not a search. A deductible is an exact fact about one policy, and SQL gets it exactly right. Search by meaning is for finding text, not for looking up numbers. In the same way, "How many collision claims did we have this year?" is a count, and counts come from the exact tools.
-
-## What to watch for
-
-- **Wording matters.** The model is small. "Find claims where the car was hit while parked at a supermarket" works much better than "hit while parked at a supermarket". If a search looks poor, ask again in a full sentence, or ask the assistant to add a filter.
-- **The same story can come back several times.** The claim text is built from templates with a different street or store each time, so many claims share one sentence. Real claim text is far more varied.
-- **Descriptions or notes, not both at once.** Descriptions say what happened. Notes say how the claim was handled: injuries, statements, suspicions. The assistant picks one with `search_in`.
-- **Results are redacted like everything else.** Phone numbers and emails in the text come back as `[phone]` and `[email]`, and the customer's street address as `[address]`. The embeddings are made from this redacted text too. Names and injuries still get through.
-
-## Run the RAG tests
-
-The tests for the RAG functions and tools are part of the normal test run, `uv run pytest`. They use hand-made embeddings, so they don't need the model.
-
-The tests that use the real model run on their own:
-
-```bash
-uv run pytest -m embedding_model
-```
-
-They embed the small test data, check that the demo questions find the right things, and take under a minute once the model is downloaded.
-
-## Next
-
-[Guide 6](06-using-your-own-data.md) explains how to point the same design at a real company's data, and lists the honest limits in one place.
-
-[Appendix A](appendix-a-server-security.md) goes deep on the server: tokens, rate limits, host checks, MCP Inspector, and a token for each AI assistant.
+Search by meaning turns each text into 384 numbers with a free local model, and finds the closest ones. With pgvector, those numbers are a column in PostgreSQL, so one query combines meaning with exact SQL filters, behind the same permissions and audit log as every other tool. Use it to find text, and the exact tools for counts and numbers.
