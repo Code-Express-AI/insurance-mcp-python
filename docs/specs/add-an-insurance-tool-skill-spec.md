@@ -29,7 +29,7 @@ Each assistant reads only its own folder: Copilot reads `.github/skills/`, Claud
 
 No extra pointers go in `.github/copilot-instructions.md` or a committed `CLAUDE.md`. If rehearsals show an assistant not picking up the skill, we add them then.
 
-**Switching it off** (video 5's run without the skill): a `video-5-without-skill` branch, which is `main` without `skills/`, the two stubs and `docs/`. The code and its comments, the tests and the README stay, like most codebases. Switch with `git switch video-5-without-skill` and back with `git switch main`: the same on every OS, and nothing is lost. Merge `main` into it before each rehearsal or recording, so both runs start from the same code. Round 2 runs on `main`, with the skill and the specs, as viewers have it. The README section on this is still to write.
+**No run without the skill** (dropped by Liam on 2026-11-22): video 5 was to ask the same thing twice, with the skill switched off and then on, on a `video-5-without-skill` branch. Dropped because it's too much for one 10-minute video, whose focus is RAG and pgvector. Video 5 uses the skill as video 3 does.
 
 ## 2. What the skill covers (Agreed)
 
