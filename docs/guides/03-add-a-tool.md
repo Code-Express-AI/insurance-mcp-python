@@ -58,6 +58,8 @@ There's nothing to install here either: Claude Code loads the same skill automat
 5. It ends with the new SQL function, its grant, and a list to check. Read them: the AI wrote the function and the tests, so they can share a mistake.
 6. [Load it](#load-it), then [try it yourself](#try-it-yourself).
 
+Tested with Claude Code on November 22, 2026, with Opus 5.5 at medium effort. It stopped for a review of its plan, and the code passed every test and worked first time.
+
 ## Part 3: by hand
 
 The same steps, typed in yourself. Each step says what the code is for, so it's also a good way to check what the assistant wrote in parts 1 and 2.

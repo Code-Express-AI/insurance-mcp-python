@@ -47,6 +47,8 @@ Claude Code loads the same skill, so there's nothing to install here either.
 5. It ends with the new SQL function, its grant, and a list to check. Read them.
 6. [Load it](#load-it), then [try it yourself](#try-it-yourself).
 
+Tested with Claude Code on November 22, 2026, with Opus 5.5 at medium effort, in the same copy as video 3. The code passed every test, including the ones that use the real model, and worked first time.
+
 ## Part 3: the code
 
 There's no typing guide this time. To see the code, or to check what your assistant wrote, compare your copy with the [`video-5-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-5-done) branch:
