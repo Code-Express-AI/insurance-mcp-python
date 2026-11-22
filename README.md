@@ -6,7 +6,7 @@ A secure, read-only MCP and RAG server for a fictional auto insurer, built with 
 
 It's free to install, run and test.
 
-Follow along with the [video tutorials on YouTube](https://www.youtube.com/@CodeExpressAI) from Code Express AI.
+Follow along with the video tutorials from Code Express AI, starting with [video 1 on YouTube](https://www.youtube.com/watch?v=C_sVzfGa9sc).
 
 ## Try it for free
 
