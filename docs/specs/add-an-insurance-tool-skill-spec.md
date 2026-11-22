@@ -66,7 +66,7 @@ There's no automated test for a skill. It's tested by use:
 - **Each run must:** stop after the plan, follow the steps in order, finish with `uv run pytest` green, and end on the review list.
 - **Write down what went wrong** in each run, and fix the skill, not the tests.
 
-**Rehearsed so far:** with video 3's request, on Copilot's free plan (November 19 and 22, 2026) and on Claude Code (November 22, 2026, from a fresh clone). Each run stopped after the plan, passed every test and worked first time. The Claude Code run added a 20-policy cap with its own test, and handed the update, restart and reconnect to the human, as step 9 says. Not yet: video 5's request, or the free plan's monthly limit.
+**Rehearsed so far:** with video 3's request, on Copilot's free plan (November 19 and 22, 2026) and on Claude Code (November 22, 2026, from a fresh clone). Each run stopped after the plan, passed every test and worked first time. The Claude Code run added a 20-policy cap with its own test, and handed the update, restart and reconnect to the human, as step 9 says. With video 5's request, on Claude Code (November 22, 2026, in the same copy as its video 3 run): the same, with the real-model tests passing too. Not yet: video 5's request on Copilot, or the free plan's monthly limit.
 
 ## Known limits
 
