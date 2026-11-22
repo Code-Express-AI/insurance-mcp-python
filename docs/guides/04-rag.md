@@ -122,21 +122,13 @@ The server has three tools that search by meaning:
 
 all-MiniLM-L6-v2 suits this repo because the text is short, plain English, and must stay on your machine. Your text may need something else. Some questions to ask before you choose:
 
-- **How long is each text?** A model reads a fixed number of tokens and silently drops the rest. Small local models read a few hundred tokens, and hosted ones read thousands. Either way, split long documents into chunks at their headings or paragraphs, as the booklets are, so each embedding stands for one idea.
-- **What kind of text is it?** General models are trained mostly on web pages and question-and-answer pairs. They do well on customer support tickets and claim notes, which are everyday language. Scientific papers are full of terms a general model barely knows, so try one trained on them, such as [SPECTER2](https://huggingface.co/allenai/specter2), which learned from which papers cite which. Posts on X are short, informal, full of slang, hashtags and emoji, and often in several languages, so try a multilingual model and check it on real posts. Legal, financial and code search have their own models too.
-- **Which languages?** An English-only model like ours puts a Spanish claim in the wrong place. Multilingual models embed many languages onto the same map, so a question in English can find a note in Spanish.
-- **Can the text leave your machine?** A hosted embeddings API sees every text you embed, personal data included, and charges for it. A local model costs nothing and sends nothing, but runs on your own hardware.
-- **How many numbers?** More dimensions can capture more, but take more storage and make each search slower. pgvector can index up to 2,000 dimensions with its `vector` type ([pgvector's README](https://github.com/pgvector/pgvector)). Many hosted models let you choose a smaller size.
-
-Then **test it on your own data.** Write 20 or so questions with the answers you expect, and check which model finds them most often. That's how this repo picked its model ([the spec, section 11](../specs/spec.md#11-rag-extension)): the smallest of the four we tried did best. A leaderboard shows how a model does on public benchmarks, not on your text.
-
-**Changing model means embedding everything again.** Numbers from two models can't be compared, so the stored embeddings and the question must always come from the same one.
-
-Where to look:
-
-- **Leaderboards:** the [MTEB leaderboard](https://huggingface.co/spaces/mteb/leaderboard) ranks embedding models on many tasks and languages. Use it to pick a shortlist, then test the shortlist yourself.
-- **Open source, free to run locally:** the [Sentence Transformers model list](https://sbert.net/docs/sentence_transformer/pretrained_models.html), and families such as BAAI's BGE, Snowflake's Arctic Embed, Microsoft's multilingual E5 and Google's [EmbeddingGemma](https://huggingface.co/google/embeddinggemma-300m). Check each model's license and its card's instructions: some need a prefix such as `query: ` on the question.
-- **Commercial, hosted:** [OpenAI](https://developers.openai.com/api/docs/guides/embeddings), [Voyage AI](https://docs.voyageai.com/docs/embeddings) (with models for law, finance and code), [Cohere](https://docs.cohere.com/docs/cohere-embed) and Google. Anthropic doesn't make an embedding model, and [its docs suggest Voyage AI](https://platform.claude.com/docs/en/build-with-claude/embeddings).
+- **How long is each text?** A model silently drops anything past its limit, so split long documents into chunks.
+- **What kind of text is it?** Scientific papers, legal text and code have their own models.
+- **Which languages?** An English-only model like ours can't match a Spanish note to an English question.
+- **Can the text leave your machine?** A hosted API sees every text you embed, personal data included.
+- **How many numbers?** More can capture more, but cost storage and speed. pgvector indexes up to 2,000.
+- **Does it find your answers?** Shortlist from the [MTEB leaderboard](https://huggingface.co/spaces/mteb/leaderboard), then test on 20 or so of your own questions.
+- **Could you switch later?** Changing model means embedding everything again.
 
 ## Summary
 

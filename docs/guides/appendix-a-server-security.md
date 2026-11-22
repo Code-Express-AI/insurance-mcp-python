@@ -60,36 +60,93 @@ The server is a [FastAPI](https://fastapi.tiangolo.com/) app run by uvicorn. It 
 - **`/mcp`** is the MCP endpoint, where AI clients send their requests. It needs a token.
 - **`/health`** says the server is up, for Docker and hosting checks. It needs no token, and says nothing about the database.
 
-## Try the checks with curl
+## Fire the attacks yourself
+
+Every check below, fired with `curl`, in the order the video shows them. They use the example token from `.env.example`: if you replaced it, use yours.
+
+**On Windows, run these in Git Bash**, which came with Git. The loops and the long inputs need a bash shell. A single command also works in PowerShell if you type `curl.exe` rather than `curl`, which there means a different command.
+
+The server says it's up, with no token:
 
 ```bash
 curl http://localhost:8000/health
 ```
 
-```text
-{"status":"ok"}
-```
-
-Now try the MCP endpoint without a token:
+**No token** gets `401 Unauthorized`:
 
 ```bash
 curl -i -X POST http://localhost:8000/mcp
 ```
 
-```text
-HTTP/1.1 401 Unauthorized
-...
-{"error":"Missing or invalid bearer token."}
+**With the token**, a tool call works. MCP is JSON-RPC, so a tool call is one JSON request:
+
+```bash
+curl -X POST http://localhost:8000/mcp -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_dataset_info","arguments":{}}}'
 ```
 
-On Windows, `curl` is built in from Windows 10 onwards. In Windows PowerShell 5.1, type `curl.exe` rather than `curl`, which there means a different command.
+**A wrong host name** gets `421 Misdirected Request`, and **a web page's origin** gets `403 Forbidden`:
 
-In the server's terminal, the rejected request is logged without its token:
+```bash
+curl -i -X POST http://localhost:8000/mcp -H "Host: evil.example.com" -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+curl -i -X POST http://localhost:8000/mcp -H "Origin: https://evil.example.com" -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+**Guessing tokens:** 12 bad tokens in a row get ten `401`s, then `429 Too Many Requests`. Every request without a valid token counts, so if you just ran the `401` check above, you'll see nine:
+
+```bash
+for i in $(seq 12); do curl -s -o /dev/null -w "%{http_code} " -X POST http://localhost:8000/mcp -H "Authorization: Bearer wrong-token"; done; echo
+```
+
+**A forged address doesn't get around it.** The same, with a new made-up `X-Forwarded-For` address each time: still `429`, because the server counts the address the connection really comes from:
+
+```bash
+for i in $(seq 12); do curl -s -o /dev/null -w "%{http_code} " -X POST http://localhost:8000/mcp -H "Authorization: Bearer wrong-token" -H "X-Forwarded-For: 203.0.113.$i"; done; echo
+```
+
+**A 1 MB body** gets `413 Content Too Large`. The limit is 64 KB:
+
+```bash
+head -c 1000000 /dev/zero | tr '\0' x | curl -i -X POST http://localhost:8000/mcp -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" --data-binary @-
+```
+
+**A 10,000-character name** comes back as a tool error: names are at most 100 characters, so the database is never called:
+
+```bash
+curl -X POST http://localhost:8000/mcp -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"find_customers","arguments":{"name":"'$(head -c 10000 /dev/zero | tr '\0' a)'"}}}'
+```
+
+**A policy number in the wrong format** is rejected the same way, before it reaches the database:
+
+```bash
+curl -X POST http://localhost:8000/mcp -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_policy","arguments":{"policy_number":"AUT-12"}}}'
+```
+
+**An argument the tool doesn't take** gets `Unknown argument: customer_name. find_customers takes: name.` Without this check, the SDK would ignore it and return every customer:
+
+```bash
+curl -X POST http://localhost:8000/mcp -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"find_customers","arguments":{"customer_name":"Garcia"}}}'
+```
+
+**SQL in an argument** is only text: it finds no customer, and drops nothing ([guide 2](02-sql-injection-and-prompt-injection.md)):
+
+```bash
+curl -X POST http://localhost:8000/mcp -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"find_customers\",\"arguments\":{\"name\":\"x'; drop table insurance.claims; --\"}}}"
+```
+
+**The rate limit**, last, because it uses up your token's 60 requests for the next minute: 65 requests get `200` until the token's 60 for the minute are used up (the commands above count too), then `429`. Then one more with `-i` shows the `Retry-After` header, the seconds to wait:
+
+```bash
+for i in $(seq 65); do curl -s -o /dev/null -w "%{http_code} " -X POST http://localhost:8000/mcp -H "Authorization: Bearer local-only-token-replace-with-your-own" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'; done; echo
+curl -i -X POST http://localhost:8000/mcp -H "Authorization: Bearer local-only-token-replace-with-your-own"
+```
+
+**Then look at the server's terminal.** Every rejected request has a line, with its status and address, and never its token:
 
 ```text
 WARNING: insurance_mcp.main: Rejected request: status=401 caller=None ip='127.0.0.1'
-INFO:     127.0.0.1:65431 - "POST /mcp HTTP/1.1" 401 Unauthorized
 ```
+
+The SDK's own argument checks (the long name, the wrong policy number) come back to the caller as tool errors, without a line of their own.
 
 ## Optional: call a tool from MCP Inspector
 

@@ -278,7 +278,3 @@ Other problems:
 | The assistant doesn't use the new tool | The server wasn't restarted, or the assistant wasn't reconnected ([load it](#load-it)). Start a new chat too. |
 
 More problems and their fixes are in [guide 1](01-quickstart-help.md).
-
-## Next
-
-[Guide 4](04-rag.md) goes deep on search by meaning: embeddings, pgvector, filtered vector search, what RAG isn't good for, and how to pick an embedding model.

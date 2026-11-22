@@ -28,7 +28,7 @@ The warehouse tables stay as they are, apart from switching on row-level securit
 
 The lockdown tests in `tests/database/` check the system catalogs, so they also check functions you add: each one must be `SECURITY DEFINER`, set its `search_path` and be owned by `mcp_owner`.
 
-**On a big table, check the searches are fast.** Our name search uses `ILIKE '%name%'`, which reads the whole table. On our 12,000 customers that takes about a millisecond. On millions, add a trigram index with the `pg_trgm` extension.
+**On a big table, check the searches are fast.** Our name search uses `ILIKE '%name%'`, which reads the whole table. On our 12,000 customers that takes a few milliseconds. On millions, add a trigram index with the `pg_trgm` extension.
 
 ## For staff, consider a front end you build yourself
 

@@ -295,16 +295,100 @@ PostgreSQL has no built-in append-only tables, so [`050_audit.sql`](../../sql/05
 2. **A trigger blocks `update`, `delete` and `truncate` for everyone,** the admin included.
 3. **A hash chain:** each row stores a hash of its own data plus the previous row's hash, so a changed or deleted row breaks the chain.
 
-Try to cover your tracks, as the admin:
-
-```sql
-delete from insurance.audit_log;            -- ERROR: The audit log is append-only: DELETE is not allowed.
-select insurance.verify_audit_log();        -- null: the whole chain is intact
-```
+To try covering your tracks, see [Try to break it](#try-to-break-it) below.
 
 **The honest limit:** the admin can switch the trigger off, change rows and recompute the whole chain. No database can fully protect a log from its own admin. Deleting the newest rows can't be detected either, without a copy of the latest hash kept somewhere else. [database-spec.md](../specs/database-spec.md) has the details.
 
 Requests that never reach a tool, such as ones with a bad token, aren't in the audit log. They're in the server's own log ([appendix A](appendix-a-server-security.md)), because anyone can send a bad token, and the audit log can never be cleaned up.
+
+## Try to break it
+
+Every attack in the video, in its order. Each one either fails, or is undone at the end, so your database ends up as it started. Two connections, as in [Look around](#look-around):
+
+```bash
+docker compose exec db psql -U postgres -d insurance     # the admin
+docker compose exec db psql -U mcp_reader -d insurance   # the role the MCP server uses
+```
+
+**A wildcard as the search.** Parameters stop SQL injection, but `%%` is a valid search, and without `escape_like()` it matches every customer. As the admin, the same search both ways:
+
+```sql
+select count(*) from insurance.customers where first_name || ' ' || last_name ilike '%' || '%%' || '%';                          -- 12005
+select count(*) from insurance.customers where first_name || ' ' || last_name ilike '%' || insurance.escape_like('%%') || '%';  -- 0
+```
+
+**The functions' owner can't change the data either.** As the admin, become `mcp_owner`, which owns every `mcp` function:
+
+```sql
+begin;
+set local role mcp_owner;
+delete from insurance.claims;   -- ERROR: permission denied for table claims
+rollback;
+```
+
+**Choose your own caller.** As `mcp_reader`, with no caller, then two callers ([row-level security](#row-level-security-step-by-step)):
+
+```sql
+select count(*) from mcp.find_customers('Wendell Pryce');   -- 0: no caller, no rows
+select set_config('mcp.caller_key', 'copilot', false);
+select count(*) from mcp.find_customers('Wendell Pryce');   -- 0: copilot can't see Oklahoma
+select set_config('mcp.caller_key', 'local', false);
+select count(*) from mcp.find_customers('Wendell Pryce');   -- 1
+```
+
+**No audit, no answer.** As the admin, stop `mcp_reader` writing to the audit log:
+
+```sql
+revoke execute on function mcp.write_audit from mcp_reader;
+```
+
+Ask your assistant any question, or run the tool call from [appendix A](appendix-a-server-security.md#fire-the-attacks-yourself). It gets `The database could not complete this request.` and no data. Then put it back:
+
+```sql
+grant execute on function mcp.write_audit to mcp_reader;
+```
+
+**Cover your tracks.** As the admin, all in one transaction, so the `rollback` at the end undoes everything, the trigger switch included. You need some rows in the audit log first: ask your assistant a question or two.
+
+```sql
+begin;
+savepoint try;
+update insurance.audit_log set tool_name = 'get_dataset_info';   -- ERROR: append-only: UPDATE is not allowed
+rollback to try;
+delete from insurance.audit_log;                                  -- ERROR: append-only: DELETE is not allowed
+rollback to try;
+truncate insurance.audit_log;                                     -- ERROR: append-only: TRUNCATE is not allowed
+rollback to try;
+select insurance.verify_audit_log();                              -- null: the chain is intact
+alter table insurance.audit_log disable trigger audit_log_no_update_or_delete;
+update insurance.audit_log set tool_name = 'get_dataset_info' where id = (select min(id) from insurance.audit_log);
+alter table insurance.audit_log enable trigger audit_log_no_update_or_delete;
+select insurance.verify_audit_log();                              -- the id of the row you changed
+rollback;
+```
+
+That catches a clumsy admin. A careful one would recompute every hash after the changed row too: see [the honest limit](#the-audit-log).
+
+**Make the tests fail.** The tests list everything `mcp_reader` can do, so a right nobody meant to give turns them red. Add this line to the end of [`sql/030_permissions.sql`](../../sql/030_permissions.sql):
+
+```sql
+grant mcp_owner to mcp_reader;
+```
+
+Run the database tests. The snapshot test lists every right `mcp_reader` gained through `mcp_owner`, at once:
+
+```bash
+uv run pytest tests/database
+```
+
+Then take the line out again. The tests build their own database from the SQL files, which is why the grant goes in a file: granting it in your own database wouldn't change them.
+
+**No temporary tables, and no long queries.** As `mcp_reader`:
+
+```sql
+create temp table t (x int);   -- ERROR: permission denied to create temporary tables
+select pg_sleep(60);           -- ERROR: canceling statement due to statement timeout, after 5 seconds
+```
 
 ## The data
 
