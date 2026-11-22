@@ -95,13 +95,13 @@ In a terminal in the repository folder:
 
 > A customer reports a hit-and-run. What should I do?
 
-The assistant should call `search_adjuster_manual`, and answer from its "Hit-and-run claims" section: a police report within 24 hours, store camera footage, photos of the damage, and a check of the booklet for collision coverage.
+The assistant should call `search_adjuster_manual`, and answer from its "Hit-and-run claims" section: a police report within 24 hours, store camera footage, photos of the damage, and a check of the booklet for collision coverage. It may search the booklets with `search_policy_wording` too, because the manual says to check them: that's right.
 
 **Ask one that needs three tools:**
 
 > Maria Garcia has a chip in her windshield. How should I handle her claim?
 
-The manual says how to handle a glass claim, but sends you to the booklet for what she'll pay. So the assistant should find her policy, search the manual, then search the booklets for her coverage level.
+The manual says how to handle a glass claim, but sends you to the booklet for what she'll pay. So the assistant should look up her policy (Full coverage, a $500 deductible), search the manual, and search the booklets. A chip repair costs her nothing; a new windshield costs her the $500. Check the audit log too: an assistant may search the booklets for a coverage level before it has looked hers up. If it guessed wrong, the answer quotes the wrong booklet.
 
 **Check the server's login can't read the table.** Like every other table, only the function can:
 
