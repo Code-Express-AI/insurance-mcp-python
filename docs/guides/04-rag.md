@@ -100,6 +100,24 @@ Ask your assistant the video's questions:
 - "Only the collisions: cars hit while parked at a supermarket." The tool call has `claim_type: "collision"`, and the hail and theft claims are gone.
 - "How many claims were reported last month?" The assistant uses `count_claims_by_month`, not the search, and gets an exact number.
 
+## The RAG tools
+
+The server has three tools that search by meaning:
+
+| Tool | What it does | Try |
+|---|---|---|
+| `search_claim_text` | Finds claims whose accident descriptions, or whose adjusters' notes, are closest in meaning to the question, with the filters above. | "Which claims have notes about a neck injury?" |
+| `find_similar_claims` | Finds claims whose descriptions are most like one claim's. It compares the stored embeddings, so it doesn't need the model. | "Find claims similar to CLM-1037552, and tell me how they were settled." |
+| `search_policy_wording` | Finds the sections of the policy booklets that answer a question, for one coverage level or all three. | "What do I pay to fix a chip in my windshield?" |
+
+## What to watch for
+
+- **Wording matters.** The model is small. "Find claims where the car was hit while parked at a supermarket" works much better than "hit while parked at a supermarket". If a search looks poor, ask again in a full sentence, or ask the assistant to add a filter.
+- **The same story can come back several times.** The claim text is built from templates with a different street or store each time, so many claims share one sentence. Real claim text is far more varied.
+- **Descriptions or notes, not both at once.** Descriptions say what happened. Notes say how the claim was handled: injuries, statements, suspicions. The assistant picks one with `search_in`.
+- **Results are redacted like everything else.** Phone numbers and emails in the text come back as `[phone]` and `[email]`, and the customer's street address as `[address]`. The embeddings are made from this redacted text too. Names and injuries still get through.
+- **The tests:** `uv run pytest` covers the RAG functions and tools with hand-made embeddings. The tests that use the real model run on their own, with `uv run pytest -m embedding_model`.
+
 ## Further reading: picking an embedding model
 
 all-MiniLM-L6-v2 suits this repo because the text is short, plain English, and must stay on your machine. Your text may need something else. Some questions to ask before you choose:
