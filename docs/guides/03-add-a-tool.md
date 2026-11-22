@@ -281,4 +281,4 @@ More problems and their fixes are in [guide 1](01-quickstart-help.md).
 
 ## Next
 
-[Guide 4](04-rag.md) goes deep on search by meaning: how the embeddings are made and searched, the RAG tools, and what RAG isn't good for.
+[Guide 4](04-rag.md) goes deep on search by meaning: embeddings, pgvector, filtered vector search, what RAG isn't good for, and how to pick an embedding model.
