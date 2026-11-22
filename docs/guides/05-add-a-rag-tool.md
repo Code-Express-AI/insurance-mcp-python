@@ -2,11 +2,11 @@
 
 This is the guide for [video 5 on YouTube](https://www.youtube.com/@CodeExpressAI).
 
-The policy booklets say what a customer is covered for. They don't say how staff should handle a claim. The [adjusters' manual](../../database/src/insurance_database/adjusters_manual.md) does: it's already in the repo, but nothing searches it yet. You'll add a tool that searches it by meaning, with the same skill as [guide 3](03-add-a-tool.md). This time the skill also adds a table, and loads the manual into it with its embeddings.
+The policy booklets say what a customer is covered for. They don't say how staff should handle a claim. The [adjusters' manual](../../database/src/insurance_database/adjusters_manual.md) does: it's already in the repo, but nothing searches it yet. You'll add a tool that searches it by meaning, with the same skill as [guide 3](03-add-a-tool.md). This time the skill also adds a table, and loads the manual into it with its embeddings. Carry on in the same copy as video 3: your `get_customer_with_policies` tool stays.
 
 ## Before you begin: if you get stuck
 
-Your code will look a bit different from the video: the AI writes it fresh each time. If you get stuck, compare with the [`video-5-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-5-done) branch, which has the finished table, function and tool, and passes every test. Or switch to it and carry on from there. `git stash -u` puts your own changes aside first, new files included, so the switch doesn't refuse. `git pull` gets the latest copy of the branch:
+Your code will look a bit different from the video: the AI writes it fresh each time. If you get stuck, compare with the [`video-5-done`](https://github.com/Code-Express-AI/insurance-mcp-python/tree/video-5-done) branch, which has the finished table, function and tool, and passes every test. It's built on `video-3-done`, so it has video 3's tool too, and you lose nothing by switching. Or switch to it and carry on from there. `git stash -u` puts your own changes aside first, new files included, so the switch doesn't refuse. `git pull` gets the latest copy of the branch:
 
 ```bash
 git fetch
@@ -55,6 +55,8 @@ There's no typing guide this time. To see the code, or to check what your assist
 git fetch
 git diff origin/video-5-done --stat
 ```
+
+The list includes any differences in your video 3 tool too, since your assistant wrote its own version of that as well.
 
 The files to look at, and what to check in each:
 
