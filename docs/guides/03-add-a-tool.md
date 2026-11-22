@@ -26,9 +26,11 @@ There's nothing to install: the skill comes with the repo, and Copilot loads it 
 
 1. Open the repository folder in VS Code. Open the Chat view, and choose **Agent** mode.
 2. Ask:
-   > Use the add-an-insurance-tool skill to add a new tool called get_customer_with_policies. It should return one customer with all their policies, including each policy's vehicle and drivers.
+   > Use the add-an-insurance-tool skill to add a new tool called get_customer_with_policies. It should return one customer with all their policies, and for each policy the same details get_policy returns, including the premium, deductible, vehicle and drivers. Its description should tell the model to use it instead of calling get_policy for each policy.
 
-   **Why name the vehicle and drivers?** Policies, vehicles and drivers are in separate tables. Ask only for the policies, and you'll likely get the policy table's columns and nothing more. The more you know about the business and the database underneath, the better the code the assistant writes.
+   **Why so precise?** Policies, vehicles and drivers are in separate tables. Ask only for the policies, and you'll likely get the policy table's columns and nothing more. The more you know about the business and the database underneath, the better the code the assistant writes.
+
+   An earlier version of this prompt asked only for "each policy's vehicle and drivers". Copilot did exactly that, and left the deductible out of the PostgreSQL function. Then, asked "Show me Eleanor Rutherford and all her policies, with the deductibles.", the model called `get_customer_with_policies` and then `get_policy` once per policy, to find the deductibles. The tests all passed, because nothing was broken: the tool just didn't return what the question needed. Prompts need to be very precise: name what you need, and point to existing code to copy ("the same details get_policy returns").
 3. It shows its plan first, and waits. Read it, then tell it to go ahead.
 4. It writes the function, the grant, the Python tool and the tests, then runs the checks. Allow the commands when it asks.
 5. It ends with the new SQL function, its grant, and a list to check. Read them: the AI wrote the function and the tests, so they can share a mistake.
@@ -46,11 +48,11 @@ There's nothing to install here either: Claude Code loads the same skill automat
 
 1. In a terminal in the repository folder, start Claude Code with `claude`.
 2. Ask the same thing:
-   > Use the add-an-insurance-tool skill to add a new tool called get_customer_with_policies. It should return one customer with all their policies, including each policy's vehicle and drivers.
+   > Use the add-an-insurance-tool skill to add a new tool called get_customer_with_policies. It should return one customer with all their policies, and for each policy the same details get_policy returns, including the premium, deductible, vehicle and drivers. Its description should tell the model to use it instead of calling get_policy for each policy.
 
    Or type `/add-an-insurance-tool` followed by the request.
 
-   **Why name the vehicle and drivers?** Policies, vehicles and drivers are in separate tables. Ask only for the policies, and you'll likely get the policy table's columns and nothing more. The more you know about the business and the database underneath, the better the code the assistant writes.
+   **Why so precise?** See [the note in part 1](#use-it): an earlier, vaguer prompt left the deductible out.
 3. It shows its plan first, and waits. Read it, then tell it to go ahead.
 4. It writes the function, the grant, the Python tool and the tests, then runs the checks. Allow the commands when it asks.
 5. It ends with the new SQL function, its grant, and a list to check. Read them: the AI wrote the function and the tests, so they can share a mistake.
