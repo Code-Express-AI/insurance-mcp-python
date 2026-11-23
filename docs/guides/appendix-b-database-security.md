@@ -4,6 +4,28 @@ The MCP server connects to PostgreSQL as a role that can't read a single table. 
 
 Everything here runs against your local Docker database, so you need the quickstart done: the database running (`docker compose ps` says `healthy`) and the data loaded.
 
+## A database tool
+
+Every command in this guide is plain SQL: paste it into a database tool and run it. Two free ones:
+
+- **In VS Code:** Microsoft's [PostgreSQL extension](https://marketplace.visualstudio.com/items?itemName=ms-ossdata.vscode-pgsql).
+- **On its own:** [DBeaver Community](https://dbeaver.io/download/), for Windows, macOS and Linux.
+
+Connect with the details in `.env`: host `127.0.0.1`, port `5432`, database `insurance`, and either user `postgres` with the password from `ADMIN_DATABASE_URL`, or `mcp_reader` with the password from `READER_DATABASE_URL`. Make one connection for each, so you can try the same query as both. This guide calls them the admin connection and the `mcp_reader` connection.
+
+**Prefer the command line?** `psql`, PostgreSQL's own client, is already in the Docker container. Open each connection in its own terminal, and type `\q` to leave:
+
+```bash
+docker compose exec db psql -U postgres -d insurance     # the admin connection
+docker compose exec db psql -U mcp_reader -d insurance   # the mcp_reader connection
+```
+
+It doesn't ask for a password: the PostgreSQL image trusts connections made inside the container itself. Connections from outside it, like your database tool's and the MCP server's, always need the password.
+
+In the row-level security walkthrough below, run each `set_config` line and the query after it together, so they share one connection.
+
+**Keep AI out of the admin connection.** The VS Code extension can give Copilot tools that run SQL on your connections. As `postgres`, that's full rights to every table, around every check in this repo.
+
 ## What the setup command did
 
 When you ran `uv run python -m insurance_database.setup_db`, it printed:
@@ -58,13 +80,7 @@ The database only listens on `127.0.0.1`, so other machines on your network can'
 
 ## Look around
 
-Open `psql`, PostgreSQL's command-line client, inside the container as the admin role:
-
-```bash
-docker compose exec db psql -U postgres -d insurance
-```
-
-Try a few queries:
+In the admin connection, try a few queries:
 
 ```sql
 select state, count(*) from insurance.customers group by state order by count(*) desc;
@@ -75,13 +91,7 @@ order by date_reported desc
 limit 5;
 ```
 
-Type `\q` to leave.
-
-Now connect as `mcp_reader`, the role the MCP server uses, and try to read a table directly:
-
-```bash
-docker compose exec db psql -U mcp_reader -d insurance
-```
+Now, in the `mcp_reader` connection, the role the MCP server uses, try to read a table directly:
 
 ```sql
 select * from insurance.claims;         -- ERROR: permission denied for schema insurance
@@ -99,8 +109,6 @@ select * from mcp.get_dataset_info();   -- now: 12,005 customers
 ```
 
 The MCP server does the same before every call, with the name of the token that made the request. [Row-level security, step by step](#row-level-security-step-by-step) below shows the rest.
-
-**Why no password?** Inside the container, the PostgreSQL image trusts connections made on the container itself, so `psql` doesn't ask. Connections from outside the container, like the MCP server's, always need the password.
 
 ## The tables
 
@@ -233,7 +241,7 @@ All three named callers see Texas and Colorado, where the demo customers live (M
 
 In this walkthrough you play the part of the MCP server: you tell the database who's calling, then search for a customer.
 
-**Step 1: as the admin, look at the mapping.** Row-level security doesn't filter the admin, so in the `postgres` connection from [Look around](#look-around) you can see every row:
+**Step 1: as the admin, look at the mapping.** Row-level security doesn't filter the admin, so in the admin connection you can see every row:
 
 ```sql
 select caller_key, string_agg(state, ', ' order by state) as states
@@ -273,10 +281,13 @@ Try the others too. This is what you should see:
 
 ## The audit log
 
-Every tool call is recorded in `insurance.audit_log`. Look at the latest rows as the admin:
+Every tool call is recorded in `insurance.audit_log`. Look at the latest rows in the admin connection:
 
-```bash
-docker compose exec db psql -U postgres -d insurance -c "select occurred_at, caller, tool_name, rows_returned, succeeded from insurance.audit_log order by id desc limit 5"
+```sql
+select occurred_at, caller, tool_name, rows_returned, succeeded
+from insurance.audit_log
+order by id desc
+limit 5;
 ```
 
 ```text
@@ -303,12 +314,7 @@ Requests that never reach a tool, such as ones with a bad token, aren't in the a
 
 ## Try to break it
 
-Every attack in the video, in its order. Each one either fails, or is undone at the end, so your database ends up as it started. Two connections, as in [Look around](#look-around):
-
-```bash
-docker compose exec db psql -U postgres -d insurance     # the admin
-docker compose exec db psql -U mcp_reader -d insurance   # the role the MCP server uses
-```
+Every attack in the video, in its order. Each one either fails, or is undone at the end, so your database ends up as it started. You need both connections from [A database tool](#a-database-tool).
 
 **A wildcard as the search.** Parameters stop SQL injection, but `%%` is a valid search, and without `escape_like()` it matches every customer. As the admin, the same search both ways:
 
