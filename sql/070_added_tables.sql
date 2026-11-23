@@ -31,7 +31,22 @@
 --
 --   grant select on insurance.<things> to mcp_owner;
 --
--- No tables have been added yet.
+-- The adjusters' manual (adjusters_manual.md), one row per "## " section, for
+-- mcp.search_adjuster_manual. The embed command loads it, after the booklets.
+-- It holds no customer data, so no row-level security.
+
+set role insurance_owner;
+
+create table if not exists insurance.adjuster_manual_chunks (
+    id        bigint generated always as identity primary key,
+    heading   text not null unique,
+    content   text not null,
+    embedding public.vector(384) not null
+);
+
+reset role;
+
+grant select on insurance.adjuster_manual_chunks to mcp_owner;
 
 -- What can mcp_reader do at this point?
 -- The same as after 060_row_security.sql: nothing until 080_mcp_functions.sql.

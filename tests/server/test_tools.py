@@ -199,7 +199,12 @@ TOOL_CALLS = [
 
 
 # The RAG tools need embeddings, so their end-to-end tests are in test_rag_tools.py.
-RAG_TOOLS = {"search_claim_text", "find_similar_claims", "search_policy_wording"}
+RAG_TOOLS = {
+    "search_claim_text",
+    "find_similar_claims",
+    "search_policy_wording",
+    "search_adjuster_manual",
+}
 
 
 def test_every_tool_has_an_end_to_end_test():

@@ -175,11 +175,13 @@ def unit_vector():
 @pytest.fixture(scope="module")
 def fake_embeddings(admin_url):
     """Give every claim and note a hand-made embedding, and load 60 hand-made booklet
-    sections. Removed again at the end of the test module, so every other test sees
-    the database as the setup left it, with no embeddings.
+    sections and 60 hand-made manual sections. Removed again at the end of the test
+    module, so every other test sees the database as the setup left it, with no
+    embeddings.
 
-    Every description gets unit vector 0, every note 1, every section 2. A test
-    that needs a clear best match points one row somewhere else.
+    Every description gets unit vector 0, every note 1, every booklet section 2,
+    every manual section 3. A test that needs a clear best match points one row
+    somewhere else.
     """
     with psycopg.connect(admin_url, autocommit=True) as conn:
         conn.execute("update insurance.claims set embedding = %s", [str(make_unit_vector(0))])
@@ -193,7 +195,16 @@ def fake_embeddings(admin_url):
                 for i in range(60)
             ],
         )
+        conn.cursor().executemany(
+            "insert into insurance.adjuster_manual_chunks"
+            " (heading, content, embedding) values (%s, %s, %s)",
+            [
+                (f"Section {i}", f"Text of section {i}.", str(make_unit_vector(3)))
+                for i in range(60)
+            ],
+        )
         yield
         conn.execute("update insurance.claims set embedding = null")
         conn.execute("update insurance.claim_notes set embedding = null")
         conn.execute("delete from insurance.policy_document_chunks")
+        conn.execute("delete from insurance.adjuster_manual_chunks")

@@ -917,14 +917,49 @@ end;
 $$;
 grant execute on function mcp.get_customer_with_policies(uuid) to mcp_reader;
 
+-- Sections of the adjusters' manual closest in meaning to the question: how
+-- staff handle a claim, step by step.
+create function mcp.search_adjuster_manual(
+    p_embedding real[],
+    p_limit     integer default 5
+)
+returns table (
+    heading    text,
+    content    text,
+    similarity numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+    v_query public.vector := insurance.to_vector(p_embedding);
+begin
+    if not exists (select from insurance.adjuster_manual_chunks) then
+        raise exception 'Run the embed command first.';
+    end if;
+
+    return query
+    select
+        m.heading,
+        m.content,
+        round((1 - (m.embedding operator(public.<=>) v_query))::numeric, 3)
+    from insurance.adjuster_manual_chunks as m
+    order by m.embedding operator(public.<=>) v_query, m.heading
+    limit least(greatest(coalesce(p_limit, 5), 1), 50);
+end;
+$$;
+grant execute on function mcp.search_adjuster_manual(real[], integer) to mcp_reader;
+
 reset role;
 
 -- What can mcp_reader do at this point?
 -- It can call write_audit, get_dataset_info, find_customers, get_customer,
 -- get_policy, get_customer_with_policies, search_claims, get_claim, count_claims_by_month, get_repair_shop_costs,
 -- get_adjuster_workload, count_claims_by_driver_age, search_claim_text,
--- find_similar_claims and search_policy_wording. The read-only ones return fixed
--- columns and limited rows, and can't change data. It still can't reach the
--- insurance tables directly, and it can't call the insurance helper functions,
--- which are granted to mcp_owner only. Row-level security (060_row_security.sql)
--- limits each caller to its own states' customers.
+-- find_similar_claims, search_policy_wording and search_adjuster_manual. The
+-- read-only ones return fixed columns and limited rows, and can't change data.
+-- It still can't reach the insurance tables directly, and it can't call the
+-- insurance helper functions, which are granted to mcp_owner only. Row-level
+-- security (060_row_security.sql) limits each caller to its own states' customers.

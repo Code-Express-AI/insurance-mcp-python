@@ -45,6 +45,11 @@ def test_search_policy_wording_says_run_the_embed_command_first(reader, unit_vec
         reader.execute("select * from mcp.search_policy_wording(%s::real[])", [unit_vector(0)])
 
 
+def test_search_adjuster_manual_says_run_the_embed_command_first(reader, unit_vector):
+    with pytest.raises(errors.RaiseException, match="^Run the embed command first"):
+        reader.execute("select * from mcp.search_adjuster_manual(%s::real[])", [unit_vector(0)])
+
+
 # The embedding check -----------------------------------------------------------------
 
 
@@ -59,7 +64,9 @@ BAD_EMBEDDINGS = [
 
 
 @pytest.mark.parametrize("embedding", BAD_EMBEDDINGS)
-@pytest.mark.parametrize("function", ["search_claim_text", "search_policy_wording"])
+@pytest.mark.parametrize(
+    "function", ["search_claim_text", "search_policy_wording", "search_adjuster_manual"]
+)
 def test_anything_but_384_numbers_is_rejected(fake_embeddings, reader, function, embedding):
     # Without this check, a null would return rows with no score instead of an error.
     with pytest.raises(errors.RaiseException, match=f"^{re.escape(EMBEDDING_MESSAGE)}"):
@@ -270,3 +277,15 @@ def test_search_policy_wording_can_search_one_coverage_level(fake_embeddings, re
     found = rows(reader, query, unit_vector(2))
     assert len(found) == 20
     assert {row["coverage_level"] for row in found} == {"full"}
+
+
+# search_adjuster_manual ---------------------------------------------------------------
+
+
+def test_search_adjuster_manual_returns_5_by_default_and_at_most_50(
+    fake_embeddings, reader, unit_vector
+):
+    query = "select * from mcp.search_adjuster_manual(%s::real[], p_limit => %s)"
+    assert len(rows(reader, query, unit_vector(3), None)) == 5
+    # The fixture loads 60 sections.
+    assert len(rows(reader, query, unit_vector(3), 999)) == 50

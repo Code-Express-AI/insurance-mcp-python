@@ -1,10 +1,11 @@
-"""Embed the text the RAG tools search: the policy booklets, the accident
-descriptions and the claim notes.
+"""Embed the text the RAG tools search: the policy booklets, the adjusters' manual,
+the accident descriptions and the claim notes.
 
 Run it with:  uv run python -m insurance_database.embed [--booklets-only]
 
---booklets-only loads just the policy booklets, in seconds: enough for
-"am I covered?" questions. Run it again without the flag to embed the claims.
+--booklets-only loads just the policy booklets and the adjusters' manual, in
+seconds: enough for "am I covered?" and "how do I handle this claim?" questions.
+Run it again without the flag to embed the claims.
 
 Run it after the setup command. It connects as the admin role, using
 ADMIN_DATABASE_URL from .env. The first run downloads the model (90 MB).
@@ -28,6 +29,7 @@ from insurance_database.setup_db import SetupError, connect
 from insurance_mcp.embeddings import load_model
 
 BOOKLETS_DIR = Path(__file__).parent / "booklets"
+ADJUSTERS_MANUAL = Path(__file__).parent / "adjusters_manual.md"
 
 # Texts per batch: embedded together, then saved together.
 BATCH_SIZE = 256
@@ -84,6 +86,29 @@ def load_booklets(conn: psycopg.Connection, model: TextEmbedding) -> None:
         )
     conn.commit()
     print(f"Policy booklets:    {len(chunks)} sections")
+
+
+def load_adjusters_manual(conn: psycopg.Connection, model: TextEmbedding) -> None:
+    """Split, embed and load the adjusters' manual, the same way as the booklets."""
+    if conn.execute("select exists (select from insurance.adjuster_manual_chunks)").fetchone()[0]:
+        print("Adjusters' manual:  already loaded")
+        return
+
+    chunks = split_booklet(ADJUSTERS_MANUAL.read_text(encoding="utf-8"))
+    embeddings = model.passage_embed([f"{heading}\n{content}" for heading, content in chunks])
+    with conn.cursor() as cursor:
+        cursor.executemany(
+            """
+            insert into insurance.adjuster_manual_chunks (heading, content, embedding)
+            values (%s, %s, %s::public.vector)
+            """,
+            [
+                (*chunk, embedding.tolist())
+                for chunk, embedding in zip(chunks, embeddings, strict=True)
+            ],
+        )
+    conn.commit()
+    print(f"Adjusters' manual:  {len(chunks)} sections")
 
 
 # The claim text ---------------------------------------------------------------------
@@ -176,9 +201,11 @@ def embed_everything(admin_database_url: str, booklets_only: bool = False) -> No
 
     with connect(admin_database_url) as conn:
         load_booklets(conn, model)
+        load_adjusters_manual(conn, model)
         if booklets_only:
             print(
-                "Booklets ready. Run the command again without --booklets-only to embed the claims."
+                "Booklets and manual ready."
+                " Run the command again without --booklets-only to embed the claims."
             )
             return
         embed_rows(conn, model, "Claim descriptions", "claims", DESCRIPTIONS)
@@ -191,7 +218,7 @@ def main() -> None:
     parser.add_argument(
         "--booklets-only",
         action="store_true",
-        help="load just the policy booklets, in seconds, and leave the claims for later",
+        help="load just the booklets and the manual, in seconds, and leave the claims for later",
     )
     args = parser.parse_args()
 

@@ -377,6 +377,32 @@ async def search_policy_wording(
     )
 
 
+async def search_adjuster_manual(
+    ctx: Context,
+    query: Annotated[
+        QueryText,
+        Field(description='The question, such as "A customer reports a hit-and-run. What now?".'),
+    ],
+    limit: Annotated[int, Field(ge=1, le=50, description="How many sections.")] = 5,
+) -> list[dict[str, Any]]:
+    """Search the adjusters' manual, which says how staff handle a claim, step by step.
+    Returns the closest sections, each with its heading and text. (An adjuster is the
+    insurer's employee who investigates and settles a claim.)
+
+    Use it for what to do, what to ask and what to collect. It never says what a customer
+    is covered for or what they pay: for that, use search_policy_wording, with the
+    customer's coverage level from get_policy.
+    """
+    embedding = await embed(query)
+    return await run(
+        ctx,
+        "search_adjuster_manual",
+        audit_as={"query": query, "limit": limit},
+        embedding=embedding,
+        limit=limit,
+    )
+
+
 TOOLS = [
     get_dataset_info,
     find_customers,
@@ -392,6 +418,7 @@ TOOLS = [
     search_claim_text,
     find_similar_claims,
     search_policy_wording,
+    search_adjuster_manual,
 ]
 
 # The arguments each tool takes, from its signature. ctx is filled in by the SDK.

@@ -24,6 +24,7 @@ def embedded(admin_url):
         conn.execute("update insurance.claims set embedding = null")
         conn.execute("update insurance.claim_notes set embedding = null")
         conn.execute("delete from insurance.policy_document_chunks")
+        conn.execute("delete from insurance.adjuster_manual_chunks")
 
 
 def search_wording(reader, question: str, coverage_level: str | None = None) -> list[dict]:
@@ -61,13 +62,15 @@ def test_booklets_only_loads_the_booklets_and_leaves_the_claims(admin, admin_url
         counts = admin.execute(
             """
             select (select count(*) from insurance.policy_document_chunks),
+                   (select count(*) from insurance.adjuster_manual_chunks),
                    (select count(*) from insurance.claims where embedding is not null),
                    (select count(*) from insurance.claim_notes where embedding is not null)
             """
         ).fetchone()
-        assert counts == (37, 0, 0)
+        assert counts == (37, 19, 0, 0)
     finally:
         admin.execute("delete from insurance.policy_document_chunks")
+        admin.execute("delete from insurance.adjuster_manual_chunks")
 
 
 def test_the_embed_command_embeds_every_text(embedded, admin):
@@ -75,10 +78,11 @@ def test_the_embed_command_embeds_every_text(embedded, admin):
         """
         select (select count(*) from insurance.claims where embedding is null),
                (select count(*) from insurance.claim_notes where embedding is null),
-               (select count(*) from insurance.policy_document_chunks)
+               (select count(*) from insurance.policy_document_chunks),
+               (select count(*) from insurance.adjuster_manual_chunks)
         """
     ).fetchone()
-    assert missing == (0, 0, 37)
+    assert missing == (0, 0, 37, 19)
 
 
 def test_running_the_embed_command_again_embeds_nothing_new(embedded, admin, admin_url, capsys):
@@ -87,6 +91,7 @@ def test_running_the_embed_command_again_embeds_nothing_new(embedded, admin, adm
     embed_everything(admin_url)
     output = capsys.readouterr().out
     assert "Policy booklets:    already loaded" in output
+    assert "Adjusters' manual:  already loaded" in output
     assert f"Claim notes:        {notes:,} / {notes:,} (100%)\n" in output
 
 
@@ -131,6 +136,25 @@ def test_policy_questions_find_the_right_section(
     embedded, reader, question, coverage_level, expected
 ):
     assert search_wording(reader, question, coverage_level)[0]["heading"] == expected
+
+
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        # Guide 5's two questions. For the second, the assistant looks Maria Garcia up
+        # first and searches with its own words: her name in the search blurs it.
+        ("A customer reports a hit-and-run. What should I do?", "Hit-and-run claims"),
+        ("How should I handle a windshield chip claim?", "Glass and windshield claims"),
+    ],
+)
+def test_claim_handling_questions_find_the_right_manual_section(
+    embedded, reader, question, expected
+):
+    with reader.cursor(row_factory=dict_row) as cursor:
+        found = cursor.execute(
+            "select * from mcp.search_adjuster_manual(%s)", [embed_query(question)]
+        ).fetchall()
+    assert found[0]["heading"] == expected
 
 
 # The RAG demo questions -------------------------------------------------------------

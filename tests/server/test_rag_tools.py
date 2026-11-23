@@ -96,6 +96,11 @@ RAG_TOOL_CALLS = [
         {"query": "Is flood covered?", "coverage_level": "full"},
         {"query": "Is flood covered?", "coverage_level": "full", "limit": 5},
     ),
+    (
+        "search_adjuster_manual",
+        {"query": "A customer reports a hit-and-run. What should I do?"},
+        {"query": "A customer reports a hit-and-run. What should I do?", "limit": 5},
+    ),
 ]
 
 
