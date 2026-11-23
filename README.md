@@ -8,6 +8,8 @@ It's free to install, run and test.
 
 Follow along with the video tutorials from Code Express AI, starting with [video 1 on YouTube](https://www.youtube.com/watch?v=C_sVzfGa9sc).
 
+Already past video 1? The [videos and their guides](#see-it-all-on-youtube) are further down.
+
 ## Try it for free
 
 - [Git](https://git-scm.com/downloads)
