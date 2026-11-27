@@ -1,6 +1,6 @@
 # Guide 3: add a tool
 
-This is the guide for [video 3 on YouTube](https://www.youtube.com/@CodeExpressAI).
+This is the guide for [video 3 on YouTube](https://www.youtube.com/watch?v=gd7vCWIi_pI).
 
 ## Before you begin: if you get stuck
 

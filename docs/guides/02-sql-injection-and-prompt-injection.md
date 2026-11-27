@@ -1,6 +1,6 @@
 # Guide 2: SQL injection and prompt injection
 
-This is the guide for [video 2 on YouTube](https://www.youtube.com/@CodeExpressAI).
+This is the guide for [video 2 on YouTube](https://www.youtube.com/watch?v=5WyAxgzRp7g).
 
 ## Attack 1: SQL injection
 

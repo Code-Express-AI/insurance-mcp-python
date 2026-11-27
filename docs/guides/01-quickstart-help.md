@@ -1,6 +1,6 @@
 # Guide 1: quickstart help and troubleshooting
 
-This is the guide for [video 1 on YouTube](https://www.youtube.com/@CodeExpressAI), and the help page for every guide. Something not working? Find the step you're on, then the message you see. The videos explain how it all works.
+This is the guide for [video 1 on YouTube](https://www.youtube.com/watch?v=C_sVzfGa9sc), and the help page for every guide. Something not working? Find the step you're on, then the message you see. The videos explain how it all works.
 
 ## More questions to try
 
